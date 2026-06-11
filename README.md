@@ -20,27 +20,66 @@ templates/vault/   # scaffold for a new vault (--init)
 
 ## Install
 
-**New vault** (`--init`):
+This repo is the **installer**, not the vault. You clone it once, then run `install.sh`
+pointing at the directory you want to be (or become) your vault — a **separate** folder.
+
+### Step 1 — get the installer
+
+```bash
+git clone https://github.com/persson86/harness-thinker.git
+cd harness-thinker
+```
+
+### Step 2 — install into a vault
+
+**A) Create a brand-new vault from scratch** (`--init`):
 
 ```bash
 ./install.sh --init ~/my-second-brain
 ```
 
-Scaffolds `wiki/` with the categories from `templates/vault/vault.config.json` (neutral starter, editable), plus `raw/`, `queue/`, a data `.gitignore` and README, generates the index, and installs the harness. Then make it a **private** git repo and start ingesting.
+Scaffolds `~/my-second-brain` with `wiki/` (categories from `templates/vault/vault.config.json`,
+a neutral editable starter), `raw/`, `queue/`, a data `.gitignore` and README, generates the
+index, and installs the harness. The target folder doesn't need to exist yet — it's created.
 
-**Existing vault** (adopt, default):
+**B) Point at a vault that already exists** (adopt — the default, no `--init`):
 
 ```bash
+./install.sh ~/my-existing-vault --update
+```
+
+Installs only the harness over your existing files; never touches `wiki/`, `raw/`, `queue/`,
+`vault.config.json` or `.claude/memory/`. If there's no `vault.config.json`, it derives one
+from your `wiki/` subfolders for you to review.
+
+### Step 3 — make the vault a private repo
+
+The vault is **your data** — keep it private and separate from this installer:
+
+```bash
+cd ~/my-second-brain
+git init && git add -A && git commit -m "init vault"   # then push to a PRIVATE remote
+```
+
+Open the vault folder in Claude Code (or Codex) and start with `/ingest`, `/inbox`, `/query`.
+
+### Updating later
+
+Re-run from the installer clone whenever the harness changes (or pull this repo first):
+
+```bash
+cd harness-thinker && git pull
 ./install.sh ~/my-second-brain --update
 ```
 
-Installs only the harness; never touches `wiki/`, `raw/`, `queue/`, `vault.config.json` or `.claude/memory/`. Derives a `vault.config.json` from your `wiki/` folders if absent.
-
-**Remote** (no clone):
+### Without cloning (one-liner)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/persson86/harness-thinker/main/install.sh \
   | bash -s -- --init ~/my-second-brain
+# adopt an existing vault:
+curl -fsSL https://raw.githubusercontent.com/persson86/harness-thinker/main/install.sh \
+  | bash -s -- ~/my-existing-vault --update
 ```
 
 ## Per-vault config
