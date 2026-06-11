@@ -1,70 +1,56 @@
 # harness-thinker
 
-Um **harness para um "second brain" no padrão LLM Wiki** ([Andrej Karpathy](https://karpathy.bearblog.dev/)): um LLM compila e mantém uma base de conhecimento persistente em markdown, em vez de fazer RAG episódico. Este repo é a **maquinaria** genérica — contrato, operações, hooks de enforcement, gerador de índice e instalador. O **conteúdo e a configuração** (suas categorias, sua identidade, seu conhecimento) vivem no seu próprio repo de dados, privado.
+A harness for a **second brain in the LLM Wiki pattern** ([Andrej Karpathy](https://karpathy.bearblog.dev/)): an agent compiles and maintains a persistent markdown knowledge base instead of doing episodic RAG. This repo is the reusable **machinery** — contract, operations, enforcement hooks, index generator, installer. Your **content and config** (categories, identity, knowledge) live in your own private data repo.
 
-Você instala o harness num diretório, ele vira seu vault, e um agente (Claude Code ou Codex) passa a mantê-lo sob um contrato: `raw/` imutável, `wiki/` como território autoral, frontmatter com `summary:`, wikilinks reais, índice gerado e log append-only.
+Install it into a directory and it becomes your vault, maintained by an agent (Claude Code or Codex) under a contract: `raw/` immutable, `wiki/` as authored territory, frontmatter with `summary:`, real wikilinks, generated index, append-only log.
 
-## O que tem aqui
+## Layout
 
 ```
-harness-thinker/
-├── install.sh            # materializa o payload num vault (modos: adotar / --init)
-├── VERSION               # versão do harness
-├── payload/              # ← o que é instalado (1:1 no target)
-│   ├── CLAUDE.md         #   adaptador Claude Code
-│   ├── AGENTS.md         #   adaptador Codex
-│   ├── harness/          #   contract.md + operations/ + adapters/ + scripts/verify.sh
-│   └── .claude/          #   commands/ hooks/ scripts/build-index.py settings.json
-├── templates/vault/      # scaffold de um vault novo (--init): config, .gitignore, README, stubs
-└── docs/
-    └── split-design.md   # design da separação harness × dados
+install.sh         # installs the payload into a vault (modes: adopt / --init)
+payload/           # what gets installed 1:1 into the target
+  CLAUDE.md        #   Claude Code adapter
+  AGENTS.md        #   Codex adapter
+  harness/         #   contract + operations/ + adapters/ + scripts/verify.sh
+  .claude/         #   commands/ hooks/ scripts/build-index.py settings.json
+templates/vault/   # scaffold for a new vault (--init)
 ```
 
-**`payload/` e `templates/` são o que se edita.** `install.sh`, `VERSION` e `docs/` são a maquinaria do repo-fonte.
+`payload/` and `templates/` are what you edit.
 
-## Instalação
+## Install
 
-Dois modos.
-
-**Criar um vault novo do zero** (`--init`):
+**New vault** (`--init`):
 
 ```bash
-./install.sh --init ~/meu-second-brain
+./install.sh --init ~/my-second-brain
 ```
 
-Scaffolda `wiki/` com as categorias do `templates/vault/vault.config.json` (starter neutro, editável), `raw/`, `queue/`, um `.gitignore` de dados e um README, gera o índice inicial e instala o harness por cima. Depois é só virar um repo git **privado** e começar a ingerir.
+Scaffolds `wiki/` with the categories from `templates/vault/vault.config.json` (neutral starter, editable), plus `raw/`, `queue/`, a data `.gitignore` and README, generates the index, and installs the harness. Then make it a **private** git repo and start ingesting.
 
-**Adotar um vault que já existe** (default):
+**Existing vault** (adopt, default):
 
 ```bash
-./install.sh ~/meu-second-brain --update
+./install.sh ~/my-second-brain --update
 ```
 
-Instala só o harness sobre o vault existente, sem tocar em `wiki/`, `raw/`, `queue/`, `vault.config.json` nem `.claude/memory/`. Se não houver `vault.config.json`, deriva um a partir das pastas de `wiki/` para você revisar.
+Installs only the harness; never touches `wiki/`, `raw/`, `queue/`, `vault.config.json` or `.claude/memory/`. Derives a `vault.config.json` from your `wiki/` folders if absent.
 
-**Remoto** (sem clonar — requer o repo público):
+**Remote** (no clone):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/persson86/harness-thinker/main/install.sh \
-  | bash -s -- --init ~/meu-second-brain
+  | bash -s -- --init ~/my-second-brain
 ```
 
-O installer marca hooks e `verify.sh` como executáveis e grava `harness/.version` + `harness/.manifest` no target.
+## Per-vault config
 
-## Configuração por-vault
+Categories are data, not code: they live in `vault.config.json` (`categories`, `subsharded`, `fast_spheres`, `inbox_dir`). `build-index.py` reads that file, so `--update` never overwrites your categories.
 
-As **categorias** do vault são dados, não código: vivem em `vault.config.json` no root do vault (`categories`, `subsharded`, `fast_spheres`, `inbox_dir`). O `build-index.py` lê esse arquivo — adicionar/renomear esfera é editar o config, nunca o script. Por isso `install.sh --update` num vault existente **não sobrescreve** suas categorias.
+## Drift control
 
-## Portabilidade
+Edit the harness **only here**. In the vault the installed files are disposable and regenerated via `install.sh --update`. `verify.sh` compares installed files against `harness/.manifest` (sha256) and flags drift as a warning (it runs in the LINT health-check). Hooks, `settings.json` and `build-index.py` resolve the vault root via `$CLAUDE_PROJECT_DIR`, so the harness works at any path.
 
-Hooks, `settings.json` e `build-index.py` resolvem a raiz do vault por `$CLAUDE_PROJECT_DIR` (com fallback script-relative) — o harness funciona em qualquer vault, em qualquer caminho.
+## Operations
 
-## Controle de drift
-
-Regra única: **edita-se o harness só aqui.** No vault os arquivos instalados são descartáveis e regeneráveis via `install.sh --update`.
-
-`payload/harness/scripts/verify.sh` compara os arquivos instalados contra `harness/.manifest` (sha256). Drift — um arquivo editado in-place no vault em vez de na fonte — aparece como WARN no `verify.sh` (que o LINT roda no health-check). WARN, não FAIL: um hotfix legítimo não bloqueia o verify, só fica visível para reconciliar na fonte.
-
-## Operações
-
-Acionadas em linguagem natural ou via `/comando` no Claude Code (playbooks neutros em `payload/harness/operations/`): **INGEST**, **QUERY**, **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MEMORY** (Claude-only), **DREAM**.
+Triggered in natural language or via `/command` in Claude Code (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MEMORY** (Claude-only), **DREAM**.
