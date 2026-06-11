@@ -1,0 +1,19 @@
+raw/
+queue/
+!queue/README.md
+.DS_Store
+.obsidian/
+.claude/hooks/hook.log
+.claude/settings.local.json
+.claude/settings.local.json.bak
+
+# Harness instalado — fonte: github.com/persson86/harness-thinker
+# Arquivos descartáveis/regeneráveis via install.sh --update; editados na fonte, não aqui.
+# vault.config.json, .claude/memory/ e .claude/skills/ permanecem versionados (dados/config do vault).
+/CLAUDE.md
+/AGENTS.md
+/harness/
+/.claude/commands/
+/.claude/hooks/
+/.claude/scripts/
+/.claude/settings.json
