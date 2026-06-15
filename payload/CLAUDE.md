@@ -182,6 +182,7 @@ Acionado quando o usuário faz uma pergunta que deve ser respondida com base no 
    - Conflitos entre personas são apresentados sem resolução — o usuário decide
    - Formato por número de personas: 0 = direto; 1–2 = integrado na narrativa; 3+ = seção por persona + síntese de tensões
 5. Ao final, perguntar: "Vale salvar esta síntese como um insight?"
+6. **Builder flag (opcional):** se a síntese for diretamente acionável em um projeto ativo em Builder (ex: meeting-transcriber, sdd-lite), indicar ao final: "Potencial para Builder: [projeto específico] — [uma frase]." Só quando o link for concreto; omitir quando for abstrato.
 
 ### INBOX — captura de ideia bruta
 
@@ -211,7 +212,7 @@ Acionado por `/dream` (manual, `/loop` ou `/schedule` — ativação é decisão
 3. Escrever **digest único** em `wiki/ideias-pensamentos/inbox/digest-YYYY-MM-DD.md` com contradições, conexões propostas, refresh sugerido e candidatas a promoção
 4. Registrar no log: `## YYYY-MM-DD dream | digest`
 
-**Contrato:** o DREAM só propõe — nunca aplica cross-links, refresh ou promoções sem revisão do usuário.
+**Contrato:** o DREAM só propõe — nunca aplica cross-links, refresh ou promoções sem revisão do usuário. Quando o digest contiver insight diretamente acionável em um projeto ativo em Builder, indicar com "Potencial para Builder: [projeto] — [uma frase]."
 
 ---
 
