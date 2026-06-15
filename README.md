@@ -75,24 +75,16 @@ curl -fsSL https://raw.githubusercontent.com/persson86/harness-thinker/main/inst
 
 ## Update
 
-Pull new harness versions into an existing vault whenever this repo changes.
-
-**With a local clone** (recommended — faster, works offline):
+**From inside the vault** — the only command you need:
 
 ```bash
-cd harness-thinker
-git pull
-./install.sh ~/my-second-brain --update
+bash harness/scripts/update.sh
 ```
 
-**Without a local clone** (one-liner):
+Pulls the latest harness from GitHub and reinstalls it in place. Run from the vault root.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/persson86/harness-thinker/main/install.sh \
-  | bash -s -- ~/my-second-brain --update
-```
-
-`--update` overwrites harness-managed files (`CLAUDE.md`, `AGENTS.md`, `harness/`, `.claude/commands/`, `.claude/hooks/`, `.claude/scripts/`, `.claude/settings.json`) and never touches your content or config: `wiki/`, `raw/`, `queue/`, `vault.config.json`, `.claude/memory/`, `.claude/settings.local.json`.
+What gets overwritten: `CLAUDE.md`, `AGENTS.md`, `harness/`, `.claude/commands/`, `.claude/hooks/`, `.claude/scripts/`, `.claude/settings.json`.  
+What is never touched: `wiki/`, `raw/`, `queue/`, `vault.config.json`, `.claude/memory/`, `.claude/settings.local.json`.
 
 ## Per-vault config
 
