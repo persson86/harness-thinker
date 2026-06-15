@@ -63,15 +63,6 @@ git init && git add -A && git commit -m "init vault"   # then push to a PRIVATE 
 
 Open the vault folder in Claude Code (or Codex) and start with `/ingest`, `/inbox`, `/query`.
 
-### Updating later
-
-Re-run from the installer clone whenever the harness changes (or pull this repo first):
-
-```bash
-cd harness-thinker && git pull
-./install.sh ~/my-second-brain --update
-```
-
 ### Without cloning (one-liner)
 
 ```bash
@@ -81,6 +72,27 @@ curl -fsSL https://raw.githubusercontent.com/persson86/harness-thinker/main/inst
 curl -fsSL https://raw.githubusercontent.com/persson86/harness-thinker/main/install.sh \
   | bash -s -- ~/my-existing-vault --update
 ```
+
+## Update
+
+Pull new harness versions into an existing vault whenever this repo changes.
+
+**With a local clone** (recommended — faster, works offline):
+
+```bash
+cd harness-thinker
+git pull
+./install.sh ~/my-second-brain --update
+```
+
+**Without a local clone** (one-liner):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/persson86/harness-thinker/main/install.sh \
+  | bash -s -- ~/my-second-brain --update
+```
+
+`--update` overwrites harness-managed files (`CLAUDE.md`, `AGENTS.md`, `harness/`, `.claude/commands/`, `.claude/hooks/`, `.claude/scripts/`, `.claude/settings.json`) and never touches your content or config: `wiki/`, `raw/`, `queue/`, `vault.config.json`, `.claude/memory/`, `.claude/settings.local.json`.
 
 ## Per-vault config
 
