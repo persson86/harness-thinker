@@ -2,26 +2,18 @@
 
 Convenção pessoal que liga este vault ao workspace de desenvolvimento (harness-builder).
 **Fora do payload** — o payload publicado é genérico e não menciona Builder. Versionada
-aqui, fora do README. A ativação no vault é manual (ver abaixo): o payload instalado não
-carrega esta convenção.
+aqui, fora do README.
 
-## Direção secundária (silenciosa): Thinker → Builder
+## Direção primária (ativa): Builder → Thinker, via queue
 
-Em QUERY e DREAM, quando a síntese/digest for diretamente acionável em um projeto ativo
-em Builder, indicar ao final: "Potencial para Builder: [projeto] — [uma frase]." Só
-quando o link for concreto; omitir quando for abstrato.
+O Builder escreve insights direto no `queue/` do vault (tem permissão de escrita só
+nessa pasta — deny rules no `~/Builder/.claude/settings.json`). Você processa depois
+com `/feed` numa sessão Thinker: notas `[ts]-nota-<slug>.md` → INBOX (ou INGEST se
+merecerem página). Detalhe do lado do Builder em `harness-builder/personal/bridge.md`.
 
-- QUERY: após "Vale salvar esta síntese como um insight?"
-- DREAM: junto ao contrato (o DREAM só propõe; este flag também é só sugestão).
+## Direção secundária (parada): Thinker → Builder
 
-## Direção primária: Builder → Thinker
-
-Definida do lado do Builder — ver `harness-builder/personal/bridge.md`.
-
-## Ativação no vault
-
-O payload instalado não carrega esta convenção. Para ativá-la no vault
-(`~/Thinker/second-brain`), numa sessão Thinker registrar via `/memory` uma nota de
-comportamento equivalente ao bloco "Direção secundária" acima. O installer nunca
-sobrescreve `.claude/memory/` nem `vault.config.json`, então a ativação sobrevive a
-`install.sh --update`.
+Não ativada — decisão de focar numa direção. Se um dia quiser ativar: é um nudge de
+comportamento (em QUERY/DREAM, sinalizar "Potencial para Builder: [projeto] — [frase]"
+quando a síntese for concretamente acionável num projeto Builder). Por ser comportamento
+do agente, o lar é `/memory` numa sessão Thinker — não o queue.
