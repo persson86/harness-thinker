@@ -18,6 +18,7 @@ Rodada periodica em que o agente olha o vault sem ser perguntado: roda os juizes
    - **Conexoes propostas** — cada proposta: par `[[a]] ↔ [[b]]` + 1 frase de justificativa; so wikilinks existentes
    - **Refresh sugerido** — paginas stale que valem atualizar (e por que agora)
    - **Candidatas a promocao** — inbox com summary pronto; recomendar promover, fundir ou descartar
+   - **Candidatas a aplicacao (`applied`)** — varrer transcripts/sources dos ultimos ~30 dias por sinais de que uma pagina alimentou uma decisao/entregavel real; propor linhas `## YYYY-MM-DD applied | [[origem]] -> ...` com a evidencia citada (so propor; o usuario ratifica)
 5. **Registrar no log**: `## YYYY-MM-DD dream | digest`. Se ja existe digest do dia, atualizar o existente em vez de criar outro.
 
 ## Travas

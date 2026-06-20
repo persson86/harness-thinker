@@ -213,6 +213,18 @@ Acionado por `/dream` (manual, `/loop` ou `/schedule` — ativação é decisão
 
 **Contrato:** o DREAM só propõe — nunca aplica cross-links, refresh ou promoções sem revisão do usuário.
 
+### APLICAÇÃO — registro de proveniência de valor (`applied`)
+
+Quando uma página do vault comprovadamente alimenta uma decisão ou entregável real (um deck, um bet, um reposicionamento, um argumento numa reunião), registre a proveniência no log — é o que torna o valor do vault **auditável** em vez de subjetivo. Formato (append no topo do `log.md`, como qualquer operação):
+
+```
+## YYYY-MM-DD applied | [[origem]] → entregável/decisão real (verbatim)
+```
+
+- O 1º `[[wikilink]]` é a página-origem; o texto após `→` é o que ela mudou no mundo real.
+- **Captura assistida, nunca inventada.** O registro só nasce de evidência citável (uma transcrição onde o usuário usou o conceito, um slide que mapeia a um insight). Sem evidência, não registrar — um `applied` falso corromperia o próprio instrumento que existe para detectar autoengano. O TRANSCRIPT **propõe** `applied` quando a reunião evidencia aplicação; o DREAM varre os últimos ~30 dias e **propõe** candidatas. O usuário ratifica.
+- Consumido pelo instrumento de valor `vault-pulse` (painel de Alavancagem, janela de 30 dias).
+
 ---
 
 ## Índice — como manter (GERADO, não editar à mão)
@@ -233,4 +245,4 @@ O `wiki/log.md` é append-only — nunca editar entradas antigas, apenas adicion
 [detalhes da operação]
 ```
 
-Operações: `init`, `ingest`, `inbox`, `query`, `lint`, `update`, `dream`
+Operações: `init`, `ingest`, `inbox`, `query`, `lint`, `update`, `dream`, `applied`

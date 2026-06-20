@@ -38,6 +38,12 @@ Esta operação é distinta do `/ingest` (que analisa fontes externas e credibil
    - Perfil refrescado: [padrões tocados]
    ```
 
+   **Proveniência de valor (`applied`) — captura assistida.** Se a transcrição evidenciar que uma página do vault alimentou uma decisão ou entregável real (um slide, um argumento numa reunião, um bet), **proponha** uma linha `applied` com a evidência citada e, na confirmação do usuário, registre-a no topo do `log.md`:
+   ```
+   ## YYYY-MM-DD applied | [[origem]] → o que mudou no mundo real (verbatim)
+   ```
+   Origem = a página aplicada; texto após `→` = a decisão/entregável real. **Só com evidência citável** — sem trecho que comprove o uso, não registrar (um `applied` inventado corrompe o instrumento de valor que o consome, o `vault-pulse`).
+
 7. **Se veio de arquivo:** mover o bruto para `queue/processed/[YYYY-MM-DD]/`. **Não deletar.** Reportar a nota gerada e pedir que o usuário **revise antes de deletar** — a nota da wiki passa a ser a única fonte de verdade.
 
 ## Done when
@@ -47,6 +53,7 @@ Esta operação é distinta do `/ingest` (que analisa fontes externas e credibil
 - [ ] Página de projeto criada/atualizada
 - [ ] `perfil-profissional` refrescado (forças e/ou tensões, com ✕N)
 - [ ] `build-index.py generate` rodado; `log.md` atualizado
+- [ ] Aplicação (`applied`) proposta se a reunião evidenciou uso real de página do vault (só com evidência citável)
 - [ ] Arquivo movido para `queue/processed/[data]/` (se veio da queue) e usuário avisado para revisar/deletar
 
 ## Erros comuns
@@ -57,6 +64,7 @@ Esta operação é distinta do `/ingest` (que analisa fontes externas e credibil
 - **Criar projeto duplicado** → se o engajamento já existe, atualizar a página, não criar outra
 - **Wikilink inexistente** → não criar o link; anotar o gap ao reportar
 - **Discrição** → conteúdo sensível (ex.: zona regulatória) entra com nota de discrição no topo da página
+- **`applied` inventado** → registrar proveniência sem evidência citável corrompe o instrumento de valor; sem trecho que comprove o uso real, não registrar
 
 ## Rebuild periódico do perfil (modo lote — a cada ~10 reuniões ou sob demanda)
 

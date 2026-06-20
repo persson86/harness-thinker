@@ -36,6 +36,9 @@ Esta operacao captura conhecimento de projeto e destila padroes do perfil profis
 - Perfil refrescado: [...]
 ```
 
+   Se a reuniao evidenciar que uma pagina do vault alimentou uma decisao/entregavel real, **propor** (e, com confirmacao do usuario, registrar tambem no topo do log) uma linha de proveniencia — captura assistida, so com evidencia citavel:
+   `## YYYY-MM-DD applied | [[origem]] -> o que mudou no mundo real`
+
 11. Se veio de arquivo, mover para `queue/processed/[YYYY-MM-DD]/` e pedir revisao antes de deletar.
 
 ## Rebuild periodico

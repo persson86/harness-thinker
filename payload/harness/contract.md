@@ -96,7 +96,15 @@ Formato:
 - Paginas atualizadas: [...]
 ```
 
-Operacoes comuns: `ingest`, `inbox`, `query`, `lint`, `update`, `feed`, `transcript`, `transcript-rebuild`, `dream`.
+Operacoes comuns: `ingest`, `inbox`, `query`, `lint`, `update`, `feed`, `transcript`, `transcript-rebuild`, `dream`, `applied`.
+
+Registro de proveniencia de valor (`applied`) — quando uma pagina alimenta uma decisao/entregavel real, a partir de evidencia citavel (captura assistida, nunca inventado):
+
+```markdown
+## YYYY-MM-DD applied | [[origem]] -> entregavel/decisao real
+```
+
+O 1o `[[wikilink]]` e a pagina-origem; o texto apos `->` e o que ela mudou no mundo real. Consumido por instrumentos de valor externos ao harness (ex.: vault-pulse).
 
 ## Gates de encerramento
 

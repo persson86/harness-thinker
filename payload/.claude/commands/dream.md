@@ -7,7 +7,7 @@ Siga o playbook `harness/operations/dream.md`. Contrato inegociável: **só prop
 1. **Juízes determinísticos**: `build-index.py check`, `graph`, `thresholds`, `stale` + `git status --porcelain` (durabilidade).
 2. **2–3 clusters candidatos**: órfãs não-inbox, entidades stale relevantes, páginas novas pouco conectadas, inbox com `summary:` aguardando promoção.
 3. **Ler as páginas** dos clusters (máx ~8) procurando contradições, conexões não registradas e refresh necessário.
-4. **Digest** com seções: Saúde / Contradições / Conexões propostas / Refresh sugerido / Candidatas a promoção. Cada proposta com 1 frase de justificativa; só `[[wikilinks]]` existentes; sem inflar — se não há nada digno, dizer em uma linha.
+4. **Digest** com seções: Saúde / Contradições / Conexões propostas / Refresh sugerido / Candidatas a promoção / **Candidatas a aplicação (`applied`)** (varrer transcripts/sources dos últimos ~30 dias por proveniência de valor; propor `## YYYY-MM-DD applied | [[origem]] → ...` com evidência citada). Cada proposta com 1 frase de justificativa; só `[[wikilinks]]` existentes; sem inflar — se não há nada digno, dizer em uma linha.
 5. **Log**: `## YYYY-MM-DD dream | digest`. Digest do dia já existe → atualizar, não duplicar.
 
 ## Done when
