@@ -39,17 +39,31 @@ executable() {
   [[ -x "$path" ]]
 }
 
+configured_inbox_dir() {
+  python3 - <<'PY'
+import json
+try:
+    with open("vault.config.json", encoding="utf-8") as fh:
+        print(json.load(fh).get("inbox_dir", ""))
+except Exception:
+    print("")
+PY
+}
+
 no_missing_summary() {
-  local missing
+  local missing inbox
+  inbox="$(configured_inbox_dir)"
   missing="$(
     find wiki -type f -name '*.md' \
       ! -name 'index.md' \
       ! -name '_index.md' \
       ! -name '_index-*.md' \
       ! -name 'log.md' \
-      ! -path 'wiki/ideias-pensamentos/inbox/*' \
       -print0 |
     while IFS= read -r -d '' file; do
+      if [[ -n "$inbox" && "$file" == "wiki/$inbox/"* ]]; then
+        continue
+      fi
       if ! grep -q '^summary:' "$file"; then
         printf '%s\n' "$file"
       fi

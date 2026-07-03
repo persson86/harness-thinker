@@ -12,6 +12,16 @@ WIKI="$VAULT_ROOT/wiki"
 SCRIPT="$VAULT_ROOT/.claude/scripts/build-index.py"
 LOG="$VAULT_ROOT/.claude/hooks/hook.log"
 TS=$(date '+%Y-%m-%d %H:%M:%S')
+INBOX_DIR="$(
+  cd "$VAULT_ROOT" && python3 - <<'PY'
+import json
+try:
+    with open("vault.config.json", encoding="utf-8") as fh:
+        print(json.load(fh).get("inbox_dir", ""))
+except Exception:
+    print("")
+PY
+)"
 
 HAS_NEW=false; [[ -f "$STATE_DIR/page-written" ]] && HAS_NEW=true
 HAS_EDIT=false; [[ -f "$STATE_DIR/index-dirty" ]] && HAS_EDIT=true
@@ -51,7 +61,7 @@ if $HAS_NEW && [[ -f "$STATE_DIR/pages" ]]; then
   MISSING=()
   while IFS= read -r rel; do
     [[ -z "$rel" ]] && continue
-    [[ "$rel" == ideias-pensamentos/inbox/* ]] && continue   # inbox = área não-indexada
+    [[ -n "$INBOX_DIR" && "$rel" == "$INBOX_DIR/"* ]] && continue   # inbox = área não-indexada
     grep -qE '^summary:' "$WIKI/$rel" 2>/dev/null || MISSING+=("$rel")
   done < "$STATE_DIR/pages"
   if [[ ${#MISSING[@]} -gt 0 ]]; then

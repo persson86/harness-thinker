@@ -1,17 +1,17 @@
 # Operacao: feed
 
-Use para rotear itens pendentes de `queue/`.
+Use para rotear itens pendentes de `queue/` ou uma nova entrada solta.
 
 ## Passo 0 — Verificar queue
 
-Antes de classificar uma nova entrada, verificar arquivos pendentes em `queue/`, excluindo `queue/processed/` e `queue/README.md`.
+Antes de classificar nova entrada, verificar arquivos pendentes em `queue/`, excluindo `queue/processed/` e `queue/README.md`.
 
 Padroes esperados:
 
 - `[ts]-audio-[slug].txt`: INBOX com transcricao de audio.
 - `[ts]-url-[slug].md`: classificar como INGEST, INBOX ou ANALISE.
 - `[ts]-nota-[slug].md`: INBOX.
-- `[ts]-meeting-[slug].md`: TRANSCRIPT (transcricao de reuniao; companion `.jsonl` de mesmo basename, mover junto para `processed/`).
+- `[ts]-meeting-[slug].md`: TRANSCRIPT; companion `.jsonl` de mesmo basename deve mover junto.
 
 Depois de processar arquivo da fila, mover para `queue/processed/[YYYY-MM-DD]/`. Nao deletar brutos sem confirmacao.
 
@@ -29,15 +29,19 @@ Use INBOX se qualquer for verdadeiro:
 - ideia embrionaria;
 - qualidade mista sem separacao limpa.
 
-Use ANALISE + CONFIRMACAO se houver:
+Use TRANSCRIPT quando for transcricao de reuniao real do usuario.
 
-- vies comercial forte;
-- cruzamento ambiguo de categorias;
-- duvida real sobre duplicidade no vault.
+Use ANALISE + CONFIRMACAO se houver vies comercial forte, cruzamento ambiguo de categorias ou duvida real sobre duplicidade no vault.
+
+## Execucao
+
+1. Abra com decisao tomada + razao.
+2. Execute a operacao derivada pelo playbook correspondente.
+3. Se veio da queue, mova o arquivo e companions para `queue/processed/[data]/`.
 
 ## Done when
 
 - Queue foi verificada.
-- Itens pendentes foram processados ou reportados.
-- Arquivos processados foram movidos para `queue/processed/[data]/`.
+- Fonte classificada como INGEST, INBOX, TRANSCRIPT ou ANALISE.
 - Operacao derivada cumpriu seu proprio done when.
+- Arquivo processado foi preservado em `queue/processed/[data]/`.

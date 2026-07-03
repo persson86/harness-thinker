@@ -96,4 +96,4 @@ Edit the harness **only here**. In the vault the installed files are disposable 
 
 ## Operations
 
-Triggered in natural language or via `/command` in Claude Code (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MEMORY** (Claude-only), **DREAM**.
+Triggered in natural language or via `/command` in Claude Code (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MEMORY** (Claude-only), **DREAM**, **REVERIE**.

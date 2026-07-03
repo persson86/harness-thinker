@@ -2,9 +2,9 @@
 """build-index.py — índice gerado do second-brain a partir do frontmatter.
 
 Fonte da verdade = campo `summary:` no frontmatter de cada página. O inbox cru
-(`ideias-pensamentos/inbox/`) nunca é indexado — exclusão por LOCALIZAÇÃO,
-independente de ter `summary:`; só vira página indexável ao ser promovido para
-fora do inbox. `search`/`graph` continuam enxergando o inbox.
+(caminho configurado em `vault.config.json`) nunca é indexado — exclusão por
+LOCALIZAÇÃO, independente de ter `summary:`; só vira página indexável ao ser
+promovido para fora do inbox. `search`/`graph` continuam enxergando o inbox.
 Estrutura two-tier: root fino (wiki/index.md) + um shard por categoria
 (wiki/[cat]/_index.md). Carregamento hierárquico: lê-se o root sempre e só
 o(s) shard(s) da(s) categoria(s) relevante(s). Categorias em SUBSHARDED
@@ -55,11 +55,11 @@ EXCLUDE = {"index.md", "log.md", "_index.md"}
 # neutro se ausente (vault recém-criado sem config ainda).
 _DEFAULT_CONFIG = {
     "categories": [
-        ["ideias-pensamentos", "Ideias & Pensamentos", "Inbox de ideias + insights gerados pelo vault."],
+        ["ideas", "Ideas", "Raw inbox plus generated insights."],
     ],
     "subsharded": [],
     "fast_spheres": [],
-    "inbox_dir": "ideias-pensamentos/inbox",
+    "inbox_dir": "ideas/inbox",
 }
 
 

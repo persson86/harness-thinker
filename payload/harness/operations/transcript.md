@@ -1,30 +1,31 @@
 # Operacao: transcript
 
-Use para ingestao de transcricao de reuniao em `vida-profissional`.
+Use para ingerir transcricao de reuniao real do usuario quando o vault tiver uma esfera adequada para contexto profissional, projetos ou trabalho.
 
-Esta operacao captura conhecimento de projeto e destila padroes do perfil profissional do usuario.
+Objetivo duplo: capturar conhecimento de projeto/cliente e destilar padroes de metodo, tom, linguagem, jogadas e pontos cegos do usuario.
 
 ## Entrada
 
-- Arquivo em `queue/transcricoes/` ou caminho fornecido.
+- Arquivo em `queue/` ou caminho fornecido.
 - Texto de transcricao colado na conversa.
 
 ## Passos
 
 1. Ler a transcricao inteira antes de sintetizar.
-2. Identificar o engajamento e mapear para pagina existente em `wiki/vida-profissional/`.
-3. Se for novo engajamento, criar pagina `entity`.
-4. Criar nota `source` em `wiki/vida-profissional/sources/[YYYY-MM-DD]-[projeto]-[topico].md`.
+2. Ler `vault.config.json`; escolher a categoria cujo escopo cobre trabalho/reunioes/projetos. Se nao existir, pedir confirmacao antes de criar qualquer pagina.
+3. Identificar o engajamento e mapear para pagina existente; se for novo, criar `entity`.
+4. Criar nota `source` em `wiki/[categoria]/sources/[YYYY-MM-DD]-[projeto]-[topico].md`.
 5. Incluir secoes:
    - **O que rolou**
    - **Decisoes**
    - **Jogadas de metodo observadas**
    - **Conexoes**
 6. Atualizar pagina de projeto com deltas relevantes.
-7. Refrescar `[[perfil-profissional]]` com toque leve:
+7. Refrescar pagina de perfil profissional se ela existir no vault:
    - reconfirmar padroes existentes;
    - adicionar padrao novo nitido;
-   - alimentar tensoes/pontos cegos, nao apenas forcas.
+   - alimentar tensoes/pontos cegos, nao apenas forcas;
+   - se em duvida, anotar para rebuild em vez de forcar deduplicacao.
 8. Garantir frontmatter e `summary:`.
 9. Rodar `python3 .claude/scripts/build-index.py generate`.
 10. Registrar em `wiki/log.md`:
@@ -36,11 +37,18 @@ Esta operacao captura conhecimento de projeto e destila padroes do perfil profis
 - Perfil refrescado: [...]
 ```
 
-   Se a reuniao evidenciar que uma pagina do vault alimentou uma decisao/entregavel real, **propor** (e, com confirmacao do usuario, registrar tambem no topo do log) uma linha de proveniencia — captura assistida, so com evidencia citavel:
-   `## YYYY-MM-DD applied | [[origem]] -> o que mudou no mundo real`
+11. Se a reuniao evidenciar que uma pagina do vault alimentou decisao/entregavel real, propor uma linha `applied` com evidencia citada. Registrar apenas com confirmacao do usuario.
+12. Se veio de arquivo, mover para `queue/processed/[YYYY-MM-DD]/` e pedir revisao antes de deletar.
 
-11. Se veio de arquivo, mover para `queue/processed/[YYYY-MM-DD]/` e pedir revisao antes de deletar.
+## Rebuild Periodico
 
-## Rebuild periodico
+Quando solicitado ou apos lote suficiente de reunioes, recomputar o perfil a partir de todas as notas `source` da categoria apropriada. A sintese do perfil fica no agente-pai; sumarizacao de blocos pode ser paralelizada se a plataforma permitir.
 
-Quando solicitado ou apos cerca de 10 reunioes novas, recomputar `perfil-profissional` a partir de todas as notas `source` de `vida-profissional`, preservando tensoes e pontos cegos com o mesmo rigor das forcas.
+## Erros Comuns
+
+- Resumir a partir de leitura parcial.
+- Fazer so relato factual e perder metodo/pontos cegos.
+- Atualizar perfil so com qualidades.
+- Deletar bruto sem revisao.
+- Criar projeto duplicado.
+- Inventar `applied` sem evidencia citavel.

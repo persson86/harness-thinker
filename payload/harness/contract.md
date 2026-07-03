@@ -1,10 +1,10 @@
 # Harness Agnostico do Second-Brain
 
-Este contrato descreve o comportamento comum do second-brain independentemente de plataforma ou modelo. Adaptadores como Claude Code e Codex traduzem este contrato para suas ferramentas locais.
+Contrato comum do second-brain independentemente de plataforma ou modelo. Adaptadores como Claude Code e Codex traduzem este contrato para suas ferramentas locais.
 
 ## Papel
 
-O agente e o mantenedor da wiki pessoal. O usuario le a wiki; o agente escreve, organiza e mantem o conhecimento duravel em Markdown.
+O agente e o mantenedor da wiki pessoal. O usuario le a wiki; o agente escreve, organiza e mantem conhecimento duravel em Markdown.
 
 ## Invariantes
 
@@ -13,13 +13,15 @@ O agente e o mantenedor da wiki pessoal. O usuario le a wiki; o agente escreve, 
 - Nunca deletar paginas existentes sem confirmacao explicita do usuario.
 - Nunca criar `[[wikilinks]]` para paginas inexistentes.
 - Quando a categoria for ambigua, perguntar antes de criar pagina.
-- Preservar linguagem em portugues, mantendo termos tecnicos em ingles quando a traducao reduzir precisao.
-- Toda pagina deve terminar com uma secao **Conexoes** quando houver relacoes relevantes.
-- Paginas derivadas de fonte em `raw/` devem incluir secao **Fonte**.
+- Preservar portugues, mantendo termos tecnicos em ingles quando a traducao reduzir precisao.
+- Paginas com relacoes relevantes terminam com **Conexoes**.
+- Paginas derivadas de fonte em `raw/` incluem **Fonte**.
 
-## Categorias
+## Configuracao do Vault
 
-As categorias sao **configuracao do vault**, nao do harness: vivem em `vault.config.json` (`categories` como lista `[slug, display, escopo]`, mais `subsharded`, `fast_spheres`, `inbox_dir`). Leia o config no inicio de sessao. Se uma fonte tocar multiplas categorias: pagina na principal, cross-links nas secundarias somente quando as paginas existirem.
+Categorias sao configuracao do vault, nao do harness: vivem em `vault.config.json` (`categories` como lista `[slug, display, escopo]`, mais `subsharded`, `fast_spheres`, `inbox_dir`). Leia o config no inicio de sessao.
+
+Se uma fonte tocar multiplas categorias: pagina na principal, cross-links nas secundarias somente quando as paginas existirem.
 
 ## Frontmatter
 
@@ -38,15 +40,15 @@ updated: YYYY-MM-DD
 ---
 ```
 
-`summary:` e obrigatorio para paginas indexaveis. Ele e a fonte do indice gerado. Paginas em `ideias-pensamentos/inbox/` nunca sao indexadas — exclusao por localizacao, independente de terem `summary:`; so entram no indice ao serem promovidas para fora do inbox.
+`summary:` e obrigatorio para paginas indexaveis e e a fonte do indice gerado. Paginas no `inbox_dir` configurado nunca sao indexadas por localizacao, mesmo com `summary:`; so entram no indice ao serem promovidas para fora do inbox.
 
-## Tipos e localizacao
+## Tipos e Localizacao
 
 - `source`: `wiki/[categoria]/sources/[slug].md`
 - `entity`: `wiki/[categoria]/[slug].md`
 - `concept`: `wiki/[categoria]/[slug].md`
-- `insight`: `wiki/ideias-pensamentos/[slug].md`
-- `inbox`: `wiki/ideias-pensamentos/inbox/[slug].md`
+- `insight`: categoria cujo escopo em `vault.config.json` cobre sinteses geradas pelo vault
+- `inbox`: caminho configurado em `vault.config.json` como `inbox_dir`
 
 Slugs devem ser descritivos e em `kebab-case`.
 
@@ -56,26 +58,14 @@ O indice e gerado, nao editado a mao.
 
 - Root: `wiki/index.md`
 - Shards: `wiki/[categoria]/_index.md`
-- Sub-shards por tipo em esferas grandes: `wiki/[categoria]/_index-[type].md` (o `_index.md` vira shard fino com ponteiros; categorias no conjunto `SUBSHARDED` do script)
-- Implementacao atual: `.claude/scripts/build-index.py`
+- Sub-shards por tipo em esferas grandes: `wiki/[categoria]/_index-[type].md`
+- Implementacao: `.claude/scripts/build-index.py`
 
-Para refletir paginas novas, removidas ou alteracoes de `summary:`, rode:
-
-```bash
-python3 .claude/scripts/build-index.py generate
-```
-
-Para validar sincronia:
-
-```bash
-python3 .claude/scripts/build-index.py check
-```
+Para refletir paginas novas, removidas ou alteracoes de `summary:`, rode `python3 .claude/scripts/build-index.py generate`. Para validar sincronia, rode `python3 .claude/scripts/build-index.py check`.
 
 ## Log
 
 `wiki/log.md` e append-only. Adicione entradas novas no topo, sem editar historico antigo.
-
-Formato:
 
 ```markdown
 ## YYYY-MM-DD operacao | titulo
@@ -85,17 +75,15 @@ Formato:
 
 Operacoes comuns: `ingest`, `inbox`, `query`, `lint`, `update`, `feed`, `transcript`, `transcript-rebuild`, `dream`, `reverie`, `applied`.
 
-Registro de proveniencia de valor (`applied`) — quando uma pagina alimenta uma decisao/entregavel real, a partir de evidencia citavel (captura assistida, nunca inventado):
+`applied` registra proveniencia de valor quando uma pagina alimenta uma decisao ou entregavel real, a partir de evidencia citavel:
 
 ```markdown
 ## YYYY-MM-DD applied | [[origem]] -> entregavel/decisao real
 ```
 
-O 1o `[[wikilink]]` e a pagina-origem; o texto apos `->` e o que ela mudou no mundo real. Consumido por instrumentos de valor externos ao harness (ex.: vault-pulse).
+## Gates de Encerramento
 
-## Gates de encerramento
-
-Antes de concluir uma operacao que muda conhecimento duravel:
+Antes de concluir operacao que muda conhecimento duravel:
 
 - `raw/` segue intocado.
 - Paginas criadas tem frontmatter completo.
@@ -105,21 +93,8 @@ Antes de concluir uma operacao que muda conhecimento duravel:
 - `build-index.py check` esta em sync.
 - Wikilinks novos apontam para paginas existentes.
 
-## Memoria
+## Capacidades Adapter-Specific
 
-Captura de memoria viva (operacao MEMORY) e **adapter-specific**, nao uma invariante do vault. O conhecimento duravel do vault vive em `wiki/`; memoria de comportamento/preferencia do agente e responsabilidade de cada plataforma e seu destino depende do adaptador. Ver `harness/adapters/*.md`.
+MEMORY e Claude-only: escrita na memoria viva em `~/.claude/projects/.../memory/`. Codex nao tem memoria persistente equivalente. Camadas opcionais de revisao deliberativa podem existir fora do payload, via skills/plugins user-level.
 
-## Capacidades Claude-only (sem equivalente Codex)
-
-Algumas capacidades existem apenas no adaptador Claude Code e nao fazem parte do contrato agnostico:
-
-- **MEMORY** — escrita na memoria viva em `~/.claude/projects/.../memory/`. Codex nao tem memoria persistente equivalente.
-
-Camadas opcionais de revisao deliberativa (peer-review cruzado entre modelos) podem ser plugadas via skills user-level do Claude Code, mas nao sao embarcadas pelo harness — dependem de agents e plugins fora do payload.
-
-Essas capacidades sao documentadas em `harness/adapters/claude.md` e nao devem ser listadas nos playbooks de `harness/operations/` como operacoes universais.
-
-## Adaptadores
-
-- Claude Code: ver `harness/adapters/claude.md`.
-- Codex: ver `harness/adapters/codex.md`.
+Adaptadores: `harness/adapters/claude.md` e `harness/adapters/codex.md`.
