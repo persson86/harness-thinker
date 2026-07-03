@@ -8,20 +8,9 @@ SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty' 2>/dev/null || true)
 
 STATE_DIR="/tmp/sb-session-${SESSION_ID}"
 VAULT_ROOT="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
-WIKI="$VAULT_ROOT/wiki"
 SCRIPT="$VAULT_ROOT/.claude/scripts/build-index.py"
 LOG="$VAULT_ROOT/.claude/hooks/hook.log"
 TS=$(date '+%Y-%m-%d %H:%M:%S')
-INBOX_DIR="$(
-  cd "$VAULT_ROOT" && python3 - <<'PY'
-import json
-try:
-    with open("vault.config.json", encoding="utf-8") as fh:
-        print(json.load(fh).get("inbox_dir", ""))
-except Exception:
-    print("")
-PY
-)"
 
 HAS_NEW=false; [[ -f "$STATE_DIR/page-written" ]] && HAS_NEW=true
 HAS_EDIT=false; [[ -f "$STATE_DIR/index-dirty" ]] && HAS_EDIT=true
@@ -37,11 +26,6 @@ if [[ -f "$STATE_DIR/pages" ]]; then
 else
   PAGES="?"
 fi
-QUALITY_PATHS="$STATE_DIR/pages-quality"
-{
-  [[ -f "$STATE_DIR/pages" ]] && cat "$STATE_DIR/pages"
-  [[ -f "$STATE_DIR/pages-edited" ]] && cat "$STATE_DIR/pages-edited"
-} | sort -u > "$QUALITY_PATHS"
 
 block() {
   echo "[$TS] BLOQUEIO sessão ${SESSION_ID:0:8} | $1" >> "$LOG"
@@ -56,36 +40,29 @@ if $HAS_NEW; then
     "Ingestão incompleta: páginas criadas ($PAGES) mas wiki/log.md não foi atualizado. Atualize o log antes de encerrar."
 fi
 
-# 2. Cada página nova (exceto inbox cru) tem 'summary:'? É a fonte do índice.
-if $HAS_NEW && [[ -f "$STATE_DIR/pages" ]]; then
-  MISSING=()
-  while IFS= read -r rel; do
-    [[ -z "$rel" ]] && continue
-    [[ -n "$INBOX_DIR" && "$rel" == "$INBOX_DIR/"* ]] && continue   # inbox = área não-indexada
-    grep -qE '^summary:' "$WIKI/$rel" 2>/dev/null || MISSING+=("$rel")
-  done < "$STATE_DIR/pages"
-  if [[ ${#MISSING[@]} -gt 0 ]]; then
-    block "sem summary: ${MISSING[*]}" \
-      "Páginas sem campo 'summary:' no frontmatter (fonte do índice): ${MISSING[*]}. Adicione o summary antes de encerrar."
-  fi
-fi
+# 2-4. Gate determinístico em UMA chamada python (uma varredura do vault):
+#    summary nas páginas novas + wikilinks quebrados em novas/editadas + índice em sync.
+GATE_RC=0
+GATE_OUT=$(cd "$VAULT_ROOT" && python3 "$SCRIPT" gate \
+  --new "$STATE_DIR/pages" --edited "$STATE_DIR/pages-edited" 2>&1) || GATE_RC=$?
 
-# 3. Juiz determinístico de qualidade: wikilinks quebrados em páginas novas ou editadas.
-#    (Análogo ao val_bpb — computacional, não pode ser manipulado por sycophancy.)
-if [[ -s "$QUALITY_PATHS" ]]; then
-  QUALITY_OUT=$(python3 "$SCRIPT" quality < "$QUALITY_PATHS" 2>&1 || true)
-  if echo "$QUALITY_OUT" | grep -q "LINKS QUEBRADOS"; then
-    BROKEN_DETAIL=$(echo "$QUALITY_OUT" | grep -E "^\s+-\s" | head -5 | tr '\n' ' ')
+if [[ "$GATE_RC" -ne 0 ]]; then
+  if echo "$GATE_OUT" | grep -q "SEM SUMMARY"; then
+    MISSING=$(echo "$GATE_OUT" | grep "SEM SUMMARY" | head -1)
+    block "sem summary | $MISSING" \
+      "Páginas sem campo 'summary:' no frontmatter (fonte do índice): $MISSING. Adicione o summary antes de encerrar."
+  elif echo "$GATE_OUT" | grep -q "LINKS QUEBRADOS"; then
+    BROKEN_DETAIL=$(echo "$GATE_OUT" | grep -E "^\s+-\s" | head -5 | tr '\n' ' ')
     block "links quebrados | $BROKEN_DETAIL" \
       "Wikilinks quebrados em páginas novas/editadas (regra: nunca inventar [[wikilinks]]): $BROKEN_DETAIL. Corrija ou remova antes de encerrar."
+  elif echo "$GATE_OUT" | grep -q "INDICE DESSINCRONIZADO"; then
+    block "índice dessincronizado | pages: $PAGES" \
+      "Índice dessincronizado com o frontmatter. Rode: python3 .claude/scripts/build-index.py generate (e inclua os _index.md atualizados no commit)."
+  else
+    DETAIL=$(echo "$GATE_OUT" | tail -3 | tr '\n' ' ')
+    block "gate falhou | $DETAIL" \
+      "Gate de encerramento falhou: $DETAIL"
   fi
-fi
-
-# 4. Índice (root + shards) em sync com o frontmatter?
-#    Cobre tanto criação de página nova quanto edição de summary: em página existente.
-if ! python3 "$SCRIPT" check >/dev/null 2>&1; then
-  block "índice dessincronizado | pages: $PAGES" \
-    "Índice dessincronizado com o frontmatter. Rode: python3 .claude/scripts/build-index.py generate (e inclua os _index.md atualizados no commit)."
 fi
 
 echo "[$TS] OK sessão ${SESSION_ID:0:8} | pages: $PAGES | summary+quality+sync+log OK" >> "$LOG"

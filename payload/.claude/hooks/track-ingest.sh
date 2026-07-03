@@ -4,12 +4,24 @@ set -euo pipefail
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null || true)
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty' 2>/dev/null || true)
+# realpath nativo primeiro (roda em todo Write/Edit — evita startup de python3);
+# alvo inexistente resolve o diretório-pai; python3 é o fallback.
+canonicalize() {
+  local p="$1" out
+  if out="$(realpath "$p" 2>/dev/null)"; then
+    printf '%s\n' "$out"; return
+  fi
+  if out="$(realpath "$(dirname "$p")" 2>/dev/null)"; then
+    printf '%s/%s\n' "$out" "$(basename "$p")"; return
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$p" 2>/dev/null && return
+  fi
+  printf '%s\n' "$p"
+}
+
 VAULT_ROOT="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
-if command -v python3 &>/dev/null; then
-  VAULT_ROOT=$(python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$VAULT_ROOT" 2>/dev/null || echo "$VAULT_ROOT")
-else
-  VAULT_ROOT=$(realpath "$VAULT_ROOT" 2>/dev/null || echo "$VAULT_ROOT")
-fi
+VAULT_ROOT="$(canonicalize "$VAULT_ROOT")"
 VAULT_WIKI="$VAULT_ROOT/wiki"
 
 [[ -z "${TOOL_NAME:-}" ]] && exit 0
@@ -26,12 +38,7 @@ esac
 FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null || true)
 [[ -z "${FILE:-}" ]] && exit 0
 
-# Resolver path real — python3 preferido; fallback para realpath nativo
-if command -v python3 &>/dev/null; then
-  REAL=$(python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$FILE" 2>/dev/null || echo "$FILE")
-else
-  REAL=$(realpath "$FILE" 2>/dev/null || echo "$FILE")
-fi
+REAL="$(canonicalize "$FILE")"
 
 [[ "$REAL" != "$VAULT_WIKI/"* ]] && exit 0
 

@@ -39,42 +39,6 @@ executable() {
   [[ -x "$path" ]]
 }
 
-configured_inbox_dir() {
-  python3 - <<'PY'
-import json
-try:
-    with open("vault.config.json", encoding="utf-8") as fh:
-        print(json.load(fh).get("inbox_dir", ""))
-except Exception:
-    print("")
-PY
-}
-
-no_missing_summary() {
-  local missing inbox
-  inbox="$(configured_inbox_dir)"
-  missing="$(
-    find wiki -type f -name '*.md' \
-      ! -name 'index.md' \
-      ! -name '_index.md' \
-      ! -name '_index-*.md' \
-      ! -name 'log.md' \
-      -print0 |
-    while IFS= read -r -d '' file; do
-      if [[ -n "$inbox" && "$file" == "wiki/$inbox/"* ]]; then
-        continue
-      fi
-      if ! grep -q '^summary:' "$file"; then
-        printf '%s\n' "$file"
-      fi
-    done
-  )"
-  if [[ -n "$missing" ]]; then
-    printf '%s\n' "$missing" >&2
-    return 1
-  fi
-}
-
 raw_has_no_tracked_changes() {
   if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     [[ -z "$(git status --short -- raw 2>/dev/null)" ]]
@@ -83,39 +47,26 @@ raw_has_no_tracked_changes() {
   fi
 }
 
-# Hash portável: sha256sum (Linux) ou shasum -a 256 (macOS).
-sha256_of() {
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$1" | awk '{print $1}'
-  else
-    shasum -a 256 "$1" | awk '{print $1}'
-  fi
-}
-
 # Drift check: compara os arquivos instalados contra harness/.manifest, gravado
 # pelo install.sh (fonte: github.com/persson86/harness-thinker). Cada linha do
-# manifest é "<sha256>  <relpath>". Drift = arquivo instalado editado in-place no
-# vault em vez de na fonte. WARN (não FAIL): um hotfix legítimo não deve brickar
-# o verify; o objetivo é tornar o drift visível no LINT/health-check.
+# manifest é "<sha256>  <relpath>" — o formato nativo de `sha256sum -c`, então a
+# verificação roda em UM processo em vez de um hash por arquivo. Drift = arquivo
+# instalado editado in-place no vault em vez de na fonte. WARN (não FAIL): um
+# hotfix legítimo não deve brickar o verify; o objetivo é tornar o drift visível.
 installed_matches_manifest() {
   local manifest="harness/.manifest"
   [[ -f "$manifest" ]] || { printf '  (sem .manifest — harness não instalado via install.sh; pulando)\n'; return 0; }
-  local drift=0 rel want got
-  while IFS= read -r line; do
-    [[ -z "$line" ]] && continue
-    want="${line%% *}"
-    rel="${line#* }"; rel="${rel# }"
-    if [[ ! -f "$rel" ]]; then
-      printf '  AUSENTE: %s\n' "$rel" >&2
-      drift=$((drift + 1)); continue
-    fi
-    got="$(sha256_of "$rel")"
-    if [[ "$want" != "$got" ]]; then
-      printf '  DRIFT: %s (editado in-place; edite na fonte e rode install.sh --update)\n' "$rel" >&2
-      drift=$((drift + 1))
-    fi
-  done < "$manifest"
-  [[ "$drift" -eq 0 ]]
+  local out rc=0
+  if command -v sha256sum >/dev/null 2>&1; then
+    out="$(sha256sum -c "$manifest" 2>&1)" || rc=1
+  else
+    out="$(shasum -a 256 -c "$manifest" 2>&1)" || rc=1
+  fi
+  if [[ "$rc" -ne 0 ]]; then
+    printf '%s\n' "$out" | grep -v ': OK$' | sed 's/^/  DRIFT: /' >&2
+    printf '  (editado in-place ou ausente; edite na fonte e rode install.sh --update)\n' >&2
+    return 1
+  fi
 }
 
 manifest_covers_installed() {
@@ -168,9 +119,9 @@ check "claude protect hook executable" executable ".claude/hooks/protect-raw.sh"
 check "claude track hook executable" executable ".claude/hooks/track-ingest.sh"
 check "claude stop hook executable" executable ".claude/hooks/check-ingest.sh"
 
-check "index sync" python3 ".claude/scripts/build-index.py" check
-diagnose "graph health command" python3 ".claude/scripts/build-index.py" graph
-check "indexable pages have summary" no_missing_summary
+# health = check + summaries + categorias fora do config + grafo em UMA varredura
+# (substitui as antigas chamadas separadas de check/graph/no_missing_summary)
+check "vault health (sync + summaries + grafo)" python3 ".claude/scripts/build-index.py" health
 check "raw has no tracked changes" raw_has_no_tracked_changes
 diagnose "installed files match manifest" installed_matches_manifest
 diagnose "manifest covers installed files" manifest_covers_installed

@@ -15,12 +15,20 @@ princípio.
 Subcomandos:
   generate             Escreve o root + os shards a partir do frontmatter.
   check                Verifica se root+shards no disco batem com o frontmatter
-                       (sincronia/idempotência) e detecta colisões de slug global.
-                       Exit 0 se em sync, 1 se drift. Stop gate (check-ingest.sh).
+                       (sincronia/idempotência) e detecta colisões de slug global
+                       e páginas em categoria fora do config. Exit 0 se em sync,
+                       1 se drift.
+  gate [--new F] [--edited F]
+                       Stop gate em UMA passada (check-ingest.sh): summary nas
+                       páginas novas, wikilinks quebrados em novas+editadas e
+                       sincronia do índice. F = arquivo com paths relativos a
+                       wiki/, um por linha. Exit 0 = limpo; 1 = bloqueio.
+  health               Health-check em UMA passada (verify.sh): sincronia,
+                       summaries ausentes, categorias fora do config, colisões
+                       de slug (FAIL) + estatísticas de grafo (informativo).
   quality [<paths>]    Juiz determinístico de conteúdo: wikilinks quebrados nas
                        páginas especificadas (relativas a wiki/). Sem args: lê
                        paths de stdin. Exit 0 = limpo; 1 = links quebrados.
-                       Chamado pelo Stop gate para páginas novas.
   search "<termos>"    Recall ranqueado por keyword (title>summary>tags>body)
                        sobre todas as páginas — grep-before-fetch para base grande.
   graph                Saúde do grafo: órfãs, sub-conectadas, links quebrados.
@@ -160,20 +168,31 @@ def emit_dq(value):
 
 
 # ---------- coleta do frontmatter ----------
-def collect():
+def load_pages():
+    """Lê cada página do vault UMA vez: [(path, texto)]. Insumo comum de
+    collect/graph/gate/health — evita varreduras repetidas do disco."""
+    return [(p, read_file(p)) for p in iter_pages()]
+
+
+def collect(pages=None):
     """Coleta o frontmatter para indexação.
 
-    Retorna (by_cat, skipped, inbox_summary):
+    Retorna (by_cat, skipped, inbox_summary, unknown):
       by_cat        {cat_slug: [(slug, summary, type)]} das páginas indexáveis.
       skipped       páginas (não-inbox) sem frontmatter ou sem summary.
       inbox_summary páginas em inbox/ que TÊM summary mas não são indexadas por
                     localização — candidatas a promoção (avisadas no generate).
+      unknown       páginas indexáveis em categoria fora do vault.config.json —
+                    nunca entrariam em shard algum; erro silencioso sem isto.
     """
+    if pages is None:
+        pages = load_pages()
     by_cat = {slug: [] for slug, _d, _s in CATEGORIES}
     skipped = []
     inbox_summary = []
-    for p in iter_pages():
-        res = split_fm(read_file(p))
+    unknown = []
+    for p, text in pages:
+        res = split_fm(text)
         summ = fm_get(res[0], "summary") if res is not None else None
         if is_inbox(p):
             # inbox nunca indexa; só sinalizamos as que já têm summary.
@@ -183,8 +202,12 @@ def collect():
         if res is None or summ is None:
             skipped.append(os.path.relpath(p, VAULT))
             continue
-        by_cat.setdefault(page_category(p), []).append((slug_of(p), summ, fm_get(res[0], "type")))
-    return by_cat, skipped, inbox_summary
+        cat = page_category(p)
+        if cat in by_cat:
+            by_cat[cat].append((slug_of(p), summ, fm_get(res[0], "type")))
+        else:
+            unknown.append(os.path.relpath(p, VAULT))
+    return by_cat, skipped, inbox_summary, unknown
 
 
 # ---------- render (determinístico, sem timestamp) ----------
@@ -272,7 +295,7 @@ def render_root(by_cat):
 
 # ---------- generate ----------
 def cmd_generate():
-    by_cat, skipped, inbox_summary = collect()
+    by_cat, skipped, inbox_summary, unknown = collect()
     with open(INDEX, "w", encoding="utf-8") as f:
         f.write(render_root(by_cat))
     written = ["index.md (root)"]
@@ -301,15 +324,22 @@ def cmd_generate():
         print("  inbox com summary (não indexadas por localização — candidatas a promoção): %d" % len(inbox_summary))
         for s in sorted(inbox_summary):
             print("      - %s" % s)
+    if unknown:
+        print("  ⚠ CATEGORIA FORA DO CONFIG (páginas invisíveis ao índice): %d" % len(unknown))
+        for s in sorted(unknown):
+            print("      - %s" % s)
+        print("      => mova para uma categoria de vault.config.json ou adicione a categoria ao config")
     return 0
 
 
 # ---------- check (sincronia / idempotência + colisões de slug) ----------
-def slug_collisions():
+def slug_collisions(pages=None):
     """Detecta slugs duplicados entre categorias (basename global deve ser único)."""
+    if pages is None:
+        pages = [(p, None) for p in iter_pages()]
     seen = {}
     dupes = []
-    for p in iter_pages():
+    for p, _text in pages:
         s = slug_of(p)
         rel = os.path.relpath(p, VAULT)
         if s in seen:
@@ -319,8 +349,8 @@ def slug_collisions():
     return dupes
 
 
-def cmd_check():
-    by_cat, skipped, _inbox = collect()
+def index_drift(by_cat, unknown, dupes):
+    """Divergências índice <-> frontmatter + integridade estrutural (lista de strings)."""
     drift = []
     if render_root(by_cat).rstrip() != (read_file(INDEX).rstrip() if os.path.exists(INDEX) else ""):
         drift.append("index.md")
@@ -336,9 +366,17 @@ def cmd_check():
                 drift.append("%s/%s" % (slug, fn))
         for fn in stale_shards(cat_dir, files):
             drift.append("%s/%s (deveria sumir)" % (slug, fn))
-    dupes = slug_collisions()
+    for s in sorted(unknown):
+        drift.append("categoria fora do config: %s (invisível ao índice)" % s)
     for s, p1, p2 in dupes:
         drift.append("slug duplicado: '%s' em %s e %s" % (s, p1, p2))
+    return drift
+
+
+def cmd_check():
+    pages = load_pages()
+    by_cat, skipped, _inbox, unknown = collect(pages)
+    drift = index_drift(by_cat, unknown, slug_collisions(pages))
     print("[check] sincronia índice <-> frontmatter")
     print("  páginas indexadas: %d | sem summary (puladas): %d" % (sum(len(v) for v in by_cat.values()), len(skipped)))
     if drift:
@@ -385,7 +423,7 @@ def cmd_quality(rel_paths):
 
 # ---------- thresholds (gatilhos adiados da Fase 3 se denunciam sozinhos) ----------
 def cmd_thresholds():
-    by_cat, _skipped, _inbox = collect()
+    by_cat, _skipped, _inbox, _unknown = collect()
     total = sum(len(v) for v in by_cat.values())
     lines = {}  # "cat/arquivo" -> nº de linhas (shard cheio ou sub-shard; o fino nunca é gargalo)
     for slug, disp, _s in CATEGORIES:
@@ -527,27 +565,32 @@ def cmd_search(query):
     return 0
 
 
-def cmd_graph():
-    """Saúde do grafo de [[wikilinks]] (só páginas; shards/index/digests excluídos).
+def graph_stats(pages):
+    """Arestas do grafo de [[wikilinks]] (só páginas; shards/index/digests excluídos).
 
     Digests do DREAM (digest-*.md) são excluídos porque citam páginas como *propostas*,
     não como conhecimento real — incluí-los des-orfanizaria páginas artificialmente.
     """
-    pages = {slug_of(p): p for p in iter_pages()
-             if not slug_of(p).startswith("digest-")}
+    pmap = {slug_of(p): text for p, text in pages
+            if not slug_of(p).startswith("digest-")}
     outbound, inbound, dangling = {}, {}, []
-    for slug, path in pages.items():
+    for slug, text in pmap.items():
         targets = set()
-        for m in WIKILINK_RE.finditer(strip_code(read_file(path))):
+        for m in WIKILINK_RE.finditer(strip_code(text)):
             t = m.group(1).split("|")[0].split("#")[0].strip()
             if t and t != slug:
                 targets.add(t)
         outbound[slug] = targets
         for t in targets:
-            if t in pages:
+            if t in pmap:
                 inbound.setdefault(t, set()).add(slug)
             else:
                 dangling.append((slug, t))
+    return pmap, outbound, inbound, dangling
+
+
+def cmd_graph():
+    pages, outbound, inbound, dangling = graph_stats(load_pages())
     n = len(pages) or 1
     valid_edges = sum(len(v) for v in inbound.values())
     orphans = sorted(s for s in pages if not inbound.get(s))
@@ -599,6 +642,100 @@ def cmd_stale(days):
     return 0
 
 
+# ---------- gate (Stop hook em UMA passada: summary + wikilinks + sincronia) ----------
+def cmd_gate(args):
+    """Substitui as 3 chamadas python do check-ingest.sh (config + quality + check)
+    por uma só, com uma única varredura do vault. Marcadores de saída estáveis —
+    o hook faz grep neles: 'SEM SUMMARY', 'LINKS QUEBRADOS', 'INDICE DESSINCRONIZADO'."""
+    def read_list(flag):
+        if flag not in args:
+            return []
+        path = args[args.index(flag) + 1]
+        try:
+            with open(path, encoding="utf-8") as fh:
+                return sorted({ln.strip() for ln in fh if ln.strip()})
+        except FileNotFoundError:
+            return []
+    new_rels = read_list("--new")
+    edited_rels = read_list("--edited")
+    pages = load_pages()
+    by_rel = {os.path.relpath(p, VAULT): text for p, text in pages}
+    all_slugs = {slug_of(p) for p, _t in pages}
+
+    # 1. summary no frontmatter das páginas novas (inbox cru é isento; página
+    #    criada e removida na mesma sessão também — o check de sincronia cobre).
+    missing = []
+    for rel in new_rels:
+        if rel.startswith(INBOX_DIR + os.sep) or rel not in by_rel:
+            continue
+        res = split_fm(by_rel[rel])
+        if res is None or fm_get(res[0], "summary") is None:
+            missing.append(rel)
+
+    # 2. wikilinks quebrados em páginas novas ou editadas (juiz determinístico).
+    broken = set()
+    for rel in sorted(set(new_rels) | set(edited_rels)):
+        text = by_rel.get(rel)
+        if text is None:
+            continue
+        for m in WIKILINK_RE.finditer(strip_code(text)):
+            t = m.group(1).split("|")[0].split("#")[0].strip()
+            if t and t not in all_slugs:
+                broken.add((rel, t))
+
+    # 3. índice em sync com o frontmatter (mesma lógica do `check`).
+    by_cat, _skipped, _inbox, unknown = collect(pages)
+    drift = index_drift(by_cat, unknown, slug_collisions(pages))
+
+    print("[gate] páginas novas: %d | editadas: %d" % (len(new_rels), len(edited_rels)))
+    if missing:
+        print("  SEM SUMMARY: %s" % " ".join(missing))
+    if broken:
+        print("  LINKS QUEBRADOS: %d" % len(broken))
+        for src, tgt in sorted(broken):
+            print("      - %s -> [[%s]]" % (src, tgt))
+    if drift:
+        print("  INDICE DESSINCRONIZADO: %s" % ", ".join(drift))
+    if missing or broken or drift:
+        return 1
+    print("  => OK")
+    return 0
+
+
+# ---------- health (verify.sh em UMA passada) ----------
+def cmd_health():
+    """Consolida check + páginas sem summary + grafo numa varredura só.
+
+    FAIL (exit 1): drift de índice, categoria fora do config, colisão de slug,
+    página indexável sem summary. Grafo (órfãs, sub-conectadas, links quebrados)
+    é informativo — mesma semântica do antigo `diagnose graph` no verify.sh.
+    """
+    pages = load_pages()
+    by_cat, skipped, _inbox, unknown = collect(pages)
+    drift = index_drift(by_cat, unknown, slug_collisions(pages))
+    gpages, outbound, inbound, dangling = graph_stats(pages)
+    n = len(gpages) or 1
+    valid_edges = sum(len(v) for v in inbound.values())
+    orphans = sorted(s for s in gpages if not inbound.get(s))
+    under = sorted(s for s in gpages if len(outbound.get(s, set()) | inbound.get(s, set())) < 2)
+
+    print("[health] páginas indexadas: %d" % sum(len(v) for v in by_cat.values()))
+    if drift:
+        print("  DRIFT: %s" % ", ".join(drift))
+        print("  => rode: python3 .claude/scripts/build-index.py generate")
+    else:
+        print("  índice: EM SYNC")
+    if skipped:
+        print("  SEM SUMMARY (não-inbox, fora do índice): %d" % len(skipped))
+        for s in sorted(skipped):
+            print("      - %s" % s)
+    print("  grafo: %d links válidos | densidade %.1f/página | órfãs: %d | sub-conectadas: %d | quebrados: %d (informativo)"
+          % (valid_edges, valid_edges / n, len(orphans), len(under), len(set(dangling))))
+    for src, tgt in sorted(set(dangling)):
+        print("      - link quebrado: %s -> [[%s]]" % (src, tgt))
+    return 1 if (drift or skipped) else 0
+
+
 def main():
     args = sys.argv[1:]
     if not args:
@@ -608,6 +745,10 @@ def main():
         return cmd_generate()
     if args[0] == "check":
         return cmd_check()
+    if args[0] == "gate":
+        return cmd_gate(args[1:])
+    if args[0] == "health":
+        return cmd_health()
     if args[0] == "quality":
         paths = args[1:] if len(args) > 1 else sys.stdin.read().splitlines()
         return cmd_quality(paths)

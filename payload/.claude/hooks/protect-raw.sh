@@ -2,8 +2,10 @@
 set -euo pipefail
 
 # Fail-closed: se dependências ausentes, bloquear por segurança
-command -v jq     >/dev/null 2>&1 || { echo "jq ausente — bloqueando por segurança" >&2; exit 2; }
-command -v python3 >/dev/null 2>&1 || { echo "python3 ausente — bloqueando por segurança" >&2; exit 2; }
+command -v jq >/dev/null 2>&1 || { echo "jq ausente — bloqueando por segurança" >&2; exit 2; }
+if ! command -v realpath >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
+  echo "realpath/python3 ausentes — bloqueando por segurança" >&2; exit 2
+fi
 
 INPUT=$(cat)
 
@@ -13,16 +15,28 @@ TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // ""' 2>/dev/null) || {
   exit 2
 }
 
+# Canonicaliza para casar paths com symlink resolvido. realpath nativo primeiro
+# (hook roda em TODO Write/Edit/Bash — python3 aqui custa ~50ms por chamada);
+# alvo inexistente (Write novo) resolve o diretório-pai; python3 é o fallback.
+canonicalize() {
+  local p="$1" out
+  if out="$(realpath "$p" 2>/dev/null)"; then
+    printf '%s\n' "$out"; return
+  fi
+  if out="$(realpath "$(dirname "$p")" 2>/dev/null)"; then
+    printf '%s/%s\n' "$out" "$(basename "$p")"; return
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$p" 2>/dev/null && return
+  fi
+  printf '%s\n' "$p"
+}
+
 # Raiz do vault: $CLAUDE_PROJECT_DIR quando o Claude Code define; senão,
 # o diretório dois níveis acima deste script (.claude/hooks/ → raiz do vault).
 VAULT_ROOT="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
-# Canonicaliza para casar com o realpath dos paths comparados (defesa de symlink).
-VAULT_ROOT="$(python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$VAULT_ROOT" 2>/dev/null || echo "$VAULT_ROOT")"
+VAULT_ROOT="$(canonicalize "$VAULT_ROOT")"
 VAULT_RAW="$VAULT_ROOT/raw"
-
-canonicalize() {
-  python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$1" 2>/dev/null || echo "$1"
-}
 
 deny() {
   printf '{"hookSpecificOutput":{"permissionDecision":"deny"}}\n'

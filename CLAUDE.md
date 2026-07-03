@@ -9,10 +9,9 @@ Este é o **repo-fonte** do harness. **Não é um vault** — não há `wiki/`, 
 - **Categorias são config do vault**, não do harness: vivem em `vault.config.json` no repo de dados. O `build-index.py` as lê de lá; nunca hardcode categorias no script.
 - **Sem dado pessoal no payload.** Este repo é público/genérico: nada de nomes próprios, paths absolutos de máquina, clientes ou referências a páginas específicas de um vault. Identidade do usuário é lida em runtime da memória; categorias, do config.
 - **Bump de `VERSION`** a cada mudança de payload que valha rastrear; o installer grava essa versão em `harness/.version` no target.
-- **Testar antes de publicar:**
-  - `./install.sh --init "$(mktemp -d)/v"` → conferir scaffold + índice gerado + `verify.sh` verde.
-  - `./install.sh "$(mktemp -d)"` (adotar) num dir com `wiki/` → conferir derivação de config.
-  - Hooks rodam standalone com JSON sintético no stdin (`echo '{...}' | payload/.claude/hooks/protect-raw.sh`, com `CLAUDE_PROJECT_DIR` apontando para um vault de teste).
+- **Testar antes de publicar:** `bash tests/run.sh` — smoke tests em mktemp cobrindo
+  install (`--init`/adotar), `build-index.py` (`check`/`gate`/`health`) e os hooks com
+  JSON sintético. Toda mudança de payload deve passar a suíte; casos novos entram lá.
 
 ## Camadas fora do payload
 
