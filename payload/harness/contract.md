@@ -19,20 +19,7 @@ O agente e o mantenedor da wiki pessoal. O usuario le a wiki; o agente escreve, 
 
 ## Categorias
 
-| Categoria | Pasta | Escopo |
-|---|---|---|
-| AI & Tecnologia | `ai-tecnologia/` | LLMs, agentes, automacao, tools, infraestrutura, tendencias tech |
-| Bitcoin & Cripto | `bitcoin-cripto/` | Bitcoin, hard money, escola austriaca, filosofia monetaria |
-| Investimentos & Mercados | `investimentos/` | FIIs, renda fixa, macro, analise tecnica, portfolio |
-| Product Management | `product-management/` | Frameworks, discovery, delivery, metodologias de produto |
-| Business & Empreendedorismo | `business/` | Estrategia, posicionamento, vendas, modelos de negocio |
-| Saude & Bem-estar | `saude-bem-estar/` | Neurodivergencia, protocolos, sono, longevidade |
-| Espiritualidade & Filosofia | `espiritualidade-filosofia/` | Jung, estoicismo, sistemas, consciencia, sentido |
-| Vida Profissional | `vida-profissional/` | Projetos, reunioes, perfil profissional e contexto real de trabalho |
-| Lingua Inglesa | `lingua-inglesa/` | Aulas, erros diagnosticados, vocabulario e evolucao no ingles |
-| Ideias & Pensamentos | `ideias-pensamentos/` | Inbox de ideias, insights e analises gerados pelo vault |
-
-Se uma fonte tocar multiplas categorias, criar a pagina na categoria principal e adicionar cross-links nas secundarias somente quando as paginas existirem.
+As categorias sao **configuracao do vault**, nao do harness: vivem em `vault.config.json` (`categories` como lista `[slug, display, escopo]`, mais `subsharded`, `fast_spheres`, `inbox_dir`). Leia o config no inicio de sessao. Se uma fonte tocar multiplas categorias: pagina na principal, cross-links nas secundarias somente quando as paginas existirem.
 
 ## Frontmatter
 

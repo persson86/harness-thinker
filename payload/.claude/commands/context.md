@@ -6,7 +6,7 @@ Se $ARGUMENTS contiver um tópico, aplique os critérios a ele. Caso contrário,
 ## Critérios de acesso
 
 **→ ACESSA o vault quando:**
-- O tópico toca ≥1 categoria do vault: ai-tecnologia, bitcoin-cripto, product-management, business, espiritualidade-filosofia, investimentos, saude-bem-estar, ideias-pensamentos
+- O tópico toca ≥1 esfera do vault (as esferas vivem em `vault.config.json` e no mapa de `wiki/index.md` — derive dali, nunca de lista fixa)
 - O usuário menciona pessoa, ferramenta, empresa ou conceito que pode ter página no vault
 - O usuário pede síntese, recomendação ou posição sobre um tema coberto
 - É o início de qualquer sessão (sempre lê `wiki/index.md`)

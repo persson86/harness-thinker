@@ -234,7 +234,7 @@ O índice é **gerado** do campo `summary:` do frontmatter, em dois níveis:
 - `wiki/[cat]/_index.md` — shard por categoria, entradas agrupadas por tipo.
 - Esferas grandes (conjunto `SUBSHARDED` do script): `_index.md` vira shard fino e as entradas vivem em sub-shards `_index-[type].md` (um nível a mais, mesmo princípio).
 
-**Nunca edite esses arquivos à mão.** Para refletir páginas novas/alteradas rode `python3 .claude/scripts/build-index.py generate`. O `build-index.py check` verifica a sincronia com o frontmatter (é o que o Stop gate roda; DRIFT bloqueia o encerramento). Adicionar esfera nova = uma linha na lista `CATEGORIES` do script; dividir esfera grande = adicionar o slug a `SUBSHARDED` (o `thresholds` recomenda quando o shard passa de 150 linhas). Páginas sem `summary:` não entram no índice; `inbox/` nunca entra (excluído por localização, mesmo com `summary:`).
+**Nunca edite esses arquivos à mão.** Para refletir páginas novas/alteradas rode `python3 .claude/scripts/build-index.py generate`. O `build-index.py check` verifica a sincronia com o frontmatter (é o que o Stop gate roda; DRIFT bloqueia o encerramento). Adicionar/renomear esfera ou dividir esfera grande = editar `vault.config.json` (`categories`, `subsharded`); o script só lê o config. Páginas sem `summary:` não entram no índice; `inbox/` nunca entra (excluído por localização, mesmo com `summary:`).
 
 ## log.md — como manter
 

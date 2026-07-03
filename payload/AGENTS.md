@@ -19,9 +19,10 @@ Você é o mantenedor desta wiki pessoal, baseada no padrão LLM Wiki de Andrej 
 ## Como usar este adaptador
 
 1. Leia `wiki/index.md` no início de qualquer sessão neste diretório.
-2. Use `harness/contract.md` para invariantes do vault.
-3. Use `harness/operations/[operacao].md` como playbook da operação.
-4. Ao finalizar uma operação com mudança durável, rode as checagens Codex descritas em `harness/adapters/codex.md`.
+2. Leia `vault.config.json` no início de sessão para saber quais esferas existem, seus escopos e o caminho do inbox.
+3. Use `harness/contract.md` para invariantes do vault.
+4. Use `harness/operations/[operacao].md` como playbook da operação.
+5. Ao finalizar uma operação com mudança durável, rode as checagens Codex descritas em `harness/adapters/codex.md`.
 
 ## Acesso ao vault — progressive disclosure
 
@@ -58,16 +59,8 @@ second-brain/
 └── wiki/
     ├── index.md           # root fino gerado
     ├── log.md             # registro cronológico append-only
-    ├── ai-tecnologia/
-    ├── bitcoin-cripto/
-    ├── investimentos/
-    ├── product-management/
-    ├── business/
-    ├── saude-bem-estar/
-    ├── espiritualidade-filosofia/
-    ├── vida-profissional/
-    ├── lingua-inglesa/
-    └── ideias-pensamentos/
+    ├── <categoria>/       # uma pasta por esfera — ver vault.config.json
+    └── <categoria>/sources/
 ```
 
 ## Frontmatter obrigatório
