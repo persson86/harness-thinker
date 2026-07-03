@@ -12,8 +12,8 @@
 #
 # O harness é a FONTE; no vault os arquivos instalados são descartáveis e
 # regeneráveis. Edite sempre no repo harness-thinker e rode install.sh --update.
-# Nunca toca wiki/, raw/, queue/, vault.config.json, .claude/memory/ nem
-# .claude/settings.local.json.
+# Nunca sobrescreve wiki/, raw/, queue/, vault.config.json, vault-heuristics.md,
+# .claude/memory/ nem .claude/settings.local.json.
 #
 # Dois modos:
 #   ADOTAR (default)  instala o harness sobre um vault que já existe. Se não
@@ -140,6 +140,7 @@ scaffold_vault() {
   [ -f "$TARGET/queue/README.md" ]        || cp "$TEMPLATES/queue-README.md"  "$TARGET/queue/README.md"
   [ -f "$TARGET/.gitignore" ]             || cp "$TEMPLATES/gitignore"        "$TARGET/.gitignore"
   [ -f "$TARGET/README.md" ]              || cp "$TEMPLATES/README.md"        "$TARGET/README.md"
+  [ -f "$TARGET/vault-heuristics.md" ]    || cp "$TEMPLATES/vault-heuristics.md" "$TARGET/vault-heuristics.md"
   [ -f "$TARGET/.claude/memory/README.md" ] || cp "$TEMPLATES/memory-README.md" "$TARGET/.claude/memory/README.md"
   # template de personas na categoria que detém o inbox
   local ideas_cat="${inbox%%/*}"

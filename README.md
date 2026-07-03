@@ -49,7 +49,7 @@ index, and installs the harness. The target folder doesn't need to exist yet —
 ```
 
 Installs only the harness over your existing files; never touches `wiki/`, `raw/`, `queue/`,
-`vault.config.json` or `.claude/memory/`. If there's no `vault.config.json`, it derives one
+`vault.config.json`, `vault-heuristics.md` or `.claude/memory/`. If there's no `vault.config.json`, it derives one
 from your `wiki/` subfolders for you to review.
 
 ### Step 3 — make the vault a private repo
@@ -84,11 +84,13 @@ bash harness/scripts/update.sh
 Pulls the latest harness from GitHub and reinstalls it in place. Run from the vault root.
 
 What gets overwritten: `CLAUDE.md`, `AGENTS.md`, `harness/`, `.claude/commands/`, `.claude/hooks/`, `.claude/scripts/`, `.claude/settings.json`.  
-What is never touched: `wiki/`, `raw/`, `queue/`, `vault.config.json`, `.claude/memory/`, `.claude/settings.local.json`.
+What is never touched: `wiki/`, `raw/`, `queue/`, `vault.config.json`, `vault-heuristics.md`, `.claude/memory/`, `.claude/settings.local.json`.
 
 ## Per-vault config
 
 Categories are data, not code: they live in `vault.config.json` (`categories`, `subsharded`, `fast_spheres`, `inbox_dir`). `build-index.py` reads that file, so `--update` never overwrites your categories.
+
+Optional decision heuristics live in `vault-heuristics.md`. The installer may scaffold the file on `--init`, but update/adopt never overwrite it.
 
 ## Drift control
 

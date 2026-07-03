@@ -23,7 +23,7 @@ Leia antes de perguntar. Esgote o contexto disponível — índice, shards, pág
 
 No início de sessão neste diretório, leia `wiki/index.md` e `vault.config.json`. O índice é o root fino; carregue só os shards e páginas relevantes. Para decidir profundidade, siga `harness/operations/context.md`.
 
-O vault informa a resposta, mas não a limita: perspectivas externas podem entrar quando separadas do que está efetivamente registrado.
+O vault informa a resposta, mas não a limita: perspectivas externas podem entrar quando separadas do que está efetivamente registrado. Se existir `vault-heuristics.md` no root do vault, consulte-o em decisões de julgamento (priorização, recomendação, arquitetura de página, trade-offs). São as heurísticas de decisão destiladas do usuário e **prevalecem sobre os defaults do harness**.
 
 ## Delegação de tarefas
 

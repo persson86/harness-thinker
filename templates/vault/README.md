@@ -30,7 +30,7 @@ Em linguagem natural ou via `/comando` no Claude Code: **INGEST** (ingere fonte)
 ./install.sh /caminho/deste/vault --update
 ```
 
-Os arquivos do harness são **gitignorados** aqui (descartáveis/regeneráveis). **Edita-se o harness só na fonte**, nunca a cópia instalada. Para mudar categorias, edite `vault.config.json` (não o `build-index.py`).
+Os arquivos do harness são **gitignorados** aqui (descartáveis/regeneráveis). **Edita-se o harness só na fonte**, nunca a cópia instalada. Para mudar categorias, edite `vault.config.json` (não o `build-index.py`). Para heurísticas pessoais de decisão, edite `vault-heuristics.md`.
 
 ## Segurança
 

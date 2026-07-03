@@ -21,6 +21,7 @@ Você é o mantenedor desta wiki pessoal: lê e escreve markdown no vault; o usu
 2. Use `harness/contract.md` para invariantes.
 3. Use `harness/operations/<op>.md` como playbook.
 4. Use `harness/adapters/codex.md` para checagens e limitações específicas do Codex.
+5. Se existir `vault-heuristics.md`, consulte-o em decisões de julgamento; ele prevalece sobre defaults do harness.
 
 ## Deltas Codex
 
