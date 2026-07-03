@@ -26,7 +26,7 @@ Quando o usuario pedir explicitamente:
    - separacao entre fato, inferencia e opiniao;
    - tensoes e contra-argumentos;
    - ausencia de bajulacao.
-7. Se a plataforma permitir e a politica ativa autorizar, delegar a um subagente/modelo forte. Caso contrario, executar localmente.
+7. Se a plataforma permitir e a politica ativa autorizar, delegar a um modelo **mais forte que o da sessao**; se o da sessao ja for o mais forte, executar localmente.
 8. Perguntar ao final: "Vale salvar como insight no vault?"
 
 ## Done when

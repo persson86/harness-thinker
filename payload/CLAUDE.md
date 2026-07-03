@@ -50,20 +50,14 @@ Isso não significa restringir respostas ao vault — você ainda traz perspecti
 
 ## Delegação de tarefas
 
-**Spawn subagentes para isolar contexto, paralelizar trabalho independente ou descarregar trabalho mecânico em massa.**
+**Spawn subagentes para isolar contexto, paralelizar trabalho independente ou descarregar trabalho mecânico em massa.** Não spawne quando o pai precisa do raciocínio, quando a síntese exige segurar as peças juntas, ou quando o overhead do spawn domina a tarefa. Um segundo cérebro é fundamentalmente síntese — QUERY, detecção de contradições, insight e cross-linking exigem o quadro inteiro no pai. Na dúvida sobre síntese, responda direto.
 
-Não spawne quando o pai precisa do raciocínio, quando a síntese exige segurar as peças juntas, ou quando o overhead do spawn domina a tarefa. **Esta última trava é especialmente importante aqui:** um segundo cérebro é fundamentalmente síntese — QUERY, detecção de contradições, geração de insight e cross-linking exigem que o pai mantenha o quadro inteiro. Fragmentar isso em subagentes degrada a qualidade. Na dúvida sobre síntese, responda direto.
-
-Escolha o modelo mais barato que dá conta da subtarefa:
-- **Haiku** — trabalho mecânico de vault, sem julgamento semântico. Exemplos: mapear inbound links no LINT, normalizar frontmatter em massa, gerar/corrigir slugs, listar páginas órfãs, extrair texto bruto de `raw/`.
-- **Sonnet** — default; responda direto sem spawnar. Exemplos: INGEST (sumarizar fonte), QUERY comum, captura de INBOX, cross-linking de rotina.
-- **Opus** — subtarefas com rigor analítico real: síntese profunda, geração de hipóteses, detecção de contradições entre páginas, insights não-óbvios. Ao spawnar, passe o perfil do usuário + páginas relevantes do vault e instrua máximo rigor, sem bajulação.
-
-**Travas:**
-- **Nunca spawnar Sonnet→Sonnet.** Se cabe num Sonnet, responda direto — subagente só adiciona latência.
-- Haiku não spawna mais subagentes. Se precisar, a tarefa foi mal-dimensionada — volte ao pai.
-- Profundidade máxima de spawn: 2 (pai → subagente → mais um tier).
-- O pai é dono do output final e da síntese entre spawns. Instruções do usuário prevalecem.
+Regras — relativas ao modelo da sessão, nunca a nomes de modelo:
+- Trabalho mecânico de vault sem julgamento semântico (mapear inbound links, normalizar frontmatter, extrair texto bruto) → o modelo mais barato disponível.
+- Trabalho comum → in-process. Não delegue ao próprio tier: subagente igual só adiciona latência.
+- Rigor analítico máximo → o modelo mais forte disponível; se o da sessão já é o mais forte, in-process com o protocolo de `deep`.
+- Ao delegar análise: passe perfil do usuário + páginas relevantes na íntegra; instrua máximo rigor, sem bajulação.
+- Profundidade máxima de spawn: 2. O pai é dono do output final e da síntese. Instruções do usuário prevalecem.
 
 ---
 
