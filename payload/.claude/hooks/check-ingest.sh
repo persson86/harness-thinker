@@ -22,7 +22,16 @@ if ! $HAS_NEW && ! $HAS_EDIT; then
   exit 0
 fi
 
-PAGES=$(tr '\n' ' ' < "$STATE_DIR/pages" 2>/dev/null || echo "?")
+if [[ -f "$STATE_DIR/pages" ]]; then
+  PAGES=$(tr '\n' ' ' < "$STATE_DIR/pages")
+else
+  PAGES="?"
+fi
+QUALITY_PATHS="$STATE_DIR/pages-quality"
+{
+  [[ -f "$STATE_DIR/pages" ]] && cat "$STATE_DIR/pages"
+  [[ -f "$STATE_DIR/pages-edited" ]] && cat "$STATE_DIR/pages-edited"
+} | sort -u > "$QUALITY_PATHS"
 
 block() {
   echo "[$TS] BLOQUEIO sessão ${SESSION_ID:0:8} | $1" >> "$LOG"
@@ -51,14 +60,14 @@ if $HAS_NEW && [[ -f "$STATE_DIR/pages" ]]; then
   fi
 fi
 
-# 3. Juiz determinístico de qualidade: wikilinks quebrados em páginas novas.
+# 3. Juiz determinístico de qualidade: wikilinks quebrados em páginas novas ou editadas.
 #    (Análogo ao val_bpb — computacional, não pode ser manipulado por sycophancy.)
-if $HAS_NEW && [[ -f "$STATE_DIR/pages" ]]; then
-  QUALITY_OUT=$(python3 "$SCRIPT" quality < "$STATE_DIR/pages" 2>&1 || true)
+if [[ -s "$QUALITY_PATHS" ]]; then
+  QUALITY_OUT=$(python3 "$SCRIPT" quality < "$QUALITY_PATHS" 2>&1 || true)
   if echo "$QUALITY_OUT" | grep -q "LINKS QUEBRADOS"; then
     BROKEN_DETAIL=$(echo "$QUALITY_OUT" | grep -E "^\s+-\s" | head -5 | tr '\n' ' ')
     block "links quebrados | $BROKEN_DETAIL" \
-      "Wikilinks quebrados em páginas novas (regra: nunca inventar [[wikilinks]]): $BROKEN_DETAIL. Corrija ou remova antes de encerrar."
+      "Wikilinks quebrados em páginas novas/editadas (regra: nunca inventar [[wikilinks]]): $BROKEN_DETAIL. Corrija ou remova antes de encerrar."
   fi
 fi
 

@@ -5,6 +5,11 @@ INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null || true)
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty' 2>/dev/null || true)
 VAULT_ROOT="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+if command -v python3 &>/dev/null; then
+  VAULT_ROOT=$(python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$VAULT_ROOT" 2>/dev/null || echo "$VAULT_ROOT")
+else
+  VAULT_ROOT=$(realpath "$VAULT_ROOT" 2>/dev/null || echo "$VAULT_ROOT")
+fi
 VAULT_WIKI="$VAULT_ROOT/wiki"
 
 [[ -z "${TOOL_NAME:-}" ]] && exit 0
@@ -50,10 +55,14 @@ elif [[ "$TOOL_NAME" == "Write" ]]; then
   esac
 elif [[ "$TOOL_NAME" == "Edit" || "$TOOL_NAME" == "MultiEdit" ]]; then
   # Edição de página existente: arma index-dirty para que o Stop gate verifique
-  # sincronia do índice mesmo sem criação de página nova (cobre edição de summary:).
+  # sincronia do índice mesmo sem criação de página nova (cobre edição de summary:)
+  # e registra o arquivo para o juiz de wikilinks quebrados.
   case "$REAL" in
     "$VAULT_WIKI/log.md"|"$VAULT_WIKI/index.md"|*/_index.md|*/_index-*.md) ;;  # gerados: ignorar
-    *) touch "$STATE_DIR/index-dirty" ;;
+    *)
+      touch "$STATE_DIR/index-dirty"
+      echo "${REAL#$VAULT_WIKI/}" >> "$STATE_DIR/pages-edited"
+      ;;
   esac
 fi
 

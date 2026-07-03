@@ -95,6 +95,7 @@ Use os playbooks em `harness/operations/`:
 - `transcript.md` — ingestão de reuniões em `vida-profissional`
 - `deep.md` — análise de alta intensidade
 - `dream.md` — rodada proativa de manutenção e síntese (só propõe, via digest em `inbox/`)
+- `reverie.md` — associação livre entre páginas do vault (material bruto, sem ações)
 
 ## Personas (Lentes) — aplicação in-process
 

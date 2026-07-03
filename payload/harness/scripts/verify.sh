@@ -104,6 +104,43 @@ installed_matches_manifest() {
   [[ "$drift" -eq 0 ]]
 }
 
+manifest_covers_installed() {
+  local manifest="harness/.manifest"
+  [[ -f "$manifest" ]] || { printf '  (sem .manifest — harness não instalado via install.sh; pulando)\n'; return 0; }
+
+  local expected actual extras
+  expected="$(mktemp)"
+  actual="$(mktemp)"
+
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    local rel="${line#* }"
+    rel="${rel# }"
+    printf '%s\n' "$rel"
+  done < "$manifest" | sort -u > "$expected"
+
+  {
+    [[ -f CLAUDE.md ]] && printf 'CLAUDE.md\n'
+    [[ -f AGENTS.md ]] && printf 'AGENTS.md\n'
+    [[ -f .claude/settings.json ]] && printf '.claude/settings.json\n'
+    [[ -d harness ]] && find harness -type f ! -path 'harness/.version' ! -path 'harness/.manifest' -print
+    [[ -d .claude/commands ]] && find .claude/commands -type f -print
+    [[ -d .claude/hooks ]] && find .claude/hooks -type f ! -path '.claude/hooks/hook.log' -print
+    [[ -d .claude/scripts ]] && find .claude/scripts -type f -print
+  } | sed 's|^\./||' | sort -u > "$actual"
+
+  extras="$(comm -13 "$expected" "$actual")"
+  if [[ -n "$extras" ]]; then
+    while IFS= read -r rel; do
+      [[ -z "$rel" ]] && continue
+      printf '  EXTRA (fora do manifest): %s — upstream para o repo-fonte ou remova\n' "$rel" >&2
+    done <<< "$extras"
+    rm -f "$expected" "$actual"
+    return 1
+  fi
+  rm -f "$expected" "$actual"
+}
+
 check "critical files exist" exists "CLAUDE.md"
 check "AGENTS.md exists" exists "AGENTS.md"
 check "harness contract exists" exists "harness/contract.md"
@@ -122,6 +159,7 @@ diagnose "graph health command" python3 ".claude/scripts/build-index.py" graph
 check "indexable pages have summary" no_missing_summary
 check "raw has no tracked changes" raw_has_no_tracked_changes
 diagnose "installed files match manifest" installed_matches_manifest
+diagnose "manifest covers installed files" manifest_covers_installed
 
 if (( failures > 0 )); then
   printf '[verify] %d failure(s)\n' "$failures" >&2

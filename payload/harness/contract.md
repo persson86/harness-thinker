@@ -83,7 +83,7 @@ Formato:
 - Paginas atualizadas: [...]
 ```
 
-Operacoes comuns: `ingest`, `inbox`, `query`, `lint`, `update`, `feed`, `transcript`, `transcript-rebuild`, `dream`, `applied`.
+Operacoes comuns: `ingest`, `inbox`, `query`, `lint`, `update`, `feed`, `transcript`, `transcript-rebuild`, `dream`, `reverie`, `applied`.
 
 Registro de proveniencia de valor (`applied`) — quando uma pagina alimenta uma decisao/entregavel real, a partir de evidencia citavel (captura assistida, nunca inventado):
 
