@@ -56,6 +56,7 @@ Use `harness/operations/<op>.md` como playbook canônico:
 - `lint` — health-check semântico e mecânico.
 - `dream` — manutenção propositiva em digest; só propõe.
 - `reverie` — associação livre; material bruto, sem ações.
+- `handoff` — compacta o estado de uma tarefa longa em bloco copiável para retomar em nova sessão ou outro agente; não gera página nem log.
 - `memory` — Claude-only, memória viva em `~/.claude/projects/<este-vault>/memory/`.
 
 ## Índice e log

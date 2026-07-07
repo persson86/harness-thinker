@@ -83,6 +83,8 @@ Operacoes comuns: `ingest`, `inbox`, `query`, `lint`, `update`, `feed`, `transcr
 ## YYYY-MM-DD applied | [[origem]] -> entregavel/decisao real
 ```
 
+`handoff` nao aparece na lista de operacoes comuns: e operacao de estado de sessao (compactacao de contexto para retomar uma tarefa depois), nao de conhecimento duravel. O resultado gerado nunca vira entrada em `wiki/log.md`, nunca vira pagina, nunca roda o indice, e nao e gerenciado pelo installer (os arquivos do playbook/command em si sao instalados normalmente, como o resto do payload). Um validador de `wiki/log.md` nao deve esperar entradas de handoff.
+
 ## Gates de Encerramento
 
 Antes de concluir operacao que muda conhecimento duravel:

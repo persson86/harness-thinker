@@ -10,7 +10,7 @@ Este adaptador define como o Codex deve operar o second-brain sem depender dos h
 
 ## Execucao de operacoes
 
-- Para `query`, `ingest`, `inbox`, `lint`, `feed`, `transcript` e `deep`, seguir o arquivo correspondente em `harness/operations/`.
+- Para `query`, `ingest`, `inbox`, `lint`, `feed`, `transcript`, `deep` e `handoff`, seguir o arquivo correspondente em `harness/operations/`.
 - Para criar ou editar arquivos, respeitar as regras de seguranca do ambiente Codex e nunca tocar `raw/`.
 - Para operacoes com mudanca duravel, atualizar `wiki/log.md` quando aplicavel e regenerar o indice quando paginas indexaveis forem criadas/removidas.
 
