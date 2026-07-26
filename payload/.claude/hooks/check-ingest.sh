@@ -33,11 +33,25 @@ block() {
   exit 0
 }
 
-# 1. log.md atualizado? (exigido apenas para criação de página nova)
-if $HAS_NEW; then
-  [[ ! -f "$STATE_DIR/log-updated" ]] && block \
-    "falta log.md | pages: $PAGES" \
-    "Ingestão incompleta: páginas criadas ($PAGES) mas wiki/log.md não foi atualizado. Atualize o log antes de encerrar."
+# 1. Páginas novas registradas em wiki/log.md? (exigido só para criação de página)
+#    Verifica o FATO (o slug aparece no log), não o canal (qual ferramenta escreveu).
+#    O flag log-updated só é armado por Write/Edit/MultiEdit, então log escrito via
+#    Bash (heredoc, cat >>, sed -i) era falso positivo. E o inverso: um `touch` no
+#    log passava sem registrar nada. Ler o conteúdo resolve os dois lados.
+if $HAS_NEW && [[ -f "$STATE_DIR/pages" ]]; then
+  LOGFILE="$VAULT_ROOT/wiki/log.md"
+  UNLOGGED=""
+  while IFS= read -r REL; do
+    [[ -z "$REL" ]] && continue
+    SLUG="$(basename "$REL" .md)"
+    if [[ ! -f "$LOGFILE" ]] || ! grep -Fq -- "$SLUG" "$LOGFILE"; then
+      UNLOGGED="$UNLOGGED $SLUG"
+    fi
+  done < "$STATE_DIR/pages"
+
+  [[ -n "${UNLOGGED// /}" ]] && block \
+    "falta log.md | não registradas:$UNLOGGED" \
+    "Ingestão incompleta: páginas criadas sem registro em wiki/log.md:$UNLOGGED. Adicione a entrada no topo do log (append-only) antes de encerrar."
 fi
 
 # 2-4. Gate determinístico em UMA chamada python (uma varredura do vault):

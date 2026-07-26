@@ -96,6 +96,22 @@ Optional decision heuristics live in `vault-heuristics.md`. The installer may sc
 
 Edit the harness **only here**. In the vault the installed files are disposable and regenerated via `install.sh --update`. `verify.sh` compares installed files against `harness/.manifest` (sha256) and flags drift as a warning (it runs in the LINT health-check). Hooks, `settings.json` and `build-index.py` resolve the vault root via `$CLAUDE_PROJECT_DIR`, so the harness works at any path.
 
+## Closing gate
+
+Two hooks enforce the contract while an agent works. `protect-raw.sh` blocks any write or delete
+under `raw/`. `track-ingest.sh` records which pages the session created or edited, and on `Stop`
+`check-ingest.sh` refuses to end the turn until the durable-knowledge invariants hold:
+
+- every page created this session is recorded in `wiki/log.md`;
+- indexable pages have a `summary:` in the frontmatter;
+- new or edited pages contain no broken `[[wikilinks]]`;
+- the generated index is in sync with the frontmatter.
+
+The log check reads the log's **content** — it looks for each new page's slug — rather than
+watching which tool wrote the file. A log appended via Bash counts, and a log merely touched
+without recording anything does not. A blocked `Stop` is evidence, not friction: fix the page,
+the link, the index or the log, and the turn closes.
+
 ## Operations
 
 Triggered in natural language or via `/command` in Claude Code (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MEMORY** (Claude-only), **DREAM**, **REVERIE**.

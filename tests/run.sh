@@ -109,14 +109,25 @@ assert_rc "protect-raw bloqueia rm em raw/ via Bash" 2
 # ------------------------------------------------- hook: check-ingest (Stop gate)
 CI="$V1/.claude/hooks/check-ingest.sh"
 SID="httest01"; SD="/tmp/sb-session-$SID"
-mkdir -p "$SD"
-echo "reference/pagina-ok.md" > "$SD/pages"
-touch "$SD/page-written"
+arm() { mkdir -p "$SD"; echo "reference/pagina-ok.md" > "$SD/pages"; touch "$SD/page-written"; }
+
+arm
 run hook "{\"session_id\":\"$SID\"}" "$CI"
-assert_out "check-ingest bloqueia sem log.md" '"decision":"block"'
-mkdir -p "$SD"; echo "reference/pagina-ok.md" > "$SD/pages"; touch "$SD/page-written" "$SD/log-updated"
+assert_out "check-ingest bloqueia página nova ausente do log" '"decision":"block"'
+assert_out "bloqueio nomeia o slug não registrado" "pagina-ok"
+
+# flag log-updated armado (Write/Edit no log) mas sem registrar a página:
+# o gate verifica o conteúdo, não o canal — tem que continuar bloqueando.
+arm; touch "$SD/log-updated"
 run hook "{\"session_id\":\"$SID\"}" "$CI"
-assert_rc "check-ingest passa com log + summary + sync" 0
+assert_out "check-ingest bloqueia log tocado sem registrar a página" '"decision":"block"'
+
+# log escrito via Bash (sem passar por Write/Edit, logo sem o flag): tem que passar.
+rm -f "$SD/log-updated"
+printf '\n## 2026-01-01 ingest | teste\n- Página criada: [[pagina-ok]]\n' >> "$V1/wiki/log.md"
+arm
+run hook "{\"session_id\":\"$SID\"}" "$CI"
+assert_rc "check-ingest passa com página registrada no log (escrito via Bash)" 0
 run test ! -d "$SD"
 assert_rc "check-ingest limpa o state dir ao passar" 0
 

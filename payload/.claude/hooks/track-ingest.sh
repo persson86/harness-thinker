@@ -46,6 +46,9 @@ STATE_DIR="/tmp/sb-session-${SESSION_ID}"
 mkdir -p "$STATE_DIR"
 
 if [[ "$REAL" == "$VAULT_WIKI/log.md" ]]; then
+  # O branch é load-bearing: impede que log.md conte como página nova.
+  # O flag em si é informativo — o Stop gate lê o conteúdo do log, não este flag
+  # (log escrito via Bash não passa por aqui e precisa contar igual).
   touch "$STATE_DIR/log-updated"
 elif [[ "$TOOL_NAME" == "Write" ]]; then
   # Só CRIAÇÃO de página nova arma o gate (Edit exige arquivo existente).
