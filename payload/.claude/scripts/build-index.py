@@ -31,7 +31,7 @@ Subcomandos:
                        paths de stdin. Exit 0 = limpo; 1 = links quebrados.
   search "<termos>"    Recall ranqueado por keyword (title>summary>tags>body)
                        sobre todas as páginas — grep-before-fetch para base grande.
-  graph                Saúde do grafo: órfãs, sub-conectadas, links quebrados.
+  graph                Saúde do grafo: publicadas vs. inbox, ilhas e links quebrados.
   stale [--days N]     Entidades/conceitos com `updated:` antigo (default 90d)
                        em esferas de movimento rápido — insumo do DREAM.
                        Informacional, exit 0 sempre.
@@ -589,19 +589,75 @@ def graph_stats(pages):
     return pmap, outbound, inbound, dangling
 
 
+def graph_groups(page_rows, pmap, outbound, inbound):
+    """Separa sinal editorial de rascunhos intencionalmente no inbox.
+
+    Retorna órfãs/sub-conectadas por localização e componentes com mais de uma
+    página desconectados do maior componente do vault (ilhas internas).
+    """
+    path_by_slug = {slug_of(p): p for p, _text in page_rows if slug_of(p) in pmap}
+    nodes = set(pmap)
+    inbox_slugs = {s for s, p in path_by_slug.items() if is_inbox(p)}
+    published_slugs = nodes - inbox_slugs
+
+    def connected_count(slug):
+        return len((outbound.get(slug, set()) & nodes) | inbound.get(slug, set()))
+
+    orphans = {s for s in pmap if not inbound.get(s)}
+    under = {s for s in pmap if connected_count(s) < 2}
+
+    adjacency = {
+        s: (outbound.get(s, set()) & nodes) | inbound.get(s, set())
+        for s in pmap
+    }
+    components = []
+    unseen = set(nodes)
+    while unseen:
+        seed = min(unseen)
+        component = set()
+        pending = [seed]
+        while pending:
+            current = pending.pop()
+            if current in component:
+                continue
+            component.add(current)
+            pending.extend(sorted(adjacency[current] - component, reverse=True))
+        unseen -= component
+        components.append(component)
+    components.sort(key=lambda c: (-len(c), sorted(c)))
+    islands = [sorted(c) for c in components[1:] if len(c) > 1]
+
+    return {
+        "orphan_published": sorted(orphans & published_slugs),
+        "orphan_inbox": sorted(orphans & inbox_slugs),
+        "under_published": sorted(under & published_slugs),
+        "under_inbox": sorted(under & inbox_slugs),
+        "islands": islands,
+    }
+
+
 def cmd_graph():
-    pages, outbound, inbound, dangling = graph_stats(load_pages())
+    page_rows = load_pages()
+    pages, outbound, inbound, dangling = graph_stats(page_rows)
+    groups = graph_groups(page_rows, pages, outbound, inbound)
     n = len(pages) or 1
     valid_edges = sum(len(v) for v in inbound.values())
-    orphans = sorted(s for s in pages if not inbound.get(s))
-    under = sorted(s for s in pages if len(outbound.get(s, set()) | inbound.get(s, set())) < 2)
     print("[graph] %d páginas | %d links válidos | densidade %.1f/página" % (len(pages), valid_edges, valid_edges / n))
-    print("  órfãs (0 inbound): %d" % len(orphans))
-    for s in orphans:
+    print("  órfãs publicadas (0 inbound): %d" % len(groups["orphan_published"]))
+    for s in groups["orphan_published"]:
         print("      - %s" % s)
-    print("  sub-conectadas (<2 links): %d" % len(under))
-    for s in under:
+    print("  órfãs no inbox (triagem, não erro): %d" % len(groups["orphan_inbox"]))
+    for s in groups["orphan_inbox"]:
         print("      - %s" % s)
+    print("  sub-conectadas publicadas (<2 links): %d" % len(groups["under_published"]))
+    for s in groups["under_published"]:
+        print("      - %s" % s)
+    print("  sub-conectadas no inbox (<2 links): %d" % len(groups["under_inbox"]))
+    for s in groups["under_inbox"]:
+        print("      - %s" % s)
+    print("  ilhas desconectadas do componente principal (>1 página): %d" % len(groups["islands"]))
+    for component in groups["islands"]:
+        print("      - %s" % " <-> ".join(component))
     print("  links quebrados (alvo inexistente): %d" % len(set(dangling)))
     for src, tgt in sorted(set(dangling)):
         print("      - %s -> [[%s]]" % (src, tgt))
@@ -714,10 +770,9 @@ def cmd_health():
     by_cat, skipped, _inbox, unknown = collect(pages)
     drift = index_drift(by_cat, unknown, slug_collisions(pages))
     gpages, outbound, inbound, dangling = graph_stats(pages)
+    groups = graph_groups(pages, gpages, outbound, inbound)
     n = len(gpages) or 1
     valid_edges = sum(len(v) for v in inbound.values())
-    orphans = sorted(s for s in gpages if not inbound.get(s))
-    under = sorted(s for s in gpages if len(outbound.get(s, set()) | inbound.get(s, set())) < 2)
 
     print("[health] páginas indexadas: %d" % sum(len(v) for v in by_cat.values()))
     if drift:
@@ -729,8 +784,14 @@ def cmd_health():
         print("  SEM SUMMARY (não-inbox, fora do índice): %d" % len(skipped))
         for s in sorted(skipped):
             print("      - %s" % s)
-    print("  grafo: %d links válidos | densidade %.1f/página | órfãs: %d | sub-conectadas: %d | quebrados: %d (informativo)"
-          % (valid_edges, valid_edges / n, len(orphans), len(under), len(set(dangling))))
+    print("  grafo: %d links válidos | densidade %.1f/página | "
+          "órfãs publicadas: %d | órfãs inbox: %d | "
+          "sub-conectadas publicadas: %d | sub-conectadas inbox: %d | "
+          "ilhas: %d | quebrados: %d (informativo)"
+          % (valid_edges, valid_edges / n,
+             len(groups["orphan_published"]), len(groups["orphan_inbox"]),
+             len(groups["under_published"]), len(groups["under_inbox"]),
+             len(groups["islands"]), len(set(dangling))))
     for src, tgt in sorted(set(dangling)):
         print("      - link quebrado: %s -> [[%s]]" % (src, tgt))
     return 1 if (drift or skipped) else 0
