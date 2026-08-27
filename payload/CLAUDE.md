@@ -12,6 +12,7 @@ Você é o mantenedor desta wiki pessoal, baseada no padrão LLM Wiki de Andrej 
 - Sempre regenerar o índice e atualizar `wiki/log.md` quando criar/remover páginas ou mudar conhecimento durável.
 - Nunca inventar `[[wikilinks]]`; só linkar páginas existentes.
 - Quando incerto sobre categoria, perguntar antes de criar.
+- Agenda: Gmail (Google Calendar MCP) = pessoal; Calendar do Mac (`bash harness/scripts/agenda.sh`) = profissional. Qualquer menção a agenda, calendário, reunião do dia, disponibilidade ou planejamento de horário consulta **as duas** no mesmo intervalo — nunca só uma. Playbook: `harness/operations/agenda.md`. Gmail vazio ≠ dia livre.
 
 ## Caráter
 
@@ -49,6 +50,7 @@ Use `harness/operations/<op>.md` como playbook canônico:
 - `context` — decide quanto ler do vault.
 - `ingest` — fonte externa em duas fases: análise sem escrita, depois execução.
 - `query` — resposta baseada no vault, com citações reais e opção de salvar insight.
+- `agenda` — calendário ao vivo: Gmail pessoal + Calendar do Mac profissional; nunca uma fonte só.
 - `inbox` — captura de ideia bruta no inbox configurado.
 - `feed` — roteamento de `queue/` para operação adequada.
 - `transcript` — transcrições de reunião e deltas de perfil/projeto quando o vault tiver essa esfera.

@@ -4,6 +4,12 @@ Você é o mantenedor desta wiki pessoal. Esta sessão é **Grok Build**, não C
 
 O Grok Build auto-carrega `AGENTS.md` e `CLAUDE.md` neste vault. Ignore o que for específico de outra plataforma. Em conflito, esta regra e `harness/adapters/grok.md` prevalecem.
 
+## Agenda (obrigatório)
+
+Gmail (Google Calendar MCP) = pessoal. Calendar do Mac (`bash harness/scripts/agenda.sh`, icalBuddy/EventKit, Exchange) = profissional.
+
+Qualquer menção a agenda, calendário, reunião do dia, disponibilidade ou planejamento de horário: consulte **as duas fontes no mesmo intervalo** antes de responder. Não são alternativas. Gmail vazio ≠ dia livre. Playbook: `harness/operations/agenda.md`. Nunca reexibir senha, link de reunião ou lista crua de participantes.
+
 ## Fonte de verdade
 
 1. `wiki/index.md` e `vault.config.json` no início de sessão.
@@ -29,7 +35,7 @@ O Grok Build auto-carrega `AGENTS.md` e `CLAUDE.md` neste vault. Ignore o que fo
 
 ## Operações e skills
 
-Playbooks canônicos: `harness/operations/`. Os slash commands em `.claude/commands/` apontam para eles — use-os. `/memory` nesta plataforma é recusa: Grok não persiste no store do Claude.
+Playbooks canônicos: `harness/operations/`. Os slash commands em `.claude/commands/` apontam para eles — use-os. `/memory` nesta plataforma é recusa: Grok não persiste no store do Claude. Pedido de agenda segue `/agenda` (`harness/operations/agenda.md`), não só `/query`.
 
 ## Subagentes
 
@@ -57,6 +63,3 @@ python3 .claude/scripts/build-index.py check
 bash harness/scripts/verify.sh
 ```
 
-## Calendário
-
-Sempre as duas fontes, em qualquer menção a agenda, calendário, reunião do dia ou disponibilidade: MCP Google Calendar (Gmail) **e** `icalBuddy` (Calendar do Mac / Exchange). Não usar uma como fallback da outra. Gmail vazio não implica dia livre. Nunca reexibir senha, link de reunião ou lista crua de participantes — sintetizar horário, título, pessoas-chave e conflitos.

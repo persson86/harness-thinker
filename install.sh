@@ -185,7 +185,7 @@ done
 echo "  + ${#PAYLOAD_FILES[@]} arquivos do harness em $TARGET" >&2
 
 # hooks e verify.sh executáveis
-chmod +x "$TARGET"/.claude/hooks/*.sh "$TARGET"/harness/scripts/verify.sh "$TARGET"/.grok/hooks/*.sh 2>/dev/null || true
+chmod +x "$TARGET"/.claude/hooks/*.sh "$TARGET"/harness/scripts/*.sh "$TARGET"/.grok/hooks/*.sh 2>/dev/null || true
 
 # --- manifest + version (insumo do drift check em verify.sh) -----------
 MANIFEST="$TARGET/harness/.manifest"

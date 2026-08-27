@@ -19,6 +19,8 @@ Leia `wiki/index.md` no inicio de uma sessao neste diretorio. Leia tambem `vault
 - A pergunta e claramente externa ao vault ou depende de dados em tempo real.
 - Outra operacao ja define seu proprio protocolo de leitura.
 
+Pedido de agenda, calendario, disponibilidade ou planejamento de horario do usuario e operacao `agenda` (dados ao vivo nas duas fontes). O vault e complementar, nao substituto.
+
 ## Profundidade
 
 - Superficial: root `wiki/index.md` + shard relevante.

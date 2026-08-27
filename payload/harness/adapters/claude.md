@@ -25,7 +25,7 @@ Nao alterar `CLAUDE.md`, `.claude/settings.json`, `.claude/commands/` ou `.claud
 
 ## Calendario
 
-Sempre as duas fontes, em qualquer mencao a agenda, calendario, reuniao do dia ou disponibilidade: MCP Google Calendar (Gmail), quando a sessao o expuser, **e** `icalBuddy` (Calendar do Mac / Exchange). Nao usar uma como fallback da outra. Gmail vazio nao implica dia livre. Nunca reexibir senha, link de reuniao ou lista crua de participantes — sintetizar horario, titulo, pessoas-chave e conflitos.
+Gmail (Google Calendar MCP) = pessoal. Calendar do Mac (`bash harness/scripts/agenda.sh`) = profissional. Sempre as duas, em qualquer mencao a agenda, calendario, reuniao do dia, disponibilidade ou planejamento de horario. Playbook: `harness/operations/agenda.md`. Gmail vazio nao implica dia livre. Nunca reexibir senha, link de reuniao ou lista crua de participantes. UserPromptSubmit injeta o lembrete; o Stop gate (`agenda-gate`) bloqueia virada de agenda sem as duas fontes.
 
 ## Observacao
 

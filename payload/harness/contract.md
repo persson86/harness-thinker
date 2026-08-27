@@ -101,10 +101,10 @@ Antes de concluir operacao que muda conhecimento duravel:
 
 Ferramentas de sistema disponiveis a qualquer adaptador que rode Bash nesta maquina, independente de LLM:
 
-- **Agenda**: duas fontes complementares, nunca alternativas. Sempre consultar as duas quando o usuario mencionar agenda, calendario, reuniao do dia ou disponibilidade. Gmail vazio nao implica dia livre.
-  - **Google Calendar (MCP)**: conta Gmail pessoal, quando a sessao expuser as tools.
-  - **Calendar do macOS (`icalBuddy`)**: EventKit nativo (Homebrew, sem OAuth/API key) — inclui Exchange/trabalho (Outlook/Teams) e calendarios locais. Ja autorizado neste ambiente. Uso: `icalBuddy eventsToday`, `icalBuddy eventsFrom:"..." to:"..."`.
-  A saida bruta inclui senhas/links de reuniao e listas de participantes — nunca reexibir cru ao usuario; sintetizar (horario, titulo, pessoas-chave, conflitos) antes de mostrar. Ainda nao existe operacao dedicada em `harness/operations/`.
+- **Agenda**: duas fontes complementares, nunca alternativas. Sempre consultar as duas quando o usuario mencionar agenda, calendario, reuniao do dia, disponibilidade ou planejamento de horario. Gmail vazio nao implica dia livre. Playbook: `harness/operations/agenda.md`.
+  - **Gmail = pessoal** — Google Calendar MCP, quando a sessao expuser as tools.
+  - **Calendar do Mac = profissional** — `bash harness/scripts/agenda.sh` (`icalBuddy` / EventKit; inclui Exchange, Outlook/Teams e calendarios locais). Ja autorizado neste ambiente.
+  A saida bruta pode incluir senhas, links de reuniao e listas de participantes — nunca reexibir cru; sintetizar horario, titulo, pessoas-chave e conflitos. Um hook (`agenda-gate`) impede encerrar a virada de agenda sem as duas fontes.
 
 ## Capacidades Adapter-Specific
 

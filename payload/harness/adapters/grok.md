@@ -14,7 +14,7 @@ Este arquivo não é auto-carregado. A entrada automática do Grok Build é `.gr
 
 ## Execução de operações
 
-- Para `query`, `ingest`, `inbox`, `lint`, `feed`, `transcript`, `deep` e `handoff`, seguir o arquivo correspondente em `harness/operations/`.
+- Para `query`, `agenda`, `ingest`, `inbox`, `lint`, `feed`, `transcript`, `deep` e `handoff`, seguir o arquivo correspondente em `harness/operations/`.
 - Slash commands em `.claude/commands/` apontam para esses playbooks — reutilizar, não duplicar em `.grok/skills/`, com a exceção de `/memory`.
 - Nunca tocar `raw/`.
 - Para mudança durável: atualizar `wiki/log.md` quando aplicável e regenerar o índice quando páginas indexáveis forem criadas/removidas.
@@ -33,7 +33,7 @@ Ignore o roteamento Luna/Terra/Sol de `AGENTS.md`. Se subagente não estiver dis
 
 ## Hooks
 
-`.grok/hooks/thinker.json` registra PreToolUse, PostToolUse e Stop. O `shim.sh` traduz o JSON camelCase do Grok (`toolName`, `sessionId`, `toolInput`, `write` / `search_replace` / `run_terminal_command`) para o formato dos scripts Claude e os executa.
+`.grok/hooks/thinker.json` registra UserPromptSubmit, PreToolUse, PostToolUse e Stop. O `shim.sh` traduz o JSON camelCase do Grok para os scripts Claude. `agenda-gate` corre no Stop depois do `check-ingest` para não encerrar virada de agenda sem Gmail + Calendar do Mac.
 
 Hooks de projeto só rodam depois de `/hooks-trust` (ou `--trust`). Sem trust, o shim é skip silencioso.
 
@@ -65,7 +65,7 @@ Grok Build não tem store equivalente ao MEMORY do Claude Code. Persistência de
 
 ## Calendário
 
-Sempre as duas fontes, em qualquer menção a agenda, calendário, reunião do dia ou disponibilidade: MCP Google Calendar (Gmail) **e** `icalBuddy` (Calendar do Mac / Exchange). Não usar uma como fallback da outra. Gmail vazio não implica dia livre. Nunca reexibir senha, link de reunião ou lista crua de participantes — sintetizar horário, título, pessoas-chave e conflitos.
+Gmail (Google Calendar MCP) = pessoal. Calendar do Mac (`bash harness/scripts/agenda.sh`) = profissional. Sempre as duas, em qualquer menção a agenda, calendário, reunião do dia, disponibilidade ou planejamento de horário. Playbook: `harness/operations/agenda.md`. Gmail vazio não implica dia livre. Nunca reexibir senha, link de reunião ou lista crua de participantes.
 
 ## Output
 

@@ -14,6 +14,7 @@ Você é o mantenedor desta wiki pessoal: lê e escreve markdown no vault; o usu
 - `[[wikilinks]]` só apontam para páginas existentes.
 - Categorias, escopos e inbox vêm de `vault.config.json`; nunca de lista fixa.
 - Estrutura, frontmatter, índice, log e invariantes vivem em `harness/contract.md`.
+- Agenda: Gmail (Google Calendar MCP) = pessoal; Calendar do Mac (`bash harness/scripts/agenda.sh`) = profissional. Qualquer menção a agenda, calendário, reunião do dia, disponibilidade ou planejamento de horário consulta **as duas** no mesmo intervalo. Playbook: `harness/operations/agenda.md`. Gmail vazio ≠ dia livre.
 
 ## Como Usar
 

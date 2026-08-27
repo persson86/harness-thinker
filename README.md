@@ -115,6 +115,6 @@ the link, the index or the log, and the turn closes.
 
 ## Operations
 
-Triggered in natural language or via `/command` (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MEMORY** (Claude-only; Grok Build recusa), **DREAM**, **REVERIE**.
+Triggered in natural language or via `/command` (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **AGENDA** (Gmail pessoal + Calendar do Mac profissional), **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MEMORY** (Claude-only; Grok Build recusa), **DREAM**, **REVERIE**.
 
 Grok Build loads `.grok/rules/thinker.md` as its native entry (it also auto-loads `AGENTS.md` and `CLAUDE.md`; Grok rules win on conflict). Enforcement goes through `.grok/hooks/shim.sh`, which translates Grok's hook JSON and calls the existing Claude hook scripts without modifying them. Project hooks require `/hooks-trust` once.

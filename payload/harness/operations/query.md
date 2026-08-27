@@ -2,6 +2,8 @@
 
 Use quando o usuario fizer pergunta que deve ser respondida com base no conhecimento acumulado.
 
+Se a pergunta for sobre agenda, calendario, compromisso, reuniao do dia, disponibilidade ou planejamento de horario do usuario, siga `harness/operations/agenda.md` nas duas fontes ao vivo **antes** de consultar o vault. Vault nao substitui Calendar.
+
 ## Passos
 
 1. Ler `wiki/index.md` e `vault.config.json`.
@@ -22,3 +24,4 @@ Personas sao conteudo do vault, nao payload. Se existirem, leia a pagina de mapa
 - Inventar wikilink.
 - Responder consulta de wiki sem ler o indice.
 - Usar persona sem base suficiente no vault.
+- Responder pedido de agenda so com o vault ou so com uma das duas fontes (Gmail pessoal / Calendar do Mac profissional).

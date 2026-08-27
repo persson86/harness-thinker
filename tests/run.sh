@@ -7,7 +7,7 @@ set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/ht-tests.XXXXXX")"
-trap 'rm -rf "$TMP" /tmp/sb-session-httest01 /tmp/sb-session-httestgrok01' EXIT
+trap 'rm -rf "$TMP" /tmp/sb-session-httest01 /tmp/sb-session-httestgrok01 /tmp/sb-agenda-httestagenda01' EXIT
 
 PASS=0; FAIL=0
 OUT=""; RC=0
@@ -165,6 +165,70 @@ rm -rf "/tmp/sb-session-$GROK_SID"
 run bash -c "printf '%s' '{\"hookEventName\":\"pre_tool_use\",\"sessionId\":\"s\",\"toolName\":\"search_replace\",\"toolInput\":{\"file_path\":\"$V1/wiki/reference/pagina-ok.md\"}}' | python3 '$V1/.grok/hooks/normalize.py' '$V1'"
 assert_rc "normalize.py roda" 0
 assert_out "search_replace em arquivo existente vira Edit" '"tool_name": "Edit"'
+
+# ------------------------------------------------- agenda.sh sanitiza convite
+run test -x "$V1/harness/scripts/agenda.sh"
+assert_rc "agenda.sh instalado e executável" 0
+run test -f "$V1/harness/operations/agenda.md"
+assert_rc "operação agenda instalada" 0
+run test -f "$V1/.claude/commands/agenda.md"
+assert_rc "command /agenda instalado" 0
+
+FAKE="$TMP/fake-icalBuddy"
+cat > "$FAKE" <<'EOS'
+#!/bin/bash
+echo "• 09:00 - 09:30 : Secret Call : https://teams.microsoft.com/l/meetup-join/abc : attendees: ana@trinca.com, Maria"
+echo "password: hunter2 join https://meet.google.com/xxx"
+EOS
+chmod +x "$FAKE"
+run bash -c "ICALBUDDY='$FAKE' bash '$V1/harness/scripts/agenda.sh' today"
+assert_rc "agenda.sh aceita icalBuddy fake" 0
+assert_out "agenda.sh nomeia fonte profissional" "profissional"
+assert_out "agenda.sh lembra Gmail pessoal" "Gmail"
+echo "$OUT" | grep -q 'https://' && bad "agenda.sh remove URLs" "$OUT" || ok "agenda.sh remove URLs"
+echo "$OUT" | grep -qi 'hunter2' && bad "agenda.sh remove senha" "$OUT" || ok "agenda.sh remove senha"
+echo "$OUT" | grep -q 'ana@trinca.com' && bad "agenda.sh remove e-mail" "$OUT" || ok "agenda.sh remove e-mail"
+
+run bash -c "ICALBUDDY=/nao-existe bash '$V1/harness/scripts/agenda.sh' today"
+assert_rc "agenda.sh falha sem icalBuddy" 1
+
+# ------------------------------------------------- agenda-gate: duas fontes
+AG="$V1/.claude/hooks/agenda-gate.sh"
+SID="httestagenda01"
+rm -rf "/tmp/sb-agenda-$SID"
+gate() { echo "$1" | bash "$AG"; }
+
+run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID\",\"promptId\":\"p1\",\"prompt\":\"o que e product lead\"}"
+assert_rc "agenda-gate ignora prompt que não é agenda" 0
+run gate "{\"hookEventName\":\"Stop\",\"sessionId\":\"$SID\",\"promptId\":\"p1\"}"
+assert_rc "agenda-gate não bloqueia virada comum" 0
+echo "$OUT" | grep -q '"decision"' && bad "agenda-gate não bloqueia virada comum (sem block)" "$OUT" || ok "agenda-gate não bloqueia virada comum (sem block)"
+
+rm -rf "/tmp/sb-agenda-$SID"
+run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID\",\"promptId\":\"p2\",\"prompt\":\"qual minha próxima agenda?\"}"
+assert_rc "agenda-gate marca prompt de agenda" 0
+assert_out "agenda-gate injeta contexto no Claude" "Calendar do Mac"
+
+run gate "{\"hookEventName\":\"Stop\",\"sessionId\":\"$SID\",\"promptId\":\"p2\"}"
+assert_out "agenda-gate bloqueia sem Calendar do Mac" '"decision": "block"'
+assert_out "bloqueio pede icalBuddy/agenda.sh" "Calendar do Mac"
+
+run gate "{\"hookEventName\":\"PreToolUse\",\"sessionId\":\"$SID\",\"promptId\":\"p2\",\"toolName\":\"Bash\",\"toolInput\":{\"command\":\"bash harness/scripts/agenda.sh upcoming 2\"}}"
+assert_rc "agenda-gate registra Mac" 0
+run gate "{\"hookEventName\":\"Stop\",\"sessionId\":\"$SID\",\"promptId\":\"p2\"}"
+assert_out "agenda-gate bloqueia sem Gmail depois do Mac" "Gmail"
+
+run gate "{\"hookEventName\":\"PreToolUse\",\"sessionId\":\"$SID\",\"promptId\":\"p2\",\"toolName\":\"use_tool\",\"toolInput\":{\"tool_name\":\"google_calendar__search\"}}"
+assert_rc "agenda-gate registra Gmail" 0
+run gate "{\"hookEventName\":\"Stop\",\"sessionId\":\"$SID\",\"promptId\":\"p2\"}"
+echo "$OUT" | grep -q '"decision"' && bad "agenda-gate libera com as duas fontes" "$OUT" || ok "agenda-gate libera com as duas fontes"
+
+# shim Stop combina check-ingest + agenda-gate
+rm -rf "/tmp/sb-agenda-$SID"
+run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID\",\"promptId\":\"p3\",\"prompt\":\"o que tenho hoje\"}"
+run grok_hook "{\"hookEventName\":\"stop\",\"sessionId\":\"$SID\",\"promptId\":\"p3\",\"reason\":\"end_turn\"}"
+assert_out "shim Stop bloqueia agenda incompleta" '"decision": "block"'
+assert_out "shim Stop pede Calendar do Mac" "Calendar do Mac"
 
 # ----------------------------------------------------------------
 echo

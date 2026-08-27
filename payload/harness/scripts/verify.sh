@@ -121,6 +121,10 @@ check "wiki log exists" exists "wiki/log.md"
 check "claude protect hook executable" executable ".claude/hooks/protect-raw.sh"
 check "claude track hook executable" executable ".claude/hooks/track-ingest.sh"
 check "claude stop hook executable" executable ".claude/hooks/check-ingest.sh"
+check "agenda gate hook executable" executable ".claude/hooks/agenda-gate.sh"
+check "agenda operation exists" exists "harness/operations/agenda.md"
+check "agenda command exists" exists ".claude/commands/agenda.md"
+check "agenda script executable" executable "harness/scripts/agenda.sh"
 check "grok hook shim executable" executable ".grok/hooks/shim.sh"
 
 # health = check + summaries + categorias fora do config + grafo em UMA varredura
