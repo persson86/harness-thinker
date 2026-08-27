@@ -12,7 +12,7 @@ Este adaptador registra o estado atual do Claude Code. Nesta fase, ele e preserv
 
 ## Regra desta fase
 
-Nao alterar `CLAUDE.md`, `.claude/settings.json`, `.claude/commands/` ou `.claude/hooks/` para suportar Codex. O suporte Codex e aditivo e vive em `AGENTS.md` + `harness/`.
+Nao alterar `CLAUDE.md`, `.claude/settings.json`, `.claude/commands/` ou `.claude/hooks/` para suportar Codex ou Grok. Esse suporte e aditivo e vive em `AGENTS.md` + `harness/`.
 
 ## Correspondencia com o contrato
 

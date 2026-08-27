@@ -1,6 +1,6 @@
 # Harness Agnostico do Second-Brain
 
-Contrato comum do second-brain independentemente de plataforma ou modelo. Adaptadores como Claude Code e Codex traduzem este contrato para suas ferramentas locais.
+Contrato comum do second-brain independentemente de plataforma ou modelo. Adaptadores como Claude Code, Codex e Grok traduzem este contrato para suas ferramentas locais.
 
 ## Papel
 
@@ -105,6 +105,6 @@ Ferramentas de sistema disponiveis a qualquer adaptador que rode Bash nesta maqu
 
 ## Capacidades Adapter-Specific
 
-MEMORY e Claude-only: escrita na memoria viva em `~/.claude/projects/.../memory/`. Codex nao tem memoria persistente equivalente. Camadas opcionais de revisao deliberativa podem existir fora do payload, via skills/plugins user-level.
+MEMORY e Claude-only: escrita na memoria viva em `~/.claude/projects/.../memory/`. Codex e Grok nao tem memoria persistente equivalente. Camadas opcionais de revisao deliberativa podem existir fora do payload, via skills/plugins user-level.
 
-Adaptadores: `harness/adapters/claude.md` e `harness/adapters/codex.md`.
+Adaptadores: `harness/adapters/claude.md`, `harness/adapters/codex.md` e `harness/adapters/grok.md`.
