@@ -97,6 +97,12 @@ Antes de concluir operacao que muda conhecimento duravel:
 - `build-index.py check` esta em sync.
 - Wikilinks novos apontam para paginas existentes.
 
+## Capacidades Locais do Ambiente
+
+Ferramentas de sistema disponiveis a qualquer adaptador que rode Bash nesta maquina, independente de LLM:
+
+- **Calendar (macOS)**: leitura via `icalBuddy` (Homebrew, sem OAuth/API key — usa EventKit nativo do macOS). Ja autorizado neste ambiente, sem prompt adicional. Uso: `icalBuddy eventsToday`, `icalBuddy eventsFrom:"..." to:"..."`. A saida bruta inclui senhas/links de reuniao e listas de participantes — nunca reexibir cru ao usuario; sintetizar (horario, titulo, participantes-chave, conflitos) antes de mostrar. Ainda ad hoc: nao existe operacao dedicada em `harness/operations/`; se o uso virar rotina, promover para uma operacao (ex.: `agenda`) ou um MCP server tipado.
+
 ## Capacidades Adapter-Specific
 
 MEMORY e Claude-only: escrita na memoria viva em `~/.claude/projects/.../memory/`. Codex nao tem memoria persistente equivalente. Camadas opcionais de revisao deliberativa podem existir fora do payload, via skills/plugins user-level.
