@@ -65,7 +65,7 @@ Grok Build não tem store equivalente ao MEMORY do Claude Code. Persistência de
 
 ## Calendário
 
-MCP Google Calendar quando a sessão o expuser; senão `icalBuddy` (capacidade local do contrato). Nunca reexibir senha, link de reunião ou lista crua de participantes.
+Sempre as duas fontes, em qualquer menção a agenda, calendário, reunião do dia ou disponibilidade: MCP Google Calendar (Gmail) **e** `icalBuddy` (Calendar do Mac / Exchange). Não usar uma como fallback da outra. Gmail vazio não implica dia livre. Nunca reexibir senha, link de reunião ou lista crua de participantes — sintetizar horário, título, pessoas-chave e conflitos.
 
 ## Output
 

@@ -59,4 +59,4 @@ bash harness/scripts/verify.sh
 
 ## Calendário
 
-MCP Google Calendar quando disponível; senão `icalBuddy`. Nunca reexibir senha, link de reunião ou lista crua de participantes — sintetizar horário, título, pessoas-chave e conflitos.
+Sempre as duas fontes, em qualquer menção a agenda, calendário, reunião do dia ou disponibilidade: MCP Google Calendar (Gmail) **e** `icalBuddy` (Calendar do Mac / Exchange). Não usar uma como fallback da outra. Gmail vazio não implica dia livre. Nunca reexibir senha, link de reunião ou lista crua de participantes — sintetizar horário, título, pessoas-chave e conflitos.

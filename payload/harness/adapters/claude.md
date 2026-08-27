@@ -23,6 +23,10 @@ Nao alterar `CLAUDE.md`, `.claude/settings.json`, `.claude/commands/` ou `.claud
 - Checagem de sincronia: `.claude/scripts/build-index.py check`.
 - Memoria (MEMORY): skill `/memory` (`.claude/commands/memory.md`) escreve na memoria viva do projeto no Claude Code (`~/.claude/projects/<este-vault>/memory/`, subdir derivado do path do vault); um eventual `.claude/memory/` no repo de dados e so snapshot de backup. Capacidade especifica do Claude Code (ver `harness/contract.md` > Capacidades Claude-only).
 
+## Calendario
+
+Sempre as duas fontes, em qualquer mencao a agenda, calendario, reuniao do dia ou disponibilidade: MCP Google Calendar (Gmail), quando a sessao o expuser, **e** `icalBuddy` (Calendar do Mac / Exchange). Nao usar uma como fallback da outra. Gmail vazio nao implica dia livre. Nunca reexibir senha, link de reuniao ou lista crua de participantes — sintetizar horario, titulo, pessoas-chave e conflitos.
+
 ## Observacao
 
 O contrato agnostico em `harness/contract.md` descreve o comportamento comum. O Claude Code continua usando sua implementacao atual ate uma migracao explicita futura.

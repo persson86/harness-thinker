@@ -35,6 +35,10 @@ Se uma pagina indexavel foi criada/removida antes do check:
 python3 .claude/scripts/build-index.py generate
 ```
 
+## Calendario
+
+Sempre as duas fontes, em qualquer mencao a agenda, calendario, reuniao do dia ou disponibilidade: MCP Google Calendar (Gmail), quando a sessao o expuser, **e** `icalBuddy` (Calendar do Mac / Exchange). Nao usar uma como fallback da outra. Gmail vazio nao implica dia livre. Nunca reexibir senha, link de reuniao ou lista crua de participantes — sintetizar horario, titulo, pessoas-chave e conflitos.
+
 ## Memoria
 
 O Codex nao tem store de auto-memory equivalente ao do Claude Code. Persistencia duravel de comportamento/preferencia do Codex e responsabilidade de `AGENTS.md` + decisao do usuario; nao ha operacao MEMORY automatica no Codex.

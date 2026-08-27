@@ -101,7 +101,10 @@ Antes de concluir operacao que muda conhecimento duravel:
 
 Ferramentas de sistema disponiveis a qualquer adaptador que rode Bash nesta maquina, independente de LLM:
 
-- **Calendar (macOS)**: leitura via `icalBuddy` (Homebrew, sem OAuth/API key — usa EventKit nativo do macOS). Ja autorizado neste ambiente, sem prompt adicional. Uso: `icalBuddy eventsToday`, `icalBuddy eventsFrom:"..." to:"..."`. A saida bruta inclui senhas/links de reuniao e listas de participantes — nunca reexibir cru ao usuario; sintetizar (horario, titulo, participantes-chave, conflitos) antes de mostrar. Ainda ad hoc: nao existe operacao dedicada em `harness/operations/`; se o uso virar rotina, promover para uma operacao (ex.: `agenda`) ou um MCP server tipado.
+- **Agenda**: duas fontes complementares, nunca alternativas. Sempre consultar as duas quando o usuario mencionar agenda, calendario, reuniao do dia ou disponibilidade. Gmail vazio nao implica dia livre.
+  - **Google Calendar (MCP)**: conta Gmail pessoal, quando a sessao expuser as tools.
+  - **Calendar do macOS (`icalBuddy`)**: EventKit nativo (Homebrew, sem OAuth/API key) — inclui Exchange/trabalho (Outlook/Teams) e calendarios locais. Ja autorizado neste ambiente. Uso: `icalBuddy eventsToday`, `icalBuddy eventsFrom:"..." to:"..."`.
+  A saida bruta inclui senhas/links de reuniao e listas de participantes — nunca reexibir cru ao usuario; sintetizar (horario, titulo, pessoas-chave, conflitos) antes de mostrar. Ainda nao existe operacao dedicada em `harness/operations/`.
 
 ## Capacidades Adapter-Specific
 
