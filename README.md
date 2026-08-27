@@ -2,7 +2,7 @@
 
 A harness for a **second brain in the LLM Wiki pattern** ([Andrej Karpathy](https://karpathy.bearblog.dev/)): an agent compiles and maintains a persistent markdown knowledge base instead of doing episodic RAG. This repo is the reusable **machinery** — contract, operations, enforcement hooks, index generator, installer. Your **content and config** (categories, identity, knowledge) live in your own private data repo.
 
-Install it into a directory and it becomes your vault, maintained by an agent (Claude Code or Codex) under a contract: `raw/` immutable, `wiki/` as authored territory, frontmatter with `summary:`, real wikilinks, generated index, append-only log.
+Install it into a directory and it becomes your vault, maintained by an agent (Claude Code, Codex, or Grok Build) under a contract: `raw/` immutable, `wiki/` as authored territory, frontmatter with `summary:`, real wikilinks, generated index, append-only log.
 
 ## Layout
 
@@ -13,6 +13,7 @@ payload/           # what gets installed 1:1 into the target
   AGENTS.md        #   Codex adapter
   harness/         #   contract + operations/ + adapters/ + scripts/verify.sh
   .claude/         #   commands/ hooks/ scripts/build-index.py settings.json
+  .grok/           #   Grok Build rules, hook shim, memory-skill shadow
 templates/vault/   # scaffold for a new vault (--init)
 ```
 
@@ -61,7 +62,7 @@ cd ~/my-second-brain
 git init && git add -A && git commit -m "init vault"   # then push to a PRIVATE remote
 ```
 
-Open the vault folder in Claude Code (or Codex) and start with `/ingest`, `/inbox`, `/query`.
+Open the vault folder in Claude Code, Codex, or Grok Build and start with `/ingest`, `/inbox`, `/query`.
 
 ### Without cloning (one-liner)
 
@@ -83,7 +84,7 @@ bash harness/scripts/update.sh
 
 Pulls the latest harness from GitHub and reinstalls it in place. Run from the vault root.
 
-What gets overwritten: `CLAUDE.md`, `AGENTS.md`, `harness/`, `.claude/commands/`, `.claude/hooks/`, `.claude/scripts/`, `.claude/settings.json`.  
+What gets overwritten: `CLAUDE.md`, `AGENTS.md`, `harness/`, `.claude/commands/`, `.claude/hooks/`, `.claude/scripts/`, `.claude/settings.json`, `.grok/`.  
 What is never touched: `wiki/`, `raw/`, `queue/`, `vault.config.json`, `vault-heuristics.md`, `.claude/memory/`, `.claude/settings.local.json`.
 
 ## Per-vault config
@@ -114,4 +115,6 @@ the link, the index or the log, and the turn closes.
 
 ## Operations
 
-Triggered in natural language or via `/command` in Claude Code (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MEMORY** (Claude-only), **DREAM**, **REVERIE**.
+Triggered in natural language or via `/command` (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MEMORY** (Claude-only; Grok Build recusa), **DREAM**, **REVERIE**.
+
+Grok Build loads `.grok/rules/thinker.md` as its native entry (it also auto-loads `AGENTS.md` and `CLAUDE.md`; Grok rules win on conflict). Enforcement goes through `.grok/hooks/shim.sh`, which translates Grok's hook JSON and calls the existing Claude hook scripts without modifying them. Project hooks require `/hooks-trust` once.

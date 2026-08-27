@@ -21,7 +21,7 @@ Repositório de **dados** (mantenha-o **privado**). A infraestrutura que governa
 
 ## Operações
 
-Em linguagem natural ou via `/comando` no Claude Code: **INGEST** (ingere fonte), **QUERY** (responde citando páginas), **INBOX** (captura ideia), **FEED** (roteia a `queue/`), **TRANSCRIPT** (destila reuniões), **DEEP** (análise profunda), **LINT** (health-check), **MEMORY** (aprendizados), **DREAM** (manutenção proativa). Documentadas no harness-thinker.
+Em linguagem natural ou via `/comando` no Claude Code, Codex ou Grok Build: **INGEST** (ingere fonte), **QUERY** (responde citando páginas), **INBOX** (captura ideia), **FEED** (roteia a `queue/`), **TRANSCRIPT** (destila reuniões), **DEEP** (análise profunda), **LINT** (health-check), **MEMORY** (aprendizados; Claude-only), **DREAM** (manutenção proativa). Documentadas no harness-thinker.
 
 ## Manter o harness atualizado
 

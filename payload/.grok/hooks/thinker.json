@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "write|search_replace|run_terminal_command|Write|Edit|MultiEdit|Bash",
+        "hooks": [
+          { "type": "command", "command": "./shim.sh", "timeout": 5 }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "write|search_replace|Write|Edit|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "./shim.sh", "timeout": 5 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "./shim.sh", "timeout": 30 }
+        ]
+      }
+    ]
+  }
+}

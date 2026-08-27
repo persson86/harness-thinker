@@ -8,6 +8,7 @@
 #   <target>/CLAUDE.md, <target>/AGENTS.md
 #   <target>/harness/                       (contract + operations + adapters + scripts)
 #   <target>/.claude/commands|hooks|scripts|settings.json
+#   <target>/.grok/rules|hooks|skills       (Grok Build; aditivo, não altera Claude/Codex)
 #   <target>/harness/.version + <target>/harness/.manifest  (drift check do verify.sh)
 #
 # O harness é a FONTE; no vault os arquivos instalados são descartáveis e
@@ -184,7 +185,7 @@ done
 echo "  + ${#PAYLOAD_FILES[@]} arquivos do harness em $TARGET" >&2
 
 # hooks e verify.sh executáveis
-chmod +x "$TARGET"/.claude/hooks/*.sh "$TARGET"/harness/scripts/verify.sh 2>/dev/null || true
+chmod +x "$TARGET"/.claude/hooks/*.sh "$TARGET"/harness/scripts/verify.sh "$TARGET"/.grok/hooks/*.sh 2>/dev/null || true
 
 # --- manifest + version (insumo do drift check em verify.sh) -----------
 MANIFEST="$TARGET/harness/.manifest"

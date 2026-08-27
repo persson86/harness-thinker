@@ -7,7 +7,7 @@ set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/ht-tests.XXXXXX")"
-trap 'rm -rf "$TMP" /tmp/sb-session-httest01' EXIT
+trap 'rm -rf "$TMP" /tmp/sb-session-httest01 /tmp/sb-session-httestgrok01' EXIT
 
 PASS=0; FAIL=0
 OUT=""; RC=0
@@ -41,6 +41,12 @@ run "$REPO/install.sh" --init "$V1"
 assert_rc "install --init" 0
 run test -f "$V1/wiki/index.md"
 assert_rc "init gera wiki/index.md" 0
+run test -f "$V1/.grok/rules/thinker.md"
+assert_rc "init instala .grok/rules/thinker.md" 0
+run test -x "$V1/.grok/hooks/shim.sh"
+assert_rc "init deixa shim Grok executável" 0
+run test -f "$V1/.grok/skills/memory/SKILL.md"
+assert_rc "init instala skill memory Grok" 0
 run bash -c "cd '$V1' && CLAUDE_PROJECT_DIR='$V1' bash harness/scripts/verify.sh"
 assert_rc "verify.sh verde no vault novo" 0
 
@@ -130,6 +136,35 @@ run hook "{\"session_id\":\"$SID\"}" "$CI"
 assert_rc "check-ingest passa com página registrada no log (escrito via Bash)" 0
 run test ! -d "$SD"
 assert_rc "check-ingest limpa o state dir ao passar" 0
+
+# ------------------------------------------------- grok shim: JSON Grok → hooks Claude
+GS="$V1/.grok/hooks/shim.sh"
+grok_hook() { echo "$1" | bash "$GS"; }
+GROK_SID="httestgrok01"
+
+run grok_hook "{\"hookEventName\":\"pre_tool_use\",\"sessionId\":\"$GROK_SID\",\"cwd\":\"$V1\",\"workspaceRoot\":\"$V1\",\"toolName\":\"write\",\"toolInput\":{\"file_path\":\"$V1/raw/fonte.md\",\"content\":\"x\"}}"
+assert_rc "shim Grok bloqueia write em raw/" 2
+
+run grok_hook "{\"hookEventName\":\"pre_tool_use\",\"sessionId\":\"$GROK_SID\",\"cwd\":\"$V1\",\"workspaceRoot\":\"$V1\",\"toolName\":\"write\",\"toolInput\":{\"file_path\":\"$V1/wiki/reference/livre.md\",\"content\":\"x\"}}"
+assert_rc "shim Grok libera write em wiki/" 0
+
+run grok_hook "{\"hookEventName\":\"pre_tool_use\",\"sessionId\":\"$GROK_SID\",\"cwd\":\"$V1\",\"workspaceRoot\":\"$V1\",\"toolName\":\"run_terminal_command\",\"toolInput\":{\"command\":\"rm raw/fonte.md\"}}"
+assert_rc "shim Grok bloqueia rm em raw/ via run_terminal_command" 2
+
+run grok_hook "{\"hookEventName\":\"PreToolUse\",\"session_id\":\"$GROK_SID\",\"cwd\":\"$V1\",\"workspaceRoot\":\"$V1\",\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$V1/raw/fonte.md\"}}"
+assert_rc "shim Grok aceita JSON já no formato Claude" 2
+
+page "$V1/wiki/reference/grok-nova.md" "página criada via Grok"
+run grok_hook "{\"hookEventName\":\"post_tool_use\",\"sessionId\":\"$GROK_SID\",\"cwd\":\"$V1\",\"workspaceRoot\":\"$V1\",\"toolName\":\"write\",\"toolInput\":{\"file_path\":\"$V1/wiki/reference/grok-nova.md\",\"content\":\"x\"}}"
+assert_rc "shim Grok track-ingest em write de wiki" 0
+run grok_hook "{\"hookEventName\":\"stop\",\"sessionId\":\"$GROK_SID\",\"cwd\":\"$V1\",\"workspaceRoot\":\"$V1\"}"
+assert_out "shim Grok Stop bloqueia página nova ausente do log" '"decision":"block"'
+assert_out "shim Grok Stop nomeia o slug não registrado" "grok-nova"
+rm -rf "/tmp/sb-session-$GROK_SID"
+
+run bash -c "printf '%s' '{\"hookEventName\":\"pre_tool_use\",\"sessionId\":\"s\",\"toolName\":\"search_replace\",\"toolInput\":{\"file_path\":\"$V1/wiki/reference/pagina-ok.md\"}}' | python3 '$V1/.grok/hooks/normalize.py' '$V1'"
+assert_rc "normalize.py roda" 0
+assert_out "search_replace em arquivo existente vira Edit" '"tool_name": "Edit"'
 
 # ----------------------------------------------------------------
 echo

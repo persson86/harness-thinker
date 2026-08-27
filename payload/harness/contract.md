@@ -107,4 +107,4 @@ Ferramentas de sistema disponiveis a qualquer adaptador que rode Bash nesta maqu
 
 MEMORY e Claude-only: escrita na memoria viva em `~/.claude/projects/.../memory/`. Codex e Grok nao tem memoria persistente equivalente. Camadas opcionais de revisao deliberativa podem existir fora do payload, via skills/plugins user-level.
 
-Adaptadores: `harness/adapters/claude.md`, `harness/adapters/codex.md` e `harness/adapters/grok.md`.
+Adaptadores: `harness/adapters/claude.md`, `harness/adapters/codex.md` e `harness/adapters/grok.md`. Grok Build entra por `.grok/rules/` e `.grok/hooks/`; nao altera `CLAUDE.md`, `AGENTS.md` nem `.claude/`.

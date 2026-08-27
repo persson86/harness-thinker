@@ -92,6 +92,7 @@ manifest_covers_installed() {
     [[ -d .claude/commands ]] && find .claude/commands -type f -print
     [[ -d .claude/hooks ]] && find .claude/hooks -type f ! -path '.claude/hooks/hook.log' -print
     [[ -d .claude/scripts ]] && find .claude/scripts -type f -print
+    [[ -d .grok ]] && find .grok -type f -print
   } | sed 's|^\./||' | sort -u > "$actual"
 
   extras="$(comm -13 "$expected" "$actual")"
@@ -111,6 +112,8 @@ check "AGENTS.md exists" exists "AGENTS.md"
 check "harness contract exists" exists "harness/contract.md"
 check "codex adapter exists" exists "harness/adapters/codex.md"
 check "claude adapter exists" exists "harness/adapters/claude.md"
+check "grok adapter exists" exists "harness/adapters/grok.md"
+check "grok rules exist" exists ".grok/rules/thinker.md"
 check "build-index.py exists" exists ".claude/scripts/build-index.py"
 check "wiki index exists" exists "wiki/index.md"
 check "wiki log exists" exists "wiki/log.md"
@@ -118,6 +121,7 @@ check "wiki log exists" exists "wiki/log.md"
 check "claude protect hook executable" executable ".claude/hooks/protect-raw.sh"
 check "claude track hook executable" executable ".claude/hooks/track-ingest.sh"
 check "claude stop hook executable" executable ".claude/hooks/check-ingest.sh"
+check "grok hook shim executable" executable ".grok/hooks/shim.sh"
 
 # health = check + summaries + categorias fora do config + grafo em UMA varredura
 # (substitui as antigas chamadas separadas de check/graph/no_missing_summary)
