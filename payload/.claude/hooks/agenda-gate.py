@@ -23,12 +23,11 @@ AGENDA_CONTEXT = (
     "Nunca reexibir senha, link de reunião ou lista crua de participantes."
 )
 
-# Pedidos de agenda do usuário — não dispara em "agenda de produto" / "agenda Salesforce".
+# Pedidos de agenda do usuário — não dispara em "agenda de produto" / "agenda Salesforce",
+# nem em "agenda com Fulano" no sentido de reunião/transcrição já ocorrida.
 AGENDA_RE = re.compile(
     r"""
     /agenda\b
-    | minha\s+agenda
-    | proxima\s+agenda
     | proximo\s+compromisso
     | meus?\s+compromissos
     | meu\s+calend
@@ -115,6 +114,14 @@ def flagged(path: str, name: str) -> bool:
     return os.path.isfile(os.path.join(path, name))
 
 
+def reset(path: str) -> None:
+    for name in ("required", "mac", "gmail"):
+        try:
+            os.remove(os.path.join(path, name))
+        except FileNotFoundError:
+            pass
+
+
 def is_agenda_prompt(text: str) -> bool:
     return bool(AGENDA_RE.search(fold(text)))
 
@@ -156,6 +163,9 @@ def main() -> int:
 
     if ev in {"userpromptsubmit", "beforesubmitprompt"}:
         text = prompt_text(data)
+        # Cada novo prompt começa do zero — não deixa a exigência de uma
+        # pergunta de agenda antiga bloquear turnos seguintes sem relação.
+        reset(latest)
         if is_agenda_prompt(text):
             mark(here, "required")
             mark(latest, "required")
