@@ -117,4 +117,6 @@ the link, the index or the log, and the turn closes.
 
 Triggered in natural language or via `/command` (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **AGENDA** (Gmail pessoal + Calendar do Mac profissional), **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MEMORY** (Claude-only; Grok Build recusa), **DREAM**, **REVERIE**.
 
+Analyses of source material start with a short **Resumo** and **Ideias principais**, followed by critical analysis, uncertainties and durable deltas. **TRANSCRIPT** uses an explicit two-phase UX: a request to analyze remains read-only and returns a delta ledger; a request to ingest runs analysis and ingestion in the same turn without a redundant approval checkpoint. The source note preserves meeting context and source-only items, while live pages receive only durable promoted deltas. Ingestion never implies commit or push; both remain separate explicit actions.
+
 Grok Build loads `.grok/rules/thinker.md` as its native entry (it also auto-loads `AGENTS.md` and `CLAUDE.md`; Grok rules win on conflict). Enforcement goes through `.grok/hooks/shim.sh`, which translates Grok's hook JSON and calls the existing Claude hook scripts without modifying them. Project hooks require `/hooks-trust` once.

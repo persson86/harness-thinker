@@ -4,6 +4,8 @@ Use para ingerir fonte externa: URL, texto colado, arquivo, referencia ou um top
 
 O ingest tem duas fases. Nunca criar arquivos na Fase 1.
 
+Transcricoes de reuniao seguem `harness/operations/transcript.md`. O contrato de UX daquele playbook prevalece para decidir se o pedido ja autorizou a Fase 2; nao exigir um segundo go-ahead quando o usuario pediu explicitamente para ingerir a transcricao.
+
 ## Fase 1 — Analise
 
 ### Passo 0 — Classificar a fonte
@@ -27,7 +29,7 @@ Montar UM paragrafo autocontido no formato research-prompt e executa-lo:
 ### Analise (todos os casos)
 
 1. Identificar a fonte, autor, contexto e credibilidade.
-2. Extrair 3-5 ideias centrais com analise critica, nao apenas resumo: o que e solido, discutivel ou ruido. Separar fato de inferencia — marcar o que a fonte afirma como dado vs. o que ela infere ou opina; quando fontes conflitarem, registrar os lados, nao escolher em silencio.
+2. Iniciar a devolutiva com um **Resumo** breve e 3-5 **Ideias principais**. Em seguida, fazer analise critica: o que e solido, discutivel ou ruido. Separar fato de inferencia — marcar o que a fonte afirma como dado vs. o que ela infere ou opina; quando fontes conflitarem, registrar os lados, nao escolher em silencio.
 3. Separar sinal de ruido: o que vale entrar no vault e o que deve ser descartado.
 4. Ler paginas relevantes do vault para identificar confirmacoes, contradicoes e extensoes. Corroborar os claims-chave contra o que ja existe; quando a fonte for a unica base de um claim forte, marca-lo como nao-corroborado.
 5. **Gap round (autocritica antes de recomendar):** revisar a propria analise em busca de lacunas — claim central sem corroboracao, sub-pergunta ainda aberta, contradicao nao resolvida, categoria ainda ambigua. Se uma lacuna material persistir e for pesquisavel, rodar mais UMA busca (recurso de pesquisa disponivel na plataforma) para fecha-la antes de prosseguir. Nao parar na primeira resposta plausivel.
@@ -58,6 +60,7 @@ Montar UM paragrafo autocontido no formato research-prompt e executa-lo:
 ## Erros Comuns
 
 - Criar arquivos sem go-ahead.
+- Entregar a analise sem resumo e ideias principais consultaveis.
 - Fazer sumario em vez de analise critica na Fase 1.
 - Tratar um topico/pergunta como se ja fosse conteudo pronto e pular o brief de pesquisa.
 - Recomendar decisao sem a gap round.
