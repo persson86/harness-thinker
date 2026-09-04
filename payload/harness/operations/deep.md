@@ -27,7 +27,8 @@ Quando o usuario pedir explicitamente:
    - tensoes e contra-argumentos;
    - ausencia de bajulacao.
 7. Se a plataforma permitir e a politica ativa autorizar, delegar a um modelo **mais forte que o da sessao**; se o da sessao ja for o mais forte, executar localmente.
-8. Perguntar ao final: "Vale salvar como insight no vault?"
+8. Preservar a diferenca entre exploracao, conclusao sustentada e decisao. Propor registro quando houver delta duravel e fizer sentido encerrar; nao forcar esse fechamento durante uma exploracao. Autorizacao vigente para este resultado e escopo dispensa repeti-la.
+9. Quando houver correcao de conhecimento registrado, seguir `review.md` no escopo autorizado.
 
 ## Done when
 

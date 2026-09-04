@@ -115,7 +115,22 @@ the link, the index or the log, and the turn closes.
 
 ## Operations
 
-Triggered in natural language or via `/command` (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **AGENDA** (Gmail pessoal + Calendar do Mac profissional), **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MEMORY** (Claude-only; Grok Build recusa), **DREAM**, **REVERIE**.
+Triggered in natural language or via `/command` (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **REVIEW**, **AGENDA** (Gmail pessoal + Calendar do Mac profissional), **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MEMORY** (Claude-only; Grok Build recusa), **DREAM**, **REVERIE**.
+
+## 7.11.0 — Revisable knowledge and conversation
+
+Corrections now have an explicit REVIEW workflow: trace the affected assertion and candidate dependencies, preserve historical context, and update both body and summary within the user's authorization. Approval to save is distinct from evidence supporting a claim; a source note is an editorial representation, not necessarily the original artifact.
+
+Optional `knowledge_status`, `as_of` and `superseded_by` metadata make historical context visible in generated indexes and search. Existing pages remain compatible; missing metadata does not imply current truth. `build-index.py review <slug>` lists direct references from wikilinks and `sources:` as review candidates, not corroboration. `stale` also considers insights across categories and skips explicitly historical/superseded pages.
+
+QUERY and DEEP adapt to exploration, critique, decision and execution. They propose saving when useful instead of ending every exchange with a publication question. Personal voice remains vault-owned in `vault-heuristics.md`.
+
+Validation has two distinct layers:
+
+- `bash tests/run.sh` and `python3 tests/test_knowledge_review.py`: deterministic regression checks.
+- `payload/harness/evals/knowledge-review.md`: five behavioral scenarios with explicit expectations and failure criteria; these require observed runs and judgment, not a claim that structural tests prove reasoning quality.
+
+Known baseline limitation: the 7.10.0 smoke suite reports 55 passing checks and four failing agenda-gate assertions. The same four failures remain in 7.11.0; agenda behavior is outside this change. The five new knowledge-review tests pass independently.
 
 Analyses of source material start with a short **Resumo** and **Ideias principais**, followed by critical analysis, uncertainties and durable deltas. **TRANSCRIPT** uses an explicit two-phase UX: a request to analyze remains read-only and returns a delta ledger; a request to ingest runs analysis and ingestion in the same turn without a redundant approval checkpoint. The source note preserves meeting context and source-only items, while live pages receive only durable promoted deltas. Ingestion never implies commit or push; both remain separate explicit actions.
 

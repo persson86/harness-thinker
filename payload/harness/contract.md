@@ -44,6 +44,39 @@ updated: YYYY-MM-DD
 
 `summary:` e obrigatorio para paginas indexaveis e e a fonte do indice gerado. Paginas no `inbox_dir` configurado nunca sao indexadas por localizacao, mesmo com `summary:`; so entram no indice ao serem promovidas para fora do inbox.
 
+## Evidencia, interpretacao e autorizacao
+
+- Tipo de pagina (`source`, `concept`, `insight`) nao e grau de certeza. Uma source tambem e uma elaboracao editorial; para conferir uma fala, voltar ao original quando disponivel.
+- Separar o que foi observado ou relatado, o que o agente inferiu, o que continua hipotese e o que o usuario autorizou. Aprovar registro ou execucao nao valida todas as afirmacoes do texto.
+- Uma sintese pode ir alem da fonte, desde que identifique essa passagem. Concordancia de modelos ou repeticao da mesma origem nao constitui evidencia independente.
+- Afirmacoes materiais devem permitir recuperar origem, data e limite do que a evidencia sustenta. `sources:` e uma lista de procedencia, nao prova automatica de cada frase; referencias de contexto ou contraditorio devem ser explicadas no corpo/Conexoes. Nao contar ciclos entre paginas como corroboracao.
+- Citacao literal exige trecho original localizavel; indicar traducao quando houver. Sem essa base, usar parafrase atribuida, sem aspas que sugiram literalidade.
+- Resumos preservam os limites decisivos do corpo, inclusive data e natureza historica. Uma ressalva so no rodape nao corrige uma abertura categorica.
+
+## Validade temporal e revisao
+
+Campos opcionais para paginas em que a distincao temporal seja material; nao exigem migracao do acervo:
+
+```yaml
+knowledge_status: historical # current | historical | superseded
+as_of: YYYY-MM-DD
+superseded_by: slug-existente
+```
+
+`current` significa posicao vigente na data indicada, nao verdade comprovada; ausencia de status significa nao classificado. `historical` preserva um recorte passado; `superseded` marca uma conclusao substituida. `as_of` data o estado descrito, enquanto `updated` data a edicao. `superseded_by` aponta para a pagina que deve ser consultada sobre o estado posterior e deve existir. Indice e busca exibem a sinalizacao; nao escolhem automaticamente qual afirmacao e verdadeira.
+
+Quando houver correcao do usuario, nova evidencia ou mudanca de decisao, seguir `harness/operations/review.md`: localizar registros e dependencias candidatas, revisar corpo e resumo sob a mesma autorizacao aplicavel a escrita e preservar a cronologia. Nao apagar fontes originais nem reescrever entradas antigas do log.
+
+## Conversa e conhecimento duravel
+
+Identificar pelo pedido se o momento e explorar, confrontar, decidir ou executar; nao exigir que o usuario escolha um modo a cada turno. Explorar admite hipoteses, humor e conexoes inesperadas. A critica acompanha a maturidade da ideia e o risco da decisao. Nao fabricar objecoes para parecer independente, nem tratar provocacao como insatisfacao sem fundamento.
+
+A voz especifica do usuario vive em `vault-heuristics.md`. Requisitos de analise de material (Resumo/Ideias principais) nao obrigam toda troca conversacional a virar relatorio. Propor registro quando houver delta duravel e fizer sentido encerrar a exploracao, sem transformar cada resposta em pedido de publicacao. Escrita continua sujeita a autorizacao; autorizacao vigente para este resultado e escopo dispensa repeti-la, sem se estender a resultados futuros ou fora desse escopo.
+
+## Limites da verificacao
+
+Indice, grafo e manifest verificam propriedades estruturais. Nao certificam verdade, atribuicao, causalidade, validade temporal ou impacto do vault. Casos de avaliacao de comportamento vivem em `harness/evals/knowledge-review.md`; registrar resultado observado, falhas e limites separadamente dos testes deterministicos.
+
 ## Tipos e Localizacao
 
 - `source`: `wiki/[categoria]/sources/[slug].md`
@@ -75,7 +108,7 @@ Para refletir paginas novas, removidas ou alteracoes de `summary:`, rode `python
 - Paginas atualizadas: [...]
 ```
 
-Operacoes comuns: `ingest`, `inbox`, `query`, `lint`, `update`, `feed`, `transcript`, `transcript-rebuild`, `dream`, `reverie`, `applied`.
+Operacoes comuns: `ingest`, `inbox`, `query`, `review`, `lint`, `update`, `feed`, `transcript`, `transcript-rebuild`, `dream`, `reverie`, `applied`.
 
 `applied` registra proveniencia de valor quando uma pagina alimenta uma decisao ou entregavel real, a partir de evidencia citavel:
 

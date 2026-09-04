@@ -14,7 +14,7 @@ Este arquivo não é auto-carregado. A entrada automática do Grok Build é `.gr
 
 ## Execução de operações
 
-- Para `query`, `agenda`, `ingest`, `inbox`, `lint`, `feed`, `transcript`, `deep` e `handoff`, seguir o arquivo correspondente em `harness/operations/`.
+- Para `query`, `review`, `agenda`, `ingest`, `inbox`, `lint`, `feed`, `transcript`, `deep` e `handoff`, seguir o arquivo correspondente em `harness/operations/`.
 - Slash commands em `.claude/commands/` apontam para esses playbooks — reutilizar, não duplicar em `.grok/skills/`, com a exceção de `/memory`.
 - Nunca tocar `raw/`.
 - Para mudança durável: atualizar `wiki/log.md` quando aplicável e regenerar o índice quando páginas indexáveis forem criadas/removidas.

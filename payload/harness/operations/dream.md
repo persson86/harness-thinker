@@ -12,6 +12,7 @@ Rodada periodica em que o agente olha o vault sem ser perguntado: roda juizes de
    - `git status --porcelain`
 2. Selecionar 2-3 clusters candidatos, nao tudo: orfas nao-inbox, entidades/conceitos stale com relevancia atual, paginas novas pouco conectadas, inbox com `summary:` aguardando promocao.
 3. Ler ate ~8 paginas dos clusters e procurar contradicoes, conexoes reais nao registradas, refresh necessario e sinais de aplicacao real de conhecimento.
+   Incluir insights entre candidatos a refresh. Idade e sinal de triagem, nao prova de erro; contraditorio novo pode exigir revisao mesmo em pagina editada recentemente. Usar `review.md` para mapear dependencias candidatas, somente propondo mudancas neste modo.
 4. Escrever digest unico no `inbox_dir` configurado, com `type: inbox`, secoes:
    - **Saude** — resumo dos juizes em 3-5 linhas.
    - **Contradicoes** — pares de paginas em conflito, ou ausencia nos clusters examinados.

@@ -31,9 +31,12 @@ Subcomandos:
                        paths de stdin. Exit 0 = limpo; 1 = links quebrados.
   search "<termos>"    Recall ranqueado por keyword (title>summary>tags>body)
                        sobre todas as páginas — grep-before-fetch para base grande.
+  review <slug>         Referências diretas candidatas a revisão (wikilinks no
+                       corpo e `sources:`), sem inferir correção automática.
   graph                Saúde do grafo: publicadas vs. inbox, ilhas e links quebrados.
   stale [--days N]     Entidades/conceitos com `updated:` antigo (default 90d)
-                       em esferas de movimento rápido — insumo do DREAM.
+                       em esferas de movimento rápido, mais insights em qualquer
+                       esfera; ignora inbox, histórico e superado — insumo DREAM.
                        Informacional, exit 0 sempre.
   thresholds           Avisa se gatilhos adiados (Fase 3) dispararam: shard
                        > 150 linhas (sub-shard) ou > 800 páginas (FTS5).
@@ -163,6 +166,54 @@ def fm_get(fm_lines, key):
     return None
 
 
+def fm_list(fm_lines, key):
+    """Lê a forma simples `key: [slug, outro-slug]` do frontmatter.
+
+    Não tenta ser um parser YAML: este comando só precisa reconhecer a forma
+    canônica de `sources:` do contrato e não deve introduzir dependências.
+    """
+    raw = fm_get(fm_lines, key)
+    if raw is None:
+        return []
+    raw = raw.strip()
+    if not (raw.startswith("[") and raw.endswith("]")):
+        return []
+    return [read_scalar(value.strip()) for value in raw[1:-1].split(",")
+            if value.strip()]
+
+
+def knowledge_status(fm_lines):
+    """Metadados opcionais; ausência nunca implica que a página seja atual."""
+    status = fm_get(fm_lines, "knowledge_status")
+    if status not in ("current", "historical", "superseded"):
+        return None, None, None
+    as_of = fm_get(fm_lines, "as_of")
+    superseded_by = fm_get(fm_lines, "superseded_by")
+    return status, as_of, superseded_by
+
+
+def status_label(status, as_of=None, superseded_by=None):
+    """Sinal humano, sem criar wikilink a um slug que talvez não exista."""
+    if status is None:
+        return "sem status declarado"
+    labels = {"current": "atual", "historical": "histórico", "superseded": "superado"}
+    parts = [labels[status]]
+    if as_of:
+        parts.append("estado em %s" % as_of)
+    if superseded_by:
+        if status == "historical":
+            parts.append("estado posterior: %s" % superseded_by)
+        elif status == "superseded":
+            parts.append("substituído por %s" % superseded_by)
+    return "; ".join(parts)
+
+
+def status_badge(status, as_of=None, superseded_by=None):
+    if status is None:
+        return ""
+    return " **[%s]**" % status_label(status, as_of, superseded_by)
+
+
 def emit_dq(value):
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
@@ -178,7 +229,8 @@ def collect(pages=None):
     """Coleta o frontmatter para indexação.
 
     Retorna (by_cat, skipped, inbox_summary, unknown):
-      by_cat        {cat_slug: [(slug, summary, type)]} das páginas indexáveis.
+      by_cat        {cat_slug: [(slug, summary, type, status, as_of,
+                    superseded_by)]} das páginas indexáveis.
       skipped       páginas (não-inbox) sem frontmatter ou sem summary.
       inbox_summary páginas em inbox/ que TÊM summary mas não são indexadas por
                     localização — candidatas a promoção (avisadas no generate).
@@ -204,7 +256,9 @@ def collect(pages=None):
             continue
         cat = page_category(p)
         if cat in by_cat:
-            by_cat[cat].append((slug_of(p), summ, fm_get(res[0], "type")))
+            status, as_of, superseded_by = knowledge_status(res[0])
+            by_cat[cat].append((slug_of(p), summ, fm_get(res[0], "type"),
+                                status, as_of, superseded_by))
         else:
             unknown.append(os.path.relpath(p, VAULT))
     return by_cat, skipped, inbox_summary, unknown
@@ -213,8 +267,8 @@ def collect(pages=None):
 # ---------- render (determinístico, sem timestamp) ----------
 def group_by_type(items):
     by_type = {}
-    for slug, summ, typ in items:
-        by_type.setdefault(typ or "", []).append((slug, summ))
+    for slug, summ, typ, status, as_of, superseded_by in items:
+        by_type.setdefault(typ or "", []).append((slug, summ, status, as_of, superseded_by))
     return by_type
 
 
@@ -232,8 +286,8 @@ def render_shard(disp, items):
     by_type = group_by_type(items)
     for t in type_order(by_type):
         out += ["## %s" % TYPE_LABEL.get(t, t or "Outros"), ""]
-        for slug, summ in sorted(by_type[t]):
-            out.append("- [[%s]] — %s" % (slug, summ))
+        for slug, summ, status, as_of, superseded_by in sorted(by_type[t]):
+            out.append("- [[%s]] — %s%s" % (slug, summ, status_badge(status, as_of, superseded_by)))
         out.append("")
     return "\n".join(out).rstrip() + "\n"
 
@@ -252,8 +306,8 @@ def render_thin_shard(disp, items):
 def render_subshard(disp, t, entries):
     out = ["# %s — %s" % (disp, TYPE_LABEL.get(t, t or "Outros")), "",
            "> Sub-shard gerado por `.claude/scripts/build-index.py` — não editar à mão.", ""]
-    for slug, summ in sorted(entries):
-        out.append("- [[%s]] — %s" % (slug, summ))
+    for slug, summ, status, as_of, superseded_by in sorted(entries):
+        out.append("- [[%s]] — %s%s" % (slug, summ, status_badge(status, as_of, superseded_by)))
     return "\n".join(out).rstrip() + "\n"
 
 
@@ -555,13 +609,66 @@ def cmd_search(query):
         for t in terms:
             score += 5 * (t in title) + 3 * (t in summary) + 2 * (t in tags) + (t in body)
         if score:
-            results.append((score, page_category(p), slug_of(p), fm_get(fm, "summary") or ""))
+            status, as_of, superseded_by = knowledge_status(fm)
+            results.append((score, page_category(p), slug_of(p), fm_get(fm, "summary") or "",
+                            status, as_of, superseded_by))
     results.sort(key=lambda r: (-r[0], r[1], r[2]))
     print("[search] '%s' — %d resultado(s)" % (query, len(results)))
-    for score, cat, slug, summ in results[:25]:
-        print("  [%d] [[%s]] (%s) — %s" % (score, slug, cat, summ))
+    for score, cat, slug, summ, status, as_of, superseded_by in results[:25]:
+        print("  [%d] [[%s]] (%s) — %s%s" %
+              (score, slug, cat, summ, status_badge(status, as_of, superseded_by)))
     if len(results) > 25:
         print("  ... (+%d; refine os termos)" % (len(results) - 25))
+    return 0
+
+
+def cmd_review(target_slug):
+    """Mostra dependências candidatas que referenciam DIRETAMENTE uma página.
+
+    A relação é apenas contexto para revisão: não prova que o conteúdo esteja
+    errado, não escolhe sucessor e não modifica páginas.
+    """
+    pages = load_pages()
+    matches = []
+    for p, text in pages:
+        if slug_of(p) == target_slug:
+            matches.append((p, text))
+    if not matches:
+        print("[review] slug não encontrado: %s" % target_slug)
+        return 2
+    if len(matches) != 1:
+        print("[review] slug ambíguo: %s (%s)" %
+              (target_slug, ", ".join(sorted(os.path.relpath(p, VAULT) for p, _text in matches))))
+        return 2
+
+    target_path, target_text = matches[0]
+    target_fm = split_fm(target_text)
+    target_status = knowledge_status(target_fm[0]) if target_fm is not None else (None, None, None)
+    references = []
+    for p, text in pages:
+        if p == target_path:
+            continue
+        res = split_fm(text)
+        fm = res[0] if res is not None else []
+        body = "\n".join(res[2][res[1] + 1:]) if res is not None else text
+        reasons = []
+        for match in WIKILINK_RE.finditer(strip_code(body)):
+            linked = match.group(1).split("|")[0].split("#")[0].strip()
+            if linked == target_slug:
+                reasons.append("wikilink no corpo")
+                break
+        if target_slug in fm_list(fm, "sources"):
+            reasons.append("sources no frontmatter")
+        if reasons:
+            status, as_of, superseded_by = knowledge_status(fm)
+            references.append((page_category(p), slug_of(p), status_label(status, as_of, superseded_by), reasons))
+
+    print("[review] [[%s]] — status: %s" %
+          (target_slug, status_label(*target_status)))
+    print("  referências diretas candidatas a dependência/contexto: %d" % len(references))
+    print("  sinalização de contexto; não prova ou correção automática.")
+    for cat, slug, status, reasons in sorted(references):
+        print("      - [[%s]] (%s; %s) — %s" % (slug, cat, status, "; ".join(reasons)))
     return 0
 
 
@@ -665,22 +772,27 @@ def cmd_graph():
 
 
 def cmd_stale(days):
-    """Entidades/conceitos com `updated:` antigo em FAST_SPHERES — insumo do DREAM.
+    """Entidades/conceitos rápidos e insights com `updated:` antigo — insumo do DREAM.
 
-    Informacional (exit 0 sempre): aponta candidatos a refresh, não erros.
+    Histórico/superado e inbox são excluídos. Informacional (exit 0 sempre):
+    aponta candidatos a refresh, não erros ou afirmações de desatualização.
     """
     import datetime
     cutoff = datetime.date.today() - datetime.timedelta(days=days)
     found = []
     for p in iter_pages():
         cat = page_category(p)
-        if cat not in FAST_SPHERES or is_inbox(p):
+        if is_inbox(p):
             continue
         res = split_fm(read_file(p))
         if res is None:
             continue
         fm = res[0]
-        if (fm_get(fm, "type") or "") not in ("entity", "concept"):
+        typ = fm_get(fm, "type") or ""
+        if not (typ == "insight" or (cat in FAST_SPHERES and typ in ("entity", "concept"))):
+            continue
+        status, _as_of, _superseded_by = knowledge_status(fm)
+        if status in ("historical", "superseded"):
             continue
         raw_date = (fm_get(fm, "updated") or fm_get(fm, "created") or "").strip()
         try:
@@ -691,7 +803,7 @@ def cmd_stale(days):
         if upd < cutoff:
             found.append((upd, cat, slug_of(p), "updated: %s (%d dias)" % (upd, (datetime.date.today() - upd).days)))
     found.sort(key=lambda r: (r[0] is not None, r[0] or datetime.date.min, r[1], r[2]))
-    print("[stale] entity/concept sem update há >%d dias em %s" % (days, ", ".join(sorted(FAST_SPHERES))))
+    print("[stale] entity/concept em esferas rápidas e insights sem update há >%d dias" % days)
     print("  candidatos a refresh: %d" % len(found))
     for _d, cat, slug, info in found:
         print("      - [[%s]] (%s) — %s" % (slug, cat, info))
@@ -817,6 +929,11 @@ def main():
         return cmd_migrate("--dry-run" in args)
     if args[0] == "search":
         return cmd_search(" ".join(args[1:]))
+    if args[0] == "review":
+        if len(args) != 2:
+            print("uso: build-index.py review <slug>")
+            return 2
+        return cmd_review(args[1])
     if args[0] == "graph":
         return cmd_graph()
     if args[0] == "thresholds":

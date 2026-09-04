@@ -56,6 +56,7 @@ A operacao tem duas fases. O verbo do pedido define o checkpoint:
    - **Lacunas e contradicoes**
    - **Conexoes**
 5. Atualizar paginas de projeto ou contexto somente com os deltas marcados `promover`. Preservar atribuicao e limites epistemicos; uso ou atividade nao prova resultado.
+   Se o delta corrigir uma interpretacao ou substituir um estado anterior, seguir `review.md` para conferir os resumos e dependencias candidatas pertinentes. Confirmacao de registro nao comprova claims causais nem todos os detalhes da source.
 6. Refrescar pagina de perfil profissional se ela existir e houver evidencia comportamental nitida:
    - reconfirmar padroes existentes;
    - adicionar padrao novo sustentado por evidencia;

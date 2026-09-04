@@ -46,6 +46,7 @@ Montar UM paragrafo autocontido no formato research-prompt e executa-lo:
 3. Criar ou atualizar entidades relevantes.
 4. Criar ou atualizar conceitos relevantes.
 5. Verificar cross-links para paginas existentes; nao criar link para pagina inexistente.
+   Quando a fonte alterar uma premissa ou conclusao ja registrada, seguir `review.md` para revisar dependencias pertinentes dentro do escopo autorizado. Distinguir procedencia, contexto e contraditorio; repeticao da mesma origem nao e corroboracao independente.
 6. Incluir **Fonte** quando houver arquivo em `raw/` e **Conexoes** quando houver relacoes reais.
 7. Garantir frontmatter completo e `summary:` em paginas indexaveis.
 8. Rodar `python3 .claude/scripts/build-index.py generate`.

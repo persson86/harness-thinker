@@ -7,4 +7,4 @@ Se a pergunta for sobre agenda, calendário, compromisso, reunião do dia, dispo
 Deltas Claude Code:
 - Liste explicitamente as páginas consultadas.
 - Use citações reais com `[[wikilink]]`.
-- Encerre perguntando: "Vale salvar esta síntese como um insight?"
+- Proponha registro apenas quando houver delta durável e fechamento oportuno, conforme o playbook; não interrompa exploração nem peça novamente autorização vigente para este resultado e escopo.
