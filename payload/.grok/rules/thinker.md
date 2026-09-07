@@ -47,6 +47,10 @@ Síntese do vault (query transversal, contradição, insight, ingestão com atri
 
 Não traduza Luna/Terra/Sol para nomes Grok.
 
+## Delegação opcional entre CLIs
+
+Quando solicitada, siga a skill `thinker-delegate` e `harness/operations/delegate.md`. A extensão começa OFF; a regra de ignorar roteamento Codex acima trata dos subagentes nativos, não impede uma chamada explícita à CLI Codex pela extensão. Escolha explícita do usuário vence sessão e padrão. Git começa em Luna low; não traduza Luna/Sonnet para modelos Grok. Registre a execução efetiva e consulte a inbox enquanto houver trabalhos da sessão. O principal preserva a coautoria e o escopo de publicação.
+
 ## Output
 
 Conclusão primeiro. Sem narrar chamadas de ferramenta. Sem padding. Se houver limite de palavras, cumpra. Separe fato, inferência e o que precisa ser verificado.
@@ -62,4 +66,3 @@ python3 .claude/scripts/build-index.py generate
 python3 .claude/scripts/build-index.py check
 bash harness/scripts/verify.sh
 ```
-

@@ -30,6 +30,7 @@ AGENDA_RE = re.compile(
     /agenda\b
     | proximo\s+compromisso
     | meus?\s+compromissos
+    | minhas?\s+proxim[ao]s?\s+agendas?\b
     | meu\s+calend
     | \bcalendario\b
     | \bcalendar\b

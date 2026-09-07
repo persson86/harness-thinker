@@ -15,4 +15,4 @@ Este é o **repo-fonte** do harness. **Não é um vault** — não há `wiki/`, 
 
 ## Camadas fora do payload
 
-Camadas opcionais de revisão deliberativa (ex.: peer-review cruzado entre modelos) dependem de agents e plugins user-level (`~/.claude/agents/`, plugins Codex) e **não** são embarcadas pelo harness — ficam no setup do usuário, fora deste repo.
+Personas e plugins deliberativos específicos continuam no setup do usuário. A partir de 7.12.0, o harness distribui uma extensão genérica de delegação: contrato, interface e executor ficam em `payload/`, desligados por padrão. Ela usa CLIs já instaladas, não instala provedores ou plugins e mantém configuração/histórico privados fora do payload e do vault. Qualquer ativação é explícita; instalar ou atualizar não inicia colaboradores.

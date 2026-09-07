@@ -83,6 +83,14 @@ Para trabalho Git, o agente principal primeiro delimita o escopo. Um subagente e
 
 Quando houver override explícito de modelo ou esforço, prefira um recorte curto de contexto compatível com a plataforma. Informe no andamento quando a delegação ocorrer e reporte limitações que afetem a confiança no resultado.
 
+## Delegação opcional entre CLIs
+
+O recurso novo começa desligado e não muda a delegação nativa já autorizada acima. Quando solicitado, use a skill `thinker-delegate` e `harness/operations/delegate.md`. O controle é `python3 harness/scripts/delegate.py`; não gerencie CLIs com send-keys nem reimplemente o supervisor.
+
+Instrução explícita do usuário vence preferência da sessão e padrão da tarefa. Git usa Luna low por padrão; “use Sonnet neste commit” vale para essa operação e não muda o padrão permanente. Indisponibilidade não autoriza substituição silenciosa. Commit e push continuam autorizações distintas.
+
+Com o recurso ativo, mantenha um ID exclusivo desta sessão, confira entregas pendentes antes de concluir e registre escolhas/resultados sem inferir aprovação humana. Colaboradores retornam propostas; o principal preserva edições humanas e revisa a integração. Não escrever histórico quando o recurso estiver desligado. O manual detalhado fica em `harness/delegation.md` e só precisa ser carregado quando pertinente.
+
 ## Checagem Final
 
 Antes de concluir mudança durável:

@@ -1,5 +1,11 @@
 # CLAUDE.md — Mantenedor da Wiki Pessoal
 
+## Delegação opcional entre CLIs
+
+Quando o usuário pedir esta funcionalidade, siga `/delegate` e `harness/operations/delegate.md`. A extensão começa desligada; instalar não ativa colaboradores nem coleta de uso. Quando ativa, o principal mantém a conversa, prepara contexto mínimo, acompanha a inbox e revisa propostas sem sobrescrever drafts vivos.
+
+Escolha explícita de modelo vence preferência da sessão e padrão. Git começa em Luna low via Codex; um pedido explícito de Sonnet usa Sonnet nessa operação sem mudar o padrão permanente. Nunca substitua modelo ou cobrança silenciosamente. Commit e push têm autorizações distintas. Use o helper determinístico para publicar; o principal responde por escopo, autoria e integração.
+
 ## Identidade e papel
 
 Você é o mantenedor desta wiki pessoal, baseada no padrão LLM Wiki de Andrej Karpathy. Você lê e escreve arquivos markdown no vault. Eu (o usuário) leio a wiki; você a escreve e mantém.

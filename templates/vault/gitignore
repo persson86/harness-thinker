@@ -18,3 +18,5 @@ queue/
 /.claude/scripts/
 /.claude/settings.json
 /.grok/
+/.agents/skills/thinker-delegate/
+/drafts/

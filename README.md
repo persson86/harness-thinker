@@ -14,6 +14,7 @@ payload/           # what gets installed 1:1 into the target
   harness/         #   contract + operations/ + adapters/ + scripts/verify.sh
   .claude/         #   commands/ hooks/ scripts/build-index.py settings.json
   .grok/           #   Grok Build rules, hook shim, memory-skill shadow
+  .agents/         #   optional delegation skill for Codex
 templates/vault/   # scaffold for a new vault (--init)
 ```
 
@@ -50,7 +51,9 @@ index, and installs the harness. The target folder doesn't need to exist yet —
 ```
 
 Installs only the harness over your existing files; never touches `wiki/`, `raw/`, `queue/`,
-`vault.config.json`, `vault-heuristics.md` or `.claude/memory/`. If there's no `vault.config.json`, it derives one
+`vault.config.json`, `vault-heuristics.md` or `.claude/memory/`. It appends the exact generated-skill rule
+`/.agents/skills/thinker-delegate/` to an existing regular `.gitignore` when absent, preserving its other content.
+If there's no `vault.config.json`, it derives one
 from your `wiki/` subfolders for you to review.
 
 ### Step 3 — make the vault a private repo
@@ -85,7 +88,7 @@ bash harness/scripts/update.sh
 Pulls the latest harness from GitHub and reinstalls it in place. Run from the vault root.
 
 What gets overwritten: `CLAUDE.md`, `AGENTS.md`, `harness/`, `.claude/commands/`, `.claude/hooks/`, `.claude/scripts/`, `.claude/settings.json`, `.grok/`.  
-What is never touched: `wiki/`, `raw/`, `queue/`, `vault.config.json`, `vault-heuristics.md`, `.claude/memory/`, `.claude/settings.local.json`.
+What is never touched: `wiki/`, `raw/`, `queue/`, `vault.config.json`, `vault-heuristics.md`, `.claude/memory/`, `.claude/settings.local.json`. The only `.gitignore` migration appends `/.agents/skills/thinker-delegate/` when that exact rule is absent; it preserves all existing lines and refuses a symlink or tracked collision.
 
 ## Per-vault config
 
@@ -116,6 +119,27 @@ the link, the index or the log, and the turn closes.
 ## Operations
 
 Triggered in natural language or via `/command` (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **REVIEW**, **AGENDA** (Gmail pessoal + Calendar do Mac profissional), **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MEMORY** (Claude-only; Grok Build recusa), **DREAM**, **REVERIE**.
+
+## 7.12.0 — Optional delegation and usage learning
+
+Delegation is **OFF by default**. Ask the main agent to enable it for one session, delegate a bounded contribution, inspect pending results, or show the usage history. The agent remains responsible for context, review and integration; collaborators return proposals without overwriting live drafts.
+
+Only existing subscription logins are supported. The extension does not accept API keys or switch to API billing when an account limit or authentication failure occurs.
+
+An explicit model choice wins over session preference and task default. Git starts with Luna low; “use Sonnet for this commit” affects that operation only. Model choice never expands commit/push authority. The deterministic publication helper validates exact scope, serializes Git mutations and verifies remote parity.
+
+The extension includes detached jobs, cancellation, deadlines, recovery, separate comparison drafts, local decision records and explicit feedback. It uses installed Codex/Claude/Grok CLIs with restricted proposal-only adapters; compatibility and model access must be checked in the actual environment. It does not promise a native wake-up notification on every host.
+
+```bash
+python3 harness/scripts/delegate.py status
+python3 harness/scripts/delegate.py doctor
+python3 harness/scripts/delegate.py --session UNIQUE-ID on
+python3 harness/scripts/delegate.py off --all
+```
+
+Read [the operation](payload/harness/operations/delegate.md) for the conversational workflow and [the manual](payload/harness/delegation.md) for commands, Git and limitations. State and preferences stay in a private directory outside the vault and survive updates. The new Codex skill lives at `.agents/skills/thinker-delegate/`; install/update adds its exact ignore rule to existing vaults when needed. No background collector starts on install.
+
+The release also fixes the existing calendar gate for “minha próxima agenda”, retaining a negative case for conceptual discussion about agendas.
 
 ## 7.11.0 — Revisable knowledge and conversation
 

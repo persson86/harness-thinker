@@ -93,6 +93,7 @@ manifest_covers_installed() {
     [[ -d .claude/hooks ]] && find .claude/hooks -type f ! -path '.claude/hooks/hook.log' -print
     [[ -d .claude/scripts ]] && find .claude/scripts -type f -print
     [[ -d .grok ]] && find .grok -type f -print
+    [[ -d .agents/skills/thinker-delegate ]] && find .agents/skills/thinker-delegate -type f -print
   } | sed 's|^\./||' | sort -u > "$actual"
 
   extras="$(comm -13 "$expected" "$actual")"

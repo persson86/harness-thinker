@@ -204,6 +204,10 @@ run gate "{\"hookEventName\":\"Stop\",\"sessionId\":\"$SID\",\"promptId\":\"p1\"
 assert_rc "agenda-gate não bloqueia virada comum" 0
 echo "$OUT" | grep -q '"decision"' && bad "agenda-gate não bloqueia virada comum (sem block)" "$OUT" || ok "agenda-gate não bloqueia virada comum (sem block)"
 
+run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID\",\"promptId\":\"p1b\",\"prompt\":\"quero uma camada de delegação para resumos de agendas\"}"
+assert_rc "agenda-gate ignora menção conceitual a agendas" 0
+echo "$OUT" | grep -q 'Calendar do Mac' && bad "agenda-gate não injeta contexto em menção conceitual" "$OUT" || ok "agenda-gate não injeta contexto em menção conceitual"
+
 rm -rf "/tmp/sb-agenda-$SID"
 run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID\",\"promptId\":\"p2\",\"prompt\":\"qual minha próxima agenda?\"}"
 assert_rc "agenda-gate marca prompt de agenda" 0
@@ -229,6 +233,14 @@ run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID\",\"promp
 run grok_hook "{\"hookEventName\":\"stop\",\"sessionId\":\"$SID\",\"promptId\":\"p3\",\"reason\":\"end_turn\"}"
 assert_out "shim Stop bloqueia agenda incompleta" '"decision": "block"'
 assert_out "shim Stop pede Calendar do Mac" "Calendar do Mac"
+
+# Delegation suite: fake providers, isolated Git repositories, no paid calls.
+run python3 -B -m unittest discover -s "$REPO/tests" -p 'test_delegation_*.py'
+assert_rc "delegação: ciclo, adaptadores, CLI, hook e Git isolados" 0
+[ "$RC" -ne 0 ] || printf '%s\n' "$OUT" | tail -4
+run python3 -B -m unittest discover -s "$REPO/tests" -p 'test_knowledge_review.py'
+assert_rc "revisão de conhecimento existente" 0
+[ "$RC" -ne 0 ] || printf '%s\n' "$OUT" | tail -4
 
 # ----------------------------------------------------------------
 echo
