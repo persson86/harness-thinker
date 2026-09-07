@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import os
 from pathlib import Path
@@ -36,7 +37,9 @@ def parser():
     off = sub.add_parser("off", help="Desligar e solicitar cancelamento dos trabalhos próprios")
     off.add_argument("--all", action="store_true", help="Desligamento geral do vault")
     doctor = sub.add_parser("doctor", help="Verificar CLIs sem iniciar tarefas de modelo")
-    doctor.add_argument("--model", choices=sorted(adapters.PROFILES))
+    doctor_scope = doctor.add_mutually_exclusive_group()
+    doctor_scope.add_argument("--model", choices=sorted(adapters.PROFILES))
+    doctor_scope.add_argument("--all-profiles", action="store_true", help="Verificar todos os perfis sem testar acesso ao modelo")
     route = sub.add_parser("route", help="Explicar uma escolha sem executar nem mudar o padrão")
     submit = sub.add_parser("submit", help="Delegar uma contribuição delimitada em segundo plano")
     for command in (route, submit):
@@ -50,6 +53,11 @@ def parser():
     submit.add_argument("--file", action="append", default=[], help="Arquivo de contexto selecionado; repetível")
     submit.add_argument("--reason", required=True, help="Motivo curto da delegação")
     submit.add_argument("--timeout", type=float, default=300)
+    submit.add_argument("--run", help="Run ao qual este job pertence")
+    submit.add_argument("--stage", type=int, help="Etapa linear do run, começando em 1")
+    submit.add_argument("--role", choices=["author", "reviewer", "synthesizer"])
+    submit.add_argument("--parent-job", help="Job válido selecionado da etapa anterior")
+    submit.add_argument("--handoff", choices=["full", "delta", "synthesis"])
     for name, help_text in (("result", "Ler a contribuição"), ("accept", "Materializar um novo draft para coautoria"),
                             ("cancel", "Solicitar cancelamento"), ("retry", "Nova tentativa explícita"),
                             ("ack", "Marcar entrega como recebida")):
@@ -72,6 +80,31 @@ def parser():
     defaults.add_argument("--task", choices=sorted(adapters.DEFAULT_ROUTES), required=True)
     defaults.add_argument("--model", choices=sorted(adapters.PROFILES), required=True)
     defaults.add_argument("--reason", required=True)
+    run = sub.add_parser("run", help="Agrupar uma cadeia ou avaliação do agente principal")
+    run_commands = run.add_subparsers(dest="run_command", required=True)
+    start = run_commands.add_parser("start", help="Criar um run sem iniciar modelos")
+    start.add_argument("--kind", choices=["chain", "principal-eval"], required=True)
+    start.add_argument("--objective", required=True)
+    start.add_argument("--principal-provider", choices=["codex", "claude", "grok"])
+    start.add_argument("--principal-model")
+    start.add_argument("--principal-effort", choices=sorted(adapters.EFFORTS))
+    show = run_commands.add_parser("show", help="Mostrar estado consolidado do run")
+    show.add_argument("run")
+    quota = run_commands.add_parser("quota", help="Registrar snapshot manual da quota da conta")
+    quota.add_argument("run")
+    quota.add_argument("--when", choices=["before", "after"], required=True)
+    quota.add_argument("--metric", required=True)
+    quota.add_argument("--value", type=float, required=True)
+    quota.add_argument("--unit", required=True)
+    finish = run_commands.add_parser("finish", help="Finalizar run e materializar somente o job final")
+    finish.add_argument("run")
+    final = finish.add_mutually_exclusive_group(required=True)
+    final.add_argument("--final-job")
+    final.add_argument("--final-artifact")
+    run_feedback = run_commands.add_parser("feedback", help="Registrar avaliação humana do run")
+    run_feedback.add_argument("run")
+    run_feedback.add_argument("--value", choices=["accepted", "needs_changes", "rejected", "unknown"], required=True)
+    run_feedback.add_argument("--note", default="")
     git = sub.add_parser("git", help="Publicação Git determinística, com autorização e escopo separados")
     commands = git.add_subparsers(dest="git_command", required=True)
     prepare = commands.add_parser("prepare", help="Preparar plano revisável, sem commit ou push")
@@ -113,6 +146,15 @@ def job_id(store, value, sid=None):
     return found[0]["id"]
 
 
+def run_id(store, value, sid=None):
+    if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f][0-9a-f-]{0,35}", value):
+        raise DelegationError("Indique um ID ou prefixo de run válido.")
+    found = [run for run in store.list_runs(sid) if run["id"].startswith(value)]
+    if len(found) != 1:
+        raise DelegationError("Run não encontrado ou ID ambíguo.")
+    return found[0]["id"]
+
+
 def policy(store):
     value = _read(store.state / "policy.json", {"defaults": {}, "decisions": []})
     if not isinstance(value, dict) or not isinstance(value.get("defaults"), dict) or not isinstance(value.get("decisions"), list):
@@ -136,12 +178,57 @@ def resolve(store, args):
 def public_job(job):
     keys = ("id", "session", "state", "task_type", "reason", "created_at", "started_at", "finished_at",
             "transport_success", "validation", "acceptance", "accepted_path", "acceptance_action", "feedback", "feedback_note", "error", "error_code",
-            "cancel_requested", "stale", "accepted_stale", "accepted_stale_sources", "model_source", "attempt_id", "retry_of")
+            "cancel_requested", "stale", "accepted_stale", "accepted_stale_sources", "model_source", "attempt_id", "retry_of",
+            "run_id", "stage", "role", "parent_job", "handoff", "diagnostic")
     result = {key: job[key] for key in keys if key in job}
     result["profile"] = {key: job.get("profile", {}).get(key) for key in
                          ("provider", "model", "effort", "model_source", "cli_version", "isolation")}
     if job.get("result"):
         result["model_reported"] = job["result"].get("model_reported")
+    return result
+
+
+def public_run(store, run):
+    principal = run.get("principal")
+    result = {key: run.get(key) for key in
+              ("id", "session", "kind", "status", "objective", "created_at", "updated_at",
+               "finished_at", "quota", "feedback", "feedback_note", "final") if key in run}
+    result["principal"] = principal
+    result["principal_usage"] = "unavailable"
+    final = run.get("final") or {}
+    if final.get("kind") == "artifact":
+        try:
+            result["final_artifact_stale"] = store._source(final["path"])["sha256"] != final.get("sha256")
+        except DelegationError:
+            result["final_artifact_stale"] = True
+    source_jobs = [job for job in store.list_jobs(run["session"]) if job.get("run_id") == run["id"]]
+    result["jobs"] = [public_job(job) for job in source_jobs]
+    result["jobs"].sort(key=lambda item: (item.get("stage") or 0, item.get("created_at") or ""))
+    def elapsed(start, finish):
+        try:
+            return max(0.0, (dt.datetime.fromisoformat(finish.replace("Z", "+00:00"))
+                             - dt.datetime.fromisoformat(start.replace("Z", "+00:00"))).total_seconds())
+        except (AttributeError, TypeError, ValueError):
+            return None
+    finish = run.get("finished_at") or dt.datetime.now(dt.timezone.utc).isoformat()
+    result["calendar_duration_seconds"] = elapsed(run.get("created_at"), finish)
+    durations = [elapsed(job.get("started_at"), job.get("finished_at")) for job in source_jobs]
+    result["observed_job_execution_seconds"] = sum(value for value in durations if value is not None)
+    result["retry_count"] = sum(bool(job.get("retry_of")) for job in source_jobs)
+    allowed = ("input_tokens", "output_tokens", "cached_input_tokens", "cache_read_input_tokens",
+               "cache_creation_input_tokens", "cache_write_input_tokens", "reasoning_output_tokens", "total_tokens")
+    usage = {}
+    for job in source_jobs:
+        raw = (job.get("result") or {}).get("usage")
+        if not isinstance(raw, dict):
+            continue
+        counters = {key: raw[key] for key in allowed
+                    if type(raw.get(key)) in (int, float) and 0 <= raw[key] < 10 ** 12}
+        if counters:
+            provider = job.get("profile", {}).get("provider", "unavailable")
+            usage.setdefault(provider, []).append({"job_id": job["id"], "counters": counters})
+    result["usage_by_provider"] = usage
+    result["usage_note"] = "Contadores pertencem a cada provedor; nenhum total comparável foi inferido."
     return result
 
 
@@ -243,7 +330,8 @@ def dispatch(store, args):
         return result
     if command == "doctor":
         results = []
-        for name in ([args.model] if args.model else ["luna", "sonnet", "grok"]):
+        names = sorted(adapters.PROFILES) if args.all_profiles else ([args.model] if args.model else ["luna", "sonnet", "grok"])
+        for name in names:
             try:
                 profile = adapters.resolve_profile(explicit=name)
                 result = adapters.probe(profile, cwd=store.vault)
@@ -261,9 +349,13 @@ def dispatch(store, args):
         profile.update(adapters.probe(profile, cwd=str(Path(os.environ.get("TMPDIR", "/tmp")).resolve())))
         task = store._source(args.brief)["text"] if args.brief else args.prompt
         context_paths = [*args.file, *([args.brief] if args.brief else [])]
+        selected_run = run_id(store, args.run, sid) if args.run else None
+        selected_parent = job_id(store, args.parent_job, sid) if args.parent_job else None
         return public_job(store.submit(sid, profile, task, context_paths=context_paths,
                                        timeout=args.timeout, model_source=profile["model_source"],
-                                       reason=args.reason, task_type=args.task))
+                                       reason=args.reason, task_type=args.task,
+                                       run_id=selected_run, stage=args.stage, role=args.role,
+                                       parent_job=selected_parent, handoff=args.handoff))
     if command == "set-default":
         with store._lock():
             value = policy(store)
@@ -293,6 +385,46 @@ def dispatch(store, args):
     if command == "record":
         enabled(store, args)
         return store.record_local(args.session, reason=args.reason, task_type=args.task)
+    if command == "run":
+        sid = session(args)
+        if args.run_command == "start":
+            enabled(store, args)
+            supplied = [args.principal_provider, args.principal_model, args.principal_effort]
+            if any(value is not None for value in supplied) and not all(value is not None for value in supplied):
+                raise DelegationError("Informe provider, model e effort do principal juntos, ou omita os três.")
+            principal = ({"provider": args.principal_provider, "model": args.principal_model,
+                          "effort": args.principal_effort, "source": "declared"}
+                         if all(value is not None for value in supplied) else None)
+            return public_run(store, store.create_run(sid, args.kind, args.objective, principal))
+        identifier = run_id(store, args.run, sid)
+        run = store.get_run(identifier)
+        if args.run_command == "show":
+            return public_run(store, run)
+        if args.run_command == "quota":
+            enabled(store, args)
+            return public_run(store, store.record_quota(identifier, args.when, args.metric, args.value, args.unit))
+        if args.run_command == "feedback":
+            enabled(store, args)
+            return public_run(store, store.feedback_run(identifier, args.value, args.note))
+        enabled(store, args)
+        if args.final_job:
+            final_job = job_id(store, args.final_job, sid)
+            job = store.get(final_job)
+            if (job.get("run_id") != identifier or job.get("state") != "completed"
+                    or job.get("validation") != "valid"):
+                raise DelegationError("O job final precisa estar concluído, válido e pertencer ao run.")
+            existing_final = (run.get("final") or {}).get("job_id")
+            if run.get("status") == "completed":
+                if existing_final != final_job:
+                    raise DelegationError("Run já finalizado com outro resultado.")
+                result = run
+            else:
+                result = store.finish_run(identifier, final_job=final_job)
+            if job.get("acceptance") != "accepted":
+                store.accept(final_job)
+        else:
+            result = store.finish_run(identifier, final_artifact=args.final_artifact)
+        return public_run(store, result)
     if command == "git":
         sid = enabled(store, args)
         plans = store.state / "git-plans"
@@ -363,6 +495,16 @@ def render(value):
         state = "ligada" if value["enabled"] else "desligada"
         return (f"Delegação {state}" + (f" nesta sessão ({value['session']})." if value.get("session") else ".")
                 + "\n" + value.get("message", "Ative somente quando quiser usar a extensão." if not value["enabled"] else "Você pode continuar a conversa enquanto os colaboradores trabalham."))
+    if value.get("kind") in {"chain", "principal-eval"} and value.get("id"):
+        principal = value.get("principal") or {}
+        principal_text = (f"{principal.get('provider')} / {principal.get('model')} ({principal.get('effort')}); declarado, não verificado"
+                          if principal else "unavailable")
+        final = value.get("final") or {}
+        final_text = final.get("job_id") or final.get("path") or "não definido"
+        jobs = value.get("jobs", [])
+        return (f"Run {value['id'][:8]} · {value['kind']} · {value.get('status', 'unknown')}\n"
+                f"Principal: {principal_text}\nJobs: {len(jobs)} · Final: {final_text}\n"
+                + "\n".join(render(job) for job in jobs))
     if "jobs" in value:
         return value.get("message", "") + "\n" + "\n".join(render(j) for j in value["jobs"])
     if "state" in value:

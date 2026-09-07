@@ -19,6 +19,15 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual((explicit["provider"], explicit["model_source"]), ("claude", "explicit"))
         self.assertEqual(a.resolve_profile("git")["model"], "gpt-5.6-luna")
 
+    def test_astra_and_fable_profiles_are_explicit_subscription_routes(self):
+        astra = a.resolve_profile(explicit="astra")
+        fable = a.resolve_profile(explicit="fable")
+        self.assertEqual((astra["provider"], astra["model"], astra["effort"]),
+                         ("codex", "gpt-6-astra", "high"))
+        self.assertEqual((fable["provider"], fable["model"], fable["effort"]),
+                         ("claude", "fable", "high"))
+        self.assertEqual("subscription", fable["auth"])
+
     def test_session_precedence_and_unknown_model_no_fallback(self):
         self.assertEqual(a.resolve_profile("git", session_profile="sonnet")["model"], "sonnet")
         with self.assertRaises(a.AdapterError):

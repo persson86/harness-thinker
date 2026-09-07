@@ -120,6 +120,14 @@ the link, the index or the log, and the turn closes.
 
 Triggered in natural language or via `/command` (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **REVIEW**, **AGENDA** (Gmail pessoal + Calendar do Mac profissional), **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MEMORY** (Claude-only; Grok Build recusa), **DREAM**, **REVERIE**.
 
+## 7.13.0 — Measurable delegation runs
+
+Delegation experiments can now be grouped as linear `chain` or `principal-eval` runs. A run records the declared principal separately from observed collaborators, manual account-quota snapshots, stage/role/parent handoffs, retries, one reviewed final result and run-level feedback. Principal identity is explicitly labelled declared and unverified; principal usage remains unavailable unless the host exposes it, and token counters from different providers are never summed as if they were comparable.
+
+The first stage receives a `full` handoff. Later stages require a valid completed parent from the immediately preceding stage and use `delta` or `synthesis`, making context growth visible without automatic semantic compression. `run finish` selects exactly one valid final job and materializes only that proposal by default. Existing standalone jobs remain compatible.
+
+The model catalog adds Claude Fable through the subscription alias `fable`, while Astra remains available as `gpt-6-astra`. `doctor --all-profiles` checks every configured profile without making generation calls and continues to report model access as untested. Attempts retain only safe stream metadata—exit code, byte counts and SHA-256 hashes—while raw stdout/stderr are deleted.
+
 ## 7.12.0 — Optional delegation and usage learning
 
 Delegation is **OFF by default**. Ask the main agent to enable it for one session, delegate a bounded contribution, inspect pending results, or show the usage history. The agent remains responsible for context, review and integration; collaborators return proposals without overwriting live drafts.

@@ -179,6 +179,10 @@ def diagnose_failure(profile, stdout, stderr, returncode):
         self.assertFalse(job["transport_success"])
         self.assertEqual("model_unavailable", job["error_code"])
         self.assertEqual("O modelo solicitado não está disponível.", job["error"])
+        self.assertEqual(7, job["diagnostic"]["returncode"])
+        self.assertEqual("model_unavailable", job["diagnostic"]["classification"])
+        self.assertGreater(job["diagnostic"]["stdout"]["bytes"], 0)
+        self.assertRegex(job["diagnostic"]["stdout"]["sha256"], r"^[0-9a-f]{64}$")
         saved = (self.state / "jobs" / job["id"] / "job.json").read_text()
         self.assertNotIn("raw-stdout-secret", saved)
         self.assertNotIn("raw-stderr-secret", saved)
@@ -270,6 +274,75 @@ def parse_result(profile, stdout, stderr, returncode):
         self.assertNotEqual(original["id"], retry["id"])
         self.assertNotEqual(original["attempt_id"], retry["attempt_id"])
         self.assertEqual(original["id"], retry["retry_of"])
+
+    def test_run_tracks_declared_principal_linear_handoffs_quota_and_final(self):
+        self.enable()
+        principal = {"provider": "codex", "model": "gpt-6-astra", "effort": "high", "source": "declared"}
+        run = self.store.create_run("host-a", "chain", "Compare orchestration models", principal)
+        self.assertEqual("declared_not_verified", run["principal"]["identity_status"])
+        self.assertEqual([], run["quota"])
+        first = self.wait(self.submit(run_id=run["id"], stage=1, role="author", handoff="full")["id"])
+        second = self.wait(self.submit(run_id=run["id"], stage=2, role="reviewer",
+                                      parent_job=first["id"], handoff="delta")["id"])
+        self.assertEqual(first["id"], second["parent_job"])
+        observed = self.store.record_quota(run["id"], "before", "quota_remaining", 80, "percent")
+        self.assertEqual("account_snapshot_not_attributed", observed["quota"][0]["attribution"])
+        with self.assertRaisesRegex(self.runtime.DelegationError, "previous stage"):
+            self.submit(run_id=run["id"], stage=3, role="synthesizer",
+                        parent_job=first["id"], handoff="synthesis")
+        finished = self.store.finish_run(run["id"], final_job=second["id"])
+        self.assertEqual("completed", finished["status"])
+        self.assertEqual(second["id"], finished["final"]["job_id"])
+        self.assertIn("Principal: codex / gpt-6-astra", self.store.history("host-a"))
+
+    def test_run_retry_preserves_stage_and_old_standalone_jobs_remain_valid(self):
+        self.enable()
+        standalone = self.wait(self.submit()["id"])
+        self.assertNotIn("run_id", standalone)
+        run = self.store.create_run("host-a", "chain", "Retry safely")
+        first = self.wait(self.submit(run_id=run["id"], stage=1, role="author", handoff="full")["id"])
+        retry = self.wait(self.store.retry(first["id"])["id"])
+        for key in ("run_id", "stage", "role", "parent_job", "handoff"):
+            self.assertEqual(first.get(key), retry.get(key))
+        with self.assertRaisesRegex(self.runtime.DelegationError, "already has an initial attempt"):
+            self.submit(run_id=run["id"], stage=1, role="author", handoff="full")
+
+    def test_malformed_run_state_fails_closed_without_rewriting_it(self):
+        self.enable()
+        run = self.store.create_run("host-a", "chain", "Preserve audit state")
+        path = self.state / "runs" / (run["id"] + ".json")
+        path.write_text('{"schema":999,"private":"sentinel"}')
+        before = path.read_bytes()
+        with self.assertRaisesRegex(self.runtime.DelegationError, "[Rr]un"):
+            self.store.get_run(run["id"])
+        self.assertEqual(before, path.read_bytes())
+
+    def test_run_feedback_off_artifact_scope_and_concurrent_finish(self):
+        self.enable()
+        evaluation = self.store.create_run("host-a", "principal-eval", "Measure the principal")
+        (self.vault / "outside.md").write_text("outside drafts")
+        with self.assertRaisesRegex(self.runtime.DelegationError, "inside drafts"):
+            self.store.finish_run(evaluation["id"], final_artifact="outside.md")
+        finished_eval = self.store.finish_run(evaluation["id"], final_artifact="drafts/live.md")
+        self.assertEqual("artifact", finished_eval["final"]["kind"])
+        self.store.set_session("host-a", False)
+        with self.assertRaisesRegex(self.runtime.DelegationError, "OFF"):
+            self.store.feedback_run(evaluation["id"], "accepted")
+
+        self.store.set_session("host-a", True)
+        run = self.store.create_run("host-a", "chain", "Choose one final")
+        first = self.wait(self.submit(run_id=run["id"], stage=1, role="author", handoff="full")["id"])
+        second = self.wait(self.submit(run_id=run["id"], stage=2, role="reviewer",
+                                      parent_job=first["id"], handoff="delta")["id"])
+        def finish(job):
+            try:
+                return self.store.finish_run(run["id"], final_job=job["id"])
+            except self.runtime.DelegationError:
+                return None
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            outcomes = list(pool.map(finish, (first, second)))
+        self.assertEqual(1, sum(value is not None for value in outcomes))
+        self.assertIn(self.store.get_run(run["id"])["final"]["job_id"], {first["id"], second["id"]})
 
     def _try_retry(self, identifier):
         try:

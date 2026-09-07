@@ -20,6 +20,7 @@ PROFILES = {
     "sol": ("codex", "gpt-5.6-sol", "high"),
     "astra": ("codex", "gpt-6-astra", "high"),
     "sonnet": ("claude", "sonnet", "high"),
+    "fable": ("claude", "fable", "high"),
     "opus": ("claude", "opus", "high"),
     "grok": ("grok", "grok-4.6", "high"),
 }

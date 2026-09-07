@@ -159,6 +159,47 @@ class CLITests(unittest.TestCase):
         self.assertEqual("explicit", result["model_source"])
         self.assertEqual("sonnet", self.cli("route")["model"])
 
+    def test_fable_route_and_doctor_all_profiles_are_honest(self):
+        route = self.cli("route", "--model", "fable")
+        self.assertEqual(("claude", "fable", "high"),
+                         (route["provider"], route["model"], route["effort"]))
+        report = self.cli("doctor", "--all-profiles", session=None)
+        self.assertEqual({"astra", "fable", "grok", "luna", "opus", "sol", "sonnet", "terra"},
+                         {item["profile"] for item in report["providers"]})
+        for item in report["providers"]:
+            if item["ready"]:
+                self.assertEqual("not_tested", item["model_access"])
+
+    def test_run_cli_links_stages_and_materializes_only_final(self):
+        self.enable()
+        run = self.cli("run", "start", "--kind", "chain", "--objective", "Compare principals",
+                       "--principal-provider", "claude", "--principal-model", "sonnet",
+                       "--principal-effort", "high")
+        self.assertEqual("unavailable", run["principal_usage"])
+        first = self.completed(self.submit("host-a", "--run", run["id"], "--stage", "1",
+                                           "--role", "author", "--handoff", "full"))
+        second = self.completed(self.submit("host-a", "--run", run["id"], "--stage", "2",
+                                            "--role", "reviewer", "--handoff", "delta",
+                                            "--parent-job", first["id"]))
+        self.assertIn("return only material deltas", self.cli("result", second["id"])["result"]["text"])
+        self.cli("run", "quota", run["id"], "--when", "before", "--metric", "remaining",
+                 "--value", "75", "--unit", "percent")
+        self.assertFalse((self.vault / "drafts/delegation" / (first["id"] + ".md")).exists())
+        finished = self.cli("run", "finish", run["id"], "--final-job", second["id"])
+        self.assertEqual("completed", finished["status"])
+        self.assertTrue((self.vault / "drafts/delegation" / (second["id"] + ".md")).is_file())
+        self.assertFalse((self.vault / "drafts/delegation" / (first["id"] + ".md")).exists())
+        shown = self.cli("run", "show", run["id"][:8])
+        self.assertEqual([1, 2], [job["stage"] for job in shown["jobs"]])
+        self.assertEqual(0, shown["retry_count"])
+        self.assertGreaterEqual(shown["calendar_duration_seconds"], 0)
+        self.assertEqual(2, len(shown["usage_by_provider"]["claude"]))
+        self.assertIn("nenhum total comparável", shown["usage_note"])
+        self.cli("off")
+        self.assertEqual("completed", self.cli("run", "show", run["id"])["status"])
+        self.refused("run", "quota", run["id"], "--when", "after", "--metric", "remaining",
+                     "--value", "70", "--unit", "percent")
+
     def test_accept_reports_path_and_preserves_changed_live_draft(self):
         self.enable()
         job = self.completed(self.submit())
