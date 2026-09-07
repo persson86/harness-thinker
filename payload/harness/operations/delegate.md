@@ -11,7 +11,8 @@ Reconheça pedidos naturais, sem exigir vocabulário técnico:
 - “Use Sonnet nesta tarefa”: escolha explícita desta tarefa; não altera padrão permanente.
 - “Desligue a delegação”: desligue esta sessão; relate cancelamentos ainda pendentes.
 - “Desligue em todos os terminais”: desligamento geral, revogando ativações anteriores.
-- “Como estão os trabalhos?”: estado curto e entregas, sem logs de ferramentas.
+- “Como estão os trabalhos?”: estado curto e entregas, sem logs de ferramentas. Para o quadro visual, `board`.
+- “Quero ver isso numa tabela”, “mostre o painel”: `board`, e `board --watch` quando quiser acompanhar ao vivo.
 - “Essa revisão ficou longa”: comentário de uso; não inferir descarte nem inventar avaliação quantitativa.
 - “Mostre o que aprendemos sobre os modelos”: histórico e padrões limitados aos casos observados.
 
@@ -67,8 +68,13 @@ python3 harness/scripts/delegate.py --session ID --json submit --task review --m
 python3 harness/scripts/delegate.py --session ID --json run show RUN
 python3 harness/scripts/delegate.py --session ID --json run finish RUN --final-job JOB-FINAL
 python3 harness/scripts/delegate.py --session ID inbox
+python3 harness/scripts/delegate.py --session ID board
 python3 harness/scripts/delegate.py --session ID result JOB
 ```
+
+`board` desenha agentes, tarefas e andamento numa tabela; lê o estado e não inicia nada. Prefira-o a redigitar o quadro no chat: cada redesenho seu custa um turno e pode divergir do disco, enquanto o comando não pode inventar estado e serve igual as três CLIs. Ele funciona com a extensão desligada — é justamente quando se quer conferir o que ficou para trás. Ofereça `board --watch` ao usuário em vez de fazer polling você mesmo; o laço é dele, não seu.
+
+Execução e entrega são colunas distintas. `voltou` é transporte, não qualidade; a coluna de qualidade só aparece depois de `feedback`. Um job `voltou + na inbox` é o que espera por você. Não relate no chat um estado diferente do que o board mostra.
 
 A submissão devolve um job ID e libera o principal. Comunique uma linha (“Sonnet está conferindo as pendências; vou relacionar o contexto”) e continue apenas trabalho independente. Não preencha o intervalo com tarefas inventadas. Quando depender do retorno, use `wait --seconds 20`, atualize o usuário e aguarde sem polling frenético.
 

@@ -13,7 +13,7 @@ import time
 import uuid
 
 sys.dont_write_bytecode = True
-from thinker_delegation import adapters
+from thinker_delegation import adapters, board
 from thinker_delegation.runtime import DelegationStore, DelegationError, _atomic, _read
 from thinker_delegation.git_publish import prepare_plan, execute_plan, PublicationError, _load_plan
 
@@ -67,6 +67,13 @@ def parser():
     waiting.add_argument("job")
     waiting.add_argument("--seconds", type=float, default=20)
     sub.add_parser("inbox", help="Entregas ainda não reconhecidas")
+    quadro = sub.add_parser("board", help="Tabela de agentes, tarefas e andamento; não inicia agentes")
+    quadro.add_argument("--all-sessions", action="store_true", help="Todos os terminais deste vault")
+    quadro.add_argument("--limit", type=int, default=10, help="Jobs já encerrados exibidos")
+    quadro.add_argument("--watch", nargs="?", type=float, const=5.0, metavar="SEG",
+                        help="Redesenha a cada SEG segundos, sem custar turno do principal")
+    quadro.add_argument("--ascii", action="store_true", help="Sem símbolos Unicode")
+    quadro.add_argument("--no-color", action="store_true")
     history = sub.add_parser("history", help="Histórico de uso, escolhas e avaliações")
     history.add_argument("--export", action="store_true", help="Criar novo MD em drafts/delegation")
     feedback = sub.add_parser("feedback", help="Registrar avaliação explícita do usuário")
@@ -317,6 +324,15 @@ def dispatch(store, args):
         result["defaults"] = {**adapters.DEFAULT_ROUTES, **policy(store)["defaults"]}
         result["jobs"] = [public_job(j) for j in store.list_jobs(args.session)] if store.state.exists() else []
         return result
+    if command == "board":
+        # Ler o quadro não exige a extensão ligada: quando ela está desligada é
+        # justamente quando se quer conferir o que ficou para trás.
+        sid = args.session if args.all_sessions else session(args)
+        data = board.payload(store, sid, args.all_sessions, args.limit)
+        if not args.json:
+            data["text"] = board.render(data, color=board.wants_color(args.no_color),
+                                        ascii_only=args.ascii)
+        return data
     if command == "on":
         sid = session(args)
         store.configure(enabled=True, concurrency=args.parallel)
@@ -482,6 +498,8 @@ def dispatch(store, args):
 
 
 def render(value):
+    if "board" in value:
+        return value.get("text", "")
     if "markdown" in value:
         return value["markdown"]
     if value.get("result"):
@@ -524,6 +542,14 @@ def main(argv=None):
     args = parser().parse_args(argv)
     try:
         store = DelegationStore(args.vault, args.state_dir)
+        if args.command == "board" and args.watch:
+            # Um laço não é um valor: watch não passa pelo contrato
+            # dispatch-devolve/main-imprime, então repete o guard do colaborador.
+            if os.environ.get("THINKER_DELEGATION_CHILD") == "1":
+                raise DelegationError("Um colaborador não pode delegar, publicar ou alterar o controle do principal.")
+            sid = args.session if args.all_sessions else session(args)
+            return board.watch(store, sid, args.all_sessions, args.limit, args.watch,
+                               board.wants_color(args.no_color), args.ascii)
         value = dispatch(store, args)
         print(json.dumps(value, ensure_ascii=False, indent=2) if args.json else render(value))
         return 0

@@ -32,6 +32,9 @@ Não apagar estados automaticamente: isso perderia entregas e histórico. Limpez
 # Brief preparado pelo principal e contexto mínimo selecionado
 python3 harness/scripts/delegate.py --session S --json submit --task draft --model opus --brief drafts/brief.md --file drafts/proposta.md --reason "Revisar a clareza da tese" --timeout 300
 python3 harness/scripts/delegate.py --session S inbox
+python3 harness/scripts/delegate.py --session S board
+python3 harness/scripts/delegate.py --session S board --watch 5
+python3 harness/scripts/delegate.py board --all-sessions
 python3 harness/scripts/delegate.py --session S wait JOB --seconds 20
 python3 harness/scripts/delegate.py --session S result JOB
 python3 harness/scripts/delegate.py --session S accept JOB
@@ -54,6 +57,14 @@ python3 harness/scripts/delegate.py off --all
 IDs de jobs podem ser abreviados se forem únicos. `--json` é opção global e vem antes do comando. O resultado normal mostra estado curto e caminhos de leitura. Uma entrada na inbox só é reconhecida com `ack`; consultar status não consome a entrega.
 
 `off` desliga a sessão atual; `off --all` revoga todas as sessões e solicita cancelamento dos trabalhos da extensão. Uma nova ativação posterior habilita apenas a conversa escolhida. O histórico mostra até 30 registros recentes, com motivos, execução, esforço, duração observada e feedback separado; os registros anteriores permanecem no estado privado. Runs agrupam cadeias sem reconstruir relações antigas e sem somar tokens entre provedores. O principal é somente declarado; sua identidade não é confirmada e seu consumo aparece como indisponível. Snapshots manuais de quota são observações da conta, não consumo atribuído automaticamente à conversa.
+
+## Board
+
+`board` renderiza agentes, tarefas e andamento numa tabela. Lê o estado pelo mesmo caminho de `status`, não inicia agentes, não altera configuração e responde com a extensão desligada. Um colaborador não pode chamá-lo. `--json` devolve o dado sem a tabela desenhada.
+
+Execução e entrega são eixos separados. A execução vai de `na fila` a `voltou`, `saída inválida`, `falhou`, `cancelado`, `tempo esgotado` ou `interrompido`; entrega vai de `na inbox` a `lido` e `materializado`, com aviso quando a entrada mudou depois. `voltou` afirma transporte e validação estrutural, nunca qualidade — a coluna de qualidade só aparece depois de `feedback`. A barra ao lado do tempo compara o decorrido com o timeout; não é progresso da tarefa, porque os adaptadores não emitem essa telemetria.
+
+`--all-sessions` cruza os terminais do vault e dispensa `--session`. `--limit` controla quantos jobs encerrados aparecem; ativos aparecem sempre. `--watch SEG` redesenha em laço determinístico, sem custar turno do principal — prefira oferecê-lo a fazer polling pelo agente. Colunas caem conforme a largura do terminal, nesta ordem: barra, modelo, qualidade. `--ascii` troca os símbolos quando a fonte ou o locale alargam os glifos.
 
 ## Runs e handoffs compactos
 

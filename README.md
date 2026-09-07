@@ -142,8 +142,11 @@ The extension includes detached jobs, cancellation, deadlines, recovery, separat
 python3 harness/scripts/delegate.py status
 python3 harness/scripts/delegate.py doctor
 python3 harness/scripts/delegate.py --session UNIQUE-ID on
+python3 harness/scripts/delegate.py --session UNIQUE-ID board
 python3 harness/scripts/delegate.py off --all
 ```
+
+`board` draws agents, tasks and progress as a table, with execution and delivery as separate columns: a job that returned is not a job you read. It reads state, starts nothing and works while the extension is off. `--watch` refreshes in a deterministic loop, so following the work costs no model turn.
 
 Read [the operation](payload/harness/operations/delegate.md) for the conversational workflow and [the manual](payload/harness/delegation.md) for commands, Git and limitations. State and preferences stay in a private directory outside the vault and survive updates. The new Codex skill lives at `.agents/skills/thinker-delegate/`; install/update adds its exact ignore rule to existing vaults when needed. No background collector starts on install.
 
