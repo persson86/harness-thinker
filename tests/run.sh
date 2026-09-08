@@ -47,6 +47,14 @@ run test -x "$V1/.grok/hooks/shim.sh"
 assert_rc "init deixa shim Grok executável" 0
 run test -f "$V1/.grok/skills/memory/SKILL.md"
 assert_rc "init instala skill memory Grok" 0
+run test -f "$V1/.agents/skills/thinker-model-eval/SKILL.md"
+assert_rc "init instala skill model-eval Codex" 0
+run test -f "$V1/.grok/skills/thinker-model-eval/SKILL.md"
+assert_rc "init instala skill model-eval Grok" 0
+run test -f "$V1/harness/operations/model-eval.md"
+assert_rc "init instala operação model-eval" 0
+run test -x "$V1/harness/scripts/model_eval_validate.py"
+assert_rc "init deixa validador model-eval executável" 0
 run bash -c "cd '$V1' && CLAUDE_PROJECT_DIR='$V1' bash harness/scripts/verify.sh"
 assert_rc "verify.sh verde no vault novo" 0
 

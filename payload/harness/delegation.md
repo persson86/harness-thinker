@@ -66,6 +66,10 @@ Execução e entrega são eixos separados. A execução vai de `na fila` a `volt
 
 `--all-sessions` cruza os terminais do vault e dispensa `--session`. `--limit` controla quantos jobs encerrados aparecem; ativos aparecem sempre. `--watch SEG` redesenha em laço determinístico, sem custar turno do principal — prefira oferecê-lo a fazer polling pelo agente. Colunas caem conforme a largura do terminal, nesta ordem: barra, modelo, qualidade. `--ascii` troca os símbolos quando a fonte ou o locale alargam os glifos.
 
+## Avaliação de modelos
+
+Comparações de rotas usam [operations/model-eval.md](operations/model-eval.md). O playbook fixa autorização, caso cego, gabarito, spec, orçamento de chamadas, jobs independentes e critérios de parada antes da geração. `harness/scripts/model_eval_validate.py` verifica a superfície estrutural; a revisão semântica continua com o principal. O board acompanha execução e entrega, mas não representa percentual de raciocínio nem qualidade.
+
 ## Runs e handoffs compactos
 
 `run start` cria somente o envelope de auditoria; não inicia modelos. Uma cadeia é linear e cada `submit` recebe `--run`, `--stage`, `--role` e `--handoff`. A primeira etapa usa `full` e não tem parent. Etapas seguintes apontam para um job concluído e válido da etapa anterior e usam `delta` ou `synthesis`. O papel é um rótulo semântico: uma cadeia pode começar revisando um draft humano. A ordem é garantida por etapa, parent e handoff. Esses modos registram o contrato do handoff; o principal continua responsável por preparar e revisar o conteúdo compacto. Não existe truncamento ou resumo automático.

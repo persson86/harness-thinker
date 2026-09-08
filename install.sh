@@ -152,11 +152,12 @@ scaffold_vault() {
 
 [ -d "$TARGET/.git" ] || echo "warning: $TARGET não parece um repo git (sem .git) — vire um repo privado depois do install." >&2
 
-# O skill é gerado pelo harness e não pertence ao conteúdo do vault. Em vaults
-# anteriores ao recurso, acrescente apenas esta regra sem reformatar nem trocar
-# o .gitignore que o usuário já mantém.
-ensure_delegation_skill_ignored() {
-  local ignore="$TARGET/.gitignore" rule="/.agents/skills/thinker-delegate/" tracked
+# Os skills são gerados pelo harness e não pertencem ao conteúdo do vault. Em
+# vaults anteriores ao recurso, acrescente só as regras exatas, sem reformatar
+# nem trocar o .gitignore que o usuário já mantém.
+ensure_generated_skills_ignored() {
+  local ignore="$TARGET/.gitignore" tracked rule skill
+  local skills=("thinker-delegate" "thinker-model-eval")
   if [ -L "$ignore" ]; then
     echo "error: .gitignore do target não pode ser symlink." >&2
     exit 1
@@ -165,22 +166,27 @@ ensure_delegation_skill_ignored() {
     echo "error: .gitignore do target deve ser arquivo regular." >&2
     exit 1
   fi
-  if git -C "$TARGET" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    tracked="$(git -C "$TARGET" ls-files -- .agents/skills/thinker-delegate/)"
-    if [ -n "$tracked" ]; then
-      echo "error: skill gerado já está rastreado no target; remova a colisão antes de atualizar." >&2
-      exit 1
+  for skill in "${skills[@]}"; do
+    if git -C "$TARGET" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      tracked="$(git -C "$TARGET" ls-files -- ".agents/skills/$skill/")"
+      if [ -n "$tracked" ]; then
+        echo "error: skill gerado já está rastreado no target: .agents/skills/$skill/; remova a colisão antes de atualizar." >&2
+        exit 1
+      fi
     fi
-  fi
+  done
   [ -e "$ignore" ] || : > "$ignore"
-  if ! grep -Fqx "$rule" "$ignore"; then
-    if [ -s "$ignore" ] && [ "$(tail -c 1 "$ignore" | wc -l | tr -d ' ')" -eq 0 ]; then
-      printf '\n' >> "$ignore"
+  for skill in "${skills[@]}"; do
+    rule="/.agents/skills/$skill/"
+    if ! grep -Fqx "$rule" "$ignore"; then
+      if [ -s "$ignore" ] && [ "$(tail -c 1 "$ignore" | wc -l | tr -d ' ')" -eq 0 ]; then
+        printf '\n' >> "$ignore"
+      fi
+      printf '%s\n' "$rule" >> "$ignore"
     fi
-    printf '%s\n' "$rule" >> "$ignore"
-  fi
+  done
 }
-ensure_delegation_skill_ignored
+ensure_generated_skills_ignored
 
 # Lista de arquivos do payload (relpath a partir de payload/).
 PAYLOAD_FILES=()
@@ -214,8 +220,9 @@ for rel in "${PAYLOAD_FILES[@]}"; do
 done
 echo "  + ${#PAYLOAD_FILES[@]} arquivos do harness em $TARGET" >&2
 
-# hooks e verify.sh executáveis
-chmod +x "$TARGET"/.claude/hooks/*.sh "$TARGET"/harness/scripts/*.sh "$TARGET"/.grok/hooks/*.sh 2>/dev/null || true
+# hooks, scripts shell e entrypoints Python executáveis
+chmod +x "$TARGET"/.claude/hooks/*.sh "$TARGET"/harness/scripts/*.sh \
+  "$TARGET"/harness/scripts/model_eval_validate.py "$TARGET"/.grok/hooks/*.sh 2>/dev/null || true
 
 # --- manifest + version (insumo do drift check em verify.sh) -----------
 MANIFEST="$TARGET/harness/.manifest"

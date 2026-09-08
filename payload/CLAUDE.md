@@ -62,6 +62,7 @@ Use `harness/operations/<op>.md` como playbook canônico:
 - `transcript` — transcrições de reunião e deltas de perfil/projeto quando o vault tiver essa esfera.
 - `deep` — análise de alta intensidade.
 - `lint` — health-check semântico e mecânico.
+- `model-eval` — comparação controlada de rotas por casos cegos, delegação e checks determinísticos.
 - `dream` — manutenção propositiva em digest; só propõe.
 - `reverie` — associação livre; material bruto, sem ações.
 - `handoff` — compacta o estado de uma tarefa longa em bloco copiável para retomar em nova sessão ou outro agente; não gera página nem log.

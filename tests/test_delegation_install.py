@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Installer migration for the generated delegation skill ignore rule."""
+"""Installer migration for generated Codex skill ignore rules."""
 from pathlib import Path
 import subprocess
 import tempfile
@@ -7,7 +7,8 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RULE = "/.agents/skills/thinker-delegate/"
+SKILLS = ("thinker-delegate", "thinker-model-eval")
+RULES = tuple(f"/.agents/skills/{skill}/" for skill in SKILLS)
 
 
 class DelegationInstallTests(unittest.TestCase):
@@ -31,14 +32,16 @@ class DelegationInstallTests(unittest.TestCase):
 
             first = self.run_install(target)
             self.assertEqual(0, first.returncode, first.stdout + first.stderr)
-            expected = original + RULE + "\n"
+            expected = original + "".join(rule + "\n" for rule in RULES)
             self.assertEqual(expected, (target / ".gitignore").read_text(encoding="utf-8"))
-            self.assertTrue((target / ".agents/skills/thinker-delegate/SKILL.md").is_file())
-            ignored = subprocess.run(
-                ["git", "check-ignore", "-q", "--", ".agents/skills/thinker-delegate/SKILL.md"],
-                cwd=target, timeout=15,
-            )
-            self.assertEqual(0, ignored.returncode)
+            for skill in SKILLS:
+                path = f".agents/skills/{skill}/SKILL.md"
+                self.assertTrue((target / path).is_file())
+                ignored = subprocess.run(
+                    ["git", "check-ignore", "-q", "--", path],
+                    cwd=target, timeout=15,
+                )
+                self.assertEqual(0, ignored.returncode)
 
             second = self.run_install(target)
             self.assertEqual(0, second.returncode, second.stdout + second.stderr)
@@ -75,6 +78,25 @@ class DelegationInstallTests(unittest.TestCase):
             result = self.run_install(target)
             self.assertNotEqual(0, result.returncode)
             self.assertIn("skill gerado já está rastreado", result.stderr)
+            self.assertEqual("user-owned collision\n", skill.read_text(encoding="utf-8"))
+            self.assertEqual("# custom\n", (target / ".gitignore").read_text(encoding="utf-8"))
+
+    def test_update_refuses_tracked_model_eval_skill(self):
+        with tempfile.TemporaryDirectory(prefix="delegation-install-") as directory:
+            target = Path(directory) / "vault"
+            skill = target / ".agents/skills/thinker-model-eval/SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text("user-owned collision\n", encoding="utf-8")
+            (target / ".gitignore").write_text("# custom\n", encoding="utf-8")
+            self.run_git(target, "init")
+            self.run_git(target, "config", "user.name", "Installer Fixture")
+            self.run_git(target, "config", "user.email", "installer@example.invalid")
+            self.run_git(target, "add", ".gitignore", ".agents/skills/thinker-model-eval/SKILL.md")
+            self.run_git(target, "commit", "-m", "fixture")
+
+            result = self.run_install(target)
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("thinker-model-eval", result.stderr)
             self.assertEqual("user-owned collision\n", skill.read_text(encoding="utf-8"))
             self.assertEqual("# custom\n", (target / ".gitignore").read_text(encoding="utf-8"))
 

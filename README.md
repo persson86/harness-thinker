@@ -14,7 +14,7 @@ payload/           # what gets installed 1:1 into the target
   harness/         #   contract + operations/ + adapters/ + scripts/verify.sh
   .claude/         #   commands/ hooks/ scripts/build-index.py settings.json
   .grok/           #   Grok Build rules, hook shim, memory-skill shadow
-  .agents/         #   optional delegation skill for Codex
+  .agents/         #   optional delegation and model-eval skills for Codex
 templates/vault/   # scaffold for a new vault (--init)
 ```
 
@@ -51,8 +51,9 @@ index, and installs the harness. The target folder doesn't need to exist yet —
 ```
 
 Installs only the harness over your existing files; never touches `wiki/`, `raw/`, `queue/`,
-`vault.config.json`, `vault-heuristics.md` or `.claude/memory/`. It appends the exact generated-skill rule
-`/.agents/skills/thinker-delegate/` to an existing regular `.gitignore` when absent, preserving its other content.
+`vault.config.json`, `vault-heuristics.md` or `.claude/memory/`. It appends the exact generated-skill rules
+`/.agents/skills/thinker-delegate/` and `/.agents/skills/thinker-model-eval/` to an existing regular
+`.gitignore` when absent, preserving its other content.
 If there's no `vault.config.json`, it derives one
 from your `wiki/` subfolders for you to review.
 
@@ -88,7 +89,7 @@ bash harness/scripts/update.sh
 Pulls the latest harness from GitHub and reinstalls it in place. Run from the vault root.
 
 What gets overwritten: `CLAUDE.md`, `AGENTS.md`, `harness/`, `.claude/commands/`, `.claude/hooks/`, `.claude/scripts/`, `.claude/settings.json`, `.grok/`.  
-What is never touched: `wiki/`, `raw/`, `queue/`, `vault.config.json`, `vault-heuristics.md`, `.claude/memory/`, `.claude/settings.local.json`. The only `.gitignore` migration appends `/.agents/skills/thinker-delegate/` when that exact rule is absent; it preserves all existing lines and refuses a symlink or tracked collision.
+What is never touched: `wiki/`, `raw/`, `queue/`, `vault.config.json`, `vault-heuristics.md`, `.claude/memory/`, `.claude/settings.local.json`. The only `.gitignore` migration appends the two exact generated-skill rules for `thinker-delegate` and `thinker-model-eval` when absent; it preserves all existing lines and refuses a symlink or tracked collision.
 
 ## Per-vault config
 
@@ -118,7 +119,19 @@ the link, the index or the log, and the turn closes.
 
 ## Operations
 
-Triggered in natural language or via `/command` (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **REVIEW**, **AGENDA** (Gmail pessoal + Calendar do Mac profissional), **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MEMORY** (Claude-only; Grok Build recusa), **DREAM**, **REVERIE**.
+Triggered in natural language or via `/command` (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **REVIEW**, **AGENDA** (Gmail pessoal + Calendar do Mac profissional), **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MODEL-EVAL**, **MEMORY** (Claude-only; Grok Build recusa), **DREAM**, **REVERIE**.
+
+## 7.15.0 — Repeatable model evaluation
+
+`MODEL-EVAL` turns local model comparisons into a reusable experiment: freeze blind cases, gold answers and a deterministic JSON spec before any generation; then run independent delegated jobs under an explicit call budget. It measures the observed route—requested model, effort, provider CLI, instructions, permissions and transport—not an abstract universal ranking.
+
+The Codex and Grok skills route to the same canonical operation. A standard-library validator checks case IDs, controlled evidence IDs, required semantic fields, exact action labels and word limits without spending model quota. Semantic quality remains a reviewed judgment. Reports keep outcome, execution trajectory, efficiency and human feedback separate, apply a quality floor and preserve inconclusive results or Pareto ties.
+
+Profiles are discovered at runtime, so a candidate can be compared with current baselines without hard-coding a permanent allowlist. `board --watch` exposes execution and delivery while the test runs. The workflow never sums provider token counters, infers model identity from a requested alias, changes routing defaults or promotes benchmark results into the vault without a separate decision.
+
+## 7.14.0 — Delegation board
+
+`board` draws agents, tasks and progress as a table, with execution and delivery as separate columns: a job that returned is not a job you read. It reads state, starts nothing and works while the extension is off. `--watch` refreshes in a deterministic loop, so following the work costs no model turn.
 
 ## 7.13.0 — Measurable delegation runs
 
@@ -145,8 +158,6 @@ python3 harness/scripts/delegate.py --session UNIQUE-ID on
 python3 harness/scripts/delegate.py --session UNIQUE-ID board
 python3 harness/scripts/delegate.py off --all
 ```
-
-`board` draws agents, tasks and progress as a table, with execution and delivery as separate columns: a job that returned is not a job you read. It reads state, starts nothing and works while the extension is off. `--watch` refreshes in a deterministic loop, so following the work costs no model turn.
 
 Read [the operation](payload/harness/operations/delegate.md) for the conversational workflow and [the manual](payload/harness/delegation.md) for commands, Git and limitations. State and preferences stay in a private directory outside the vault and survive updates. The new Codex skill lives at `.agents/skills/thinker-delegate/`; install/update adds its exact ignore rule to existing vaults when needed. No background collector starts on install.
 

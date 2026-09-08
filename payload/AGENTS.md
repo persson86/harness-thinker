@@ -91,6 +91,8 @@ Instrução explícita do usuário vence preferência da sessão e padrão da ta
 
 Com o recurso ativo, mantenha um ID exclusivo desta sessão, confira entregas pendentes antes de concluir e registre escolhas/resultados sem inferir aprovação humana. Colaboradores retornam propostas; o principal preserva edições humanas e revisa a integração. Não escrever histórico quando o recurso estiver desligado. O manual detalhado fica em `harness/delegation.md` e só precisa ser carregado quando pertinente.
 
+Para comparar rotas atuais ou qualificar um modelo novo, use a skill `thinker-model-eval` e `harness/operations/model-eval.md`. Congele caso cego, gabarito e spec antes das chamadas; mantenha outcome, trajetória, eficiência e feedback humano separados. O benchmark não altera defaults nem publica resultados no vault por inferência.
+
 ## Checagem Final
 
 Antes de concluir mudança durável:
