@@ -40,6 +40,8 @@ Felipe autoriza o Codex a identificar automaticamente tarefas delegáveis e esco
 - Escolha o modelo menos custoso que preserve qualidade e segurança suficientes para a tarefa.
 - Considere em conjunto: ambiguidade, risco, volume, separabilidade, necessidade de contexto, reversibilidade e custo de revisar o resultado.
 - Verifique os modelos e esforços realmente disponíveis na sessão; não trate uma lista histórica de modelos como contrato permanente.
+- Considere primeiro o principal atual. Registre provider/model/effort quando a interface os informar; se não informar, mantenha identidade desconhecida. Não descubra isso varrendo sessões privadas.
+- Disponibilidade não obriga spawn. Declare o ganho marginal e o trabalho independente ou revisão crítica antes de delegar; mesmo modelo sem essa função fica no principal. Diversidade entre provedores é útil para críticas diferentes e distribuição de quota, não corroboracão nem rodízio obrigatório.
 - Não delegue uma tarefa trivial quando preparar contexto e revisar o retorno custar mais que executá-la localmente.
 - Delegue em paralelo apenas frentes independentes. Dependências, decisões e integrações continuam coordenadas pelo agente principal.
 
@@ -61,7 +63,7 @@ Modelo e esforço são decisões independentes: uma tarefa volumosa e simples po
 
 ### Aplicação no second-brain
 
-- **Commit e push:** agente principal resolve escopo e autoria; classe eficiente com `low` executa o runbook e comprova SHA local/remoto.
+- **Commit e push:** agente principal resolve escopo e autoria; prefira o runbook determinístico sem chamada adicional de modelo. Classe eficiente com `low` só quando a revisão/mensagem acrescentar valor; comprove SHA local/remoto.
 - **Ingestão de transcrições:** classe equilibrada com `medium` pode mapear fonte, entidades e possíveis deltas; análise estratégica, profissional ou com atribuição incerta usa classe de fronteira com `high/xhigh`. A síntese final e a proveniência ficam com o agente principal.
 - **Queries do vault:** busca ou extração bem delimitada roda localmente ou em classe eficiente; síntese transversal e reconciliação de páginas podem usar classe equilibrada ou de fronteira conforme a ambiguidade.
 - **Análise profunda:** recuperação e classificação podem ser distribuídas a modelos econômicos, mas a síntese central deve preservar o rigor de `deep.md` e normalmente favorece classe de fronteira com esforço alto.
@@ -85,11 +87,19 @@ Quando houver override explícito de modelo ou esforço, prefira um recorte curt
 
 ## Delegação opcional entre CLIs
 
-O recurso novo começa desligado e não muda a delegação nativa já autorizada acima. Quando solicitado, use a skill `thinker-delegate` e `harness/operations/delegate.md`. O controle é `python3 harness/scripts/delegate.py`; não gerencie CLIs com send-keys nem reimplemente o supervisor.
+Delegação fica disponível por padrão em sessões novas; instalação e status não iniciam agentes. Desligamentos explícitos de sessão e globais prevalecem, inclusive durante atualização. Use a skill `thinker-delegate` e `harness/operations/delegate.md`. O controle é `python3 harness/scripts/delegate.py`; não gerencie CLIs com send-keys nem reimplemente o supervisor.
 
 Instrução explícita do usuário vence preferência da sessão e padrão da tarefa. Git usa Luna low por padrão; “use Sonnet neste commit” vale para essa operação e não muda o padrão permanente. Indisponibilidade não autoriza substituição silenciosa. Commit e push continuam autorizações distintas.
 
 Com o recurso ativo, mantenha um ID exclusivo desta sessão, confira entregas pendentes antes de concluir e registre escolhas/resultados sem inferir aprovação humana. Colaboradores retornam propostas; o principal preserva edições humanas e revisa a integração. Não escrever histórico quando o recurso estiver desligado. O manual detalhado fica em `harness/delegation.md` e só precisa ser carregado quando pertinente.
+
+Antes do primeiro job, informe o principal conhecido com `session-context`; atualize ao trocar de modelo. `route` compara a alternativa local e `submit` exige benefício mais trabalho independente ou revisão crítica. Use Sonnet em contribuições delimitadas e Opus em revisão crítica quando adequados; defaults são hipóteses de rota, não resultados de benchmark. Quotas são snapshots manuais por provedor, expiram e nunca são somadas entre provedores. Falha exige diagnóstico antes de retry.
+
+Mantenha indicação visual ao escalar: `delegation-indicator.py --watch 5`/`board --watch 5` para jobs externos. Agentes nativos usam a UI do host e, quando registrados via `native report`, aparecem separados como estado reportado; atualizar ao receber retorno. Não afirmar progresso ou cancelamento nativo a partir da extensão.
+
+## Manutenção e release do harness
+
+Neste ambiente, a fonte é `/Users/persson/Builder/projects/harness-thinker`, em `payload/`; este vault é target instalado. Nunca corrigir o harness na cópia instalada. Mudança de harness inclui testes, incremento de `VERSION`, commit, tag `v<VERSION>`, push de branch/tag e atualização deste target pelo installer, com versão/manifest e SHA remoto conferidos. Preserve autorização e escopo de publicação; uma análise não inicia release. Preferências e conteúdo do vault não vão para o repositório-fonte.
 
 Para comparar rotas atuais ou qualificar um modelo novo, use a skill `thinker-model-eval` e `harness/operations/model-eval.md`. Congele caso cego, gabarito e spec antes das chamadas; mantenha outcome, trajetória, eficiência e feedback humano separados. O benchmark não altera defaults nem publica resultados no vault por inferência.
 

@@ -212,10 +212,10 @@ class BoardCLITests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("DELEGAÇÃO", result.stdout)
 
-    def test_board_never_starts_an_agent_or_enables_the_feature(self):
+    def test_board_never_starts_an_agent_or_writes_jobs(self):
         self.run_cli("board")
         status = json.loads(self.run_cli("--json", "status").stdout)
-        self.assertFalse(status["enabled"])
+        self.assertTrue(status["enabled"], "disponibilidade default-on e intencional")
         self.assertEqual([], status["jobs"])
 
     def test_json_output_carries_data_not_a_drawn_table(self):

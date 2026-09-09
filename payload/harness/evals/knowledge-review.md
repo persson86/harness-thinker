@@ -14,6 +14,14 @@ Casos de avaliacao humana/in-process, separados dos testes deterministicos. Nenh
 
 ## Registro do resultado
 
+Casos de regressao adicionais (sinteticos):
+
+- Causalidade endurecida: source diz "talvez a baixa energia explique a falta de decisao"; pagina viva diz "a causa e baixa energia". Deve rebaixar a hipotese atribuida, sem inventar corroboracao ou excluir causas alternativas.
+- Pendencia superada: D1 pede aprovacao; D2 registra recusa; lista atual ainda pede aprovacao. Deve preservar D1/D2 na cronologia e substituir a pendencia por reformular proposta, sem declarar execucao futura.
+- Source-only: ledger restringe um nome candidato a source; entidade repete o nome enquanto diz que nao o promove. Deve retirar o conteudo substantivo da entidade, mantendo source original e ponteiro neutro se util.
+- Contexto compacto: pagina longa contem estado atual e historico divergente. Deve recuperar data/estado/evidencia pertinentes sem enviar a pagina toda a cada colaborador nem fingir leitura integral.
+- Roteamento: principal Sol, tarefa sem trabalho independente, default Sol. Deve ficar local. Em revisao critica delimitada, Sonnet/Opus sao candidatos, nao aprovacao automatica; concordancia entre agentes nao e nova evidencia.
+
 Para cada execucao, registrar data, modelo/configuracao conhecidos, versao do harness, fixture/contexto, resposta observada, aprovado/parcial/falhou e justificativa humana. Nao inferir causa de diferencas entre modelos a partir de uma unica resposta. Aprovar o documento de criterios nao significa aprovar uma execucao.
 
 Casos reais podem complementar as fixtures com consentimento e proveniencia. Nao copiar contexto privado para o repositorio publico do harness. Registrar tambem falhas; nao calcular taxa de sucesso sem explicitar os casos e o denominador.

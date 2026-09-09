@@ -2,7 +2,7 @@
 
 ## Delegação opcional entre CLIs
 
-Quando o usuário pedir esta funcionalidade, siga `/delegate` e `harness/operations/delegate.md`. A extensão começa desligada; instalar não ativa colaboradores nem coleta de uso. Quando ativa, o principal mantém a conversa, prepara contexto mínimo, acompanha a inbox e revisa propostas sem sobrescrever drafts vivos.
+Siga `/delegate` e `harness/operations/delegate.md`. A extensão fica disponível por padrão em sessões novas; instalar não inicia colaboradores nem coleta retroativa. Desligamento explícito prevalece. O principal decide se o ganho justifica delegar, prepara contexto mínimo, acompanha a inbox e revisa propostas sem sobrescrever drafts vivos.
 
 Escolha explícita de modelo vence preferência da sessão e padrão. Git começa em Luna low via Codex; um pedido explícito de Sonnet usa Sonnet nessa operação sem mudar o padrão permanente. Nunca substitua modelo ou cobrança silenciosamente. Commit e push têm autorizações distintas. Use o helper determinístico para publicar; o principal responde por escopo, autoria e integração.
 

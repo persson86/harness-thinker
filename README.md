@@ -20,6 +20,15 @@ templates/vault/   # scaffold for a new vault (--init)
 
 `payload/` and `templates/` are what you edit.
 
+## Release discipline
+
+Maintain the source repository, never its installed target. In Felipe's environment
+the source is `/Users/persson/Builder/projects/harness-thinker`; the vault is a separate target.
+For a harness change: run `bash tests/run.sh`, increment `VERSION`, document the change,
+commit the reviewed paths, create `v<VERSION>`, push branch and tag, then update the
+target with `install.sh TARGET --update`. Verify target `harness/.version`, manifest,
+vault health and local/remote SHA parity. Publishing vault knowledge is a separate scope.
+
 ## Install
 
 This repo is the **installer**, not the vault. You clone it once, then run `install.sh`
@@ -88,7 +97,7 @@ bash harness/scripts/update.sh
 
 Pulls the latest harness from GitHub and reinstalls it in place. Run from the vault root.
 
-What gets overwritten: `CLAUDE.md`, `AGENTS.md`, `harness/`, `.claude/commands/`, `.claude/hooks/`, `.claude/scripts/`, `.claude/settings.json`, `.grok/`.  
+What gets overwritten: `CLAUDE.md`, `AGENTS.md`, `harness/`, `.claude/commands/`, `.claude/hooks/`, `.claude/scripts/`, `.grok/`. `.claude/settings.json` is merged: custom `statusLine`, settings, permissions and unrelated hooks are preserved; on a fresh Claude vault the harness adds its 5-second delegation statusLine.
 What is never touched: `wiki/`, `raw/`, `queue/`, `vault.config.json`, `vault-heuristics.md`, `.claude/memory/`, `.claude/settings.local.json`. The only `.gitignore` migration appends the two exact generated-skill rules for `thinker-delegate` and `thinker-model-eval` when absent; it preserves all existing lines and refuses a symlink or tracked collision.
 
 ## Per-vault config
@@ -128,6 +137,14 @@ Triggered in natural language or via `/command` (neutral playbooks in `payload/h
 The Codex and Grok skills route to the same canonical operation. A standard-library validator checks case IDs, controlled evidence IDs, required semantic fields, exact action labels and word limits without spending model quota. Semantic quality remains a reviewed judgment. Reports keep outcome, execution trajectory, efficiency and human feedback separate, apply a quality floor and preserve inconclusive results or Pareto ties.
 
 Profiles are discovered at runtime, so a candidate can be compared with current baselines without hard-coding a permanent allowlist. `board --watch` exposes execution and delivery while the test runs. The workflow never sums provider token counters, infers model identity from a requested alias, changes routing defaults or promotes benchmark results into the vault without a separate decision.
+
+## Delegation availability and terminal indication
+
+Delegation is available after installation but never auto-spawns an agent. `route` and `submit` require an explicit benefit plus independent work or critical-review rationale; the principal remains responsible for the decision and integration. Initial routes use Sonnet medium for bounded transcript/draft work and Opus high for critical review.
+
+`harness/scripts/delegation-indicator.py` renders compact external (`q/r/p/f`) and native-reported (`r/c/f/u`) counts without reading prompts, inventing progress, or claiming native-host coverage. A read failure is `unknown`, not zero. `--watch 1..60` is bounded; `board --watch 5` remains the persistent terminal board.
+
+For Claude, installation merges settings instead of replacing them: a custom statusLine is retained, as are local settings, permissions and unrelated hooks; a new vault receives the harness statusLine at a five-second refresh. The merge script is source-owned at `scripts/merge-settings.py`. Codex has no promised arbitrary statusline callback; use the board and its native UI.
 
 ## 7.14.0 — Delegation board
 

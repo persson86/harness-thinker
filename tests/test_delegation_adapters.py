@@ -19,6 +19,15 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual((explicit["provider"], explicit["model_source"]), ("claude", "explicit"))
         self.assertEqual(a.resolve_profile("git")["model"], "gpt-5.6-luna")
 
+    def test_approved_anthropic_heuristics_preserve_explicit_override(self):
+        transcript = a.resolve_profile("transcript")
+        review = a.resolve_profile("review")
+        self.assertEqual((transcript["provider"], transcript["model"], transcript["effort"]),
+                         ("claude", "sonnet", "medium"))
+        self.assertEqual((review["provider"], review["model"], review["effort"]),
+                         ("claude", "opus", "high"))
+        self.assertEqual(a.resolve_profile("review", explicit="luna")["model"], "gpt-5.6-luna")
+
     def test_astra_and_fable_profiles_are_explicit_subscription_routes(self):
         astra = a.resolve_profile(explicit="astra")
         fable = a.resolve_profile(explicit="fable")

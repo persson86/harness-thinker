@@ -207,11 +207,18 @@ if [ "$FORCE" -eq 0 ]; then
 fi
 
 # --- instalação --------------------------------------------------------
+# Validate the merge before replacing any managed files. Custom statusline,
+# permissions and unrelated hooks belong to the target, even during update.
+python3 "$SRC/scripts/merge-settings.py" "$PAYLOAD/.claude/settings.json" "$TARGET/.claude/settings.json" --check
 install_one() {
   local rel="$1" src="$PAYLOAD/$1" dest="$TARGET/$1"
   mkdir -p "$(dirname "$dest")"
   local tmp; tmp="$(mktemp "$dest.tmp.XXXXXX")"
-  cat "$src" > "$tmp" || { rm -f "$tmp"; echo "error: falha ao instalar $rel" >&2; exit 1; }
+  if [ "$rel" = ".claude/settings.json" ]; then
+    python3 "$SRC/scripts/merge-settings.py" "$src" "$dest" > "$tmp" || { rm -f "$tmp"; exit 1; }
+  else
+    cat "$src" > "$tmp" || { rm -f "$tmp"; echo "error: falha ao instalar $rel" >&2; exit 1; }
+  fi
   mv "$tmp" "$dest"
 }
 

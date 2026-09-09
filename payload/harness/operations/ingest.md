@@ -49,6 +49,9 @@ Montar UM paragrafo autocontido no formato research-prompt e executa-lo:
    Quando a fonte alterar uma premissa ou conclusao ja registrada, seguir `review.md` para revisar dependencias pertinentes dentro do escopo autorizado. Distinguir procedencia, contexto e contraditorio; repeticao da mesma origem nao e corroboracao independente.
 6. Incluir **Fonte** quando houver arquivo em `raw/` e **Conexoes** quando houver relacoes reais.
 7. Garantir frontmatter completo e `summary:` em paginas indexaveis.
+   Reconciliar pendencias existentes: para cada novo desfecho, marcar a pendencia anterior como resolvida, recusada ou substituida, preservando o evento historico e um proximo passo vigente. Nao apenas acrescentar outro estado contraditorio.
+   Revisar causalidade e atribuicao no resumo e no corpo: convergencia de relatos e elogios nao prova causa nem exclui explicacoes alternativas. "Somente source" preserva o item na source, sem repetir seu conteudo substantivo nas paginas vivas.
+   Para paginas grandes, manter abertura curta com estado vigente datado, decisoes, pendencias e limites; historico detalhado em secoes ou pagina historica ligada. Nao comprimir nem remover evidencia silenciosamente.
 8. Rodar `python3 .claude/scripts/build-index.py generate`.
 9. Registrar em `wiki/log.md` no topo:
 

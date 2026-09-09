@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Installer migration for generated Codex skill ignore rules."""
 from pathlib import Path
+import json
 import subprocess
 import tempfile
 import unittest
@@ -99,6 +100,53 @@ class DelegationInstallTests(unittest.TestCase):
             self.assertIn("thinker-model-eval", result.stderr)
             self.assertEqual("user-owned collision\n", skill.read_text(encoding="utf-8"))
             self.assertEqual("# custom\n", (target / ".gitignore").read_text(encoding="utf-8"))
+
+    def test_settings_merge_preserves_custom_statusline_permissions_and_hooks_twice(self):
+        with tempfile.TemporaryDirectory(prefix="delegation-install-") as directory:
+            target = Path(directory) / "vault"
+            settings = target / ".claude/settings.json"
+            settings.parent.mkdir(parents=True)
+            original = {"statusLine": {"type": "command", "command": "local-status", "refreshInterval": 17},
+                        "env": {"LOCAL": "kept"}, "permissions": {"allow": ["Bash(git status)"]},
+                        "hooks": {"Stop": [{"hooks": [{"type": "command", "command": "local-stop"}]}]}}
+            settings.write_text(json.dumps(original), encoding="utf-8")
+            for _ in range(2):
+                result = self.run_install(target)
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            merged = json.loads(settings.read_text(encoding="utf-8"))
+            self.assertEqual(original["statusLine"], merged["statusLine"])
+            self.assertEqual(original["env"], merged["env"])
+            self.assertIn("Bash(git status)", merged["permissions"]["allow"])
+            self.assertEqual(1, sum(h["command"] == "local-stop" for group in merged["hooks"]["Stop"]
+                                    for h in group["hooks"]))
+
+    def test_fresh_install_gets_harness_statusline_at_five_seconds(self):
+        with tempfile.TemporaryDirectory(prefix="delegation-install-") as directory:
+            target = Path(directory) / "vault"
+            target.mkdir()
+            result = self.run_install(target)
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            settings = json.loads((target / ".claude/settings.json").read_text(encoding="utf-8"))
+            self.assertEqual(5, settings["statusLine"]["refreshInterval"])
+            self.assertIn("delegation-indicator.py", settings["statusLine"]["command"])
+
+    def test_update_refuses_malformed_or_symlink_settings_without_overwrite(self):
+        with tempfile.TemporaryDirectory(prefix="delegation-install-") as directory:
+            root, target = Path(directory), Path(directory) / "vault"
+            settings = target / ".claude/settings.json"
+            settings.parent.mkdir(parents=True)
+            settings.write_text("{bad json", encoding="utf-8")
+            result = self.run_install(target)
+            self.assertNotEqual(0, result.returncode)
+            self.assertEqual("{bad json", settings.read_text(encoding="utf-8"))
+
+            settings.unlink()
+            outside = root / "outside-settings.json"
+            outside.write_text('{"env":{"OUTSIDE":"kept"}}', encoding="utf-8")
+            settings.symlink_to(outside)
+            result = self.run_install(target)
+            self.assertNotEqual(0, result.returncode)
+            self.assertEqual('{"env":{"OUTSIDE":"kept"}}', outside.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

@@ -32,6 +32,27 @@ RUN_FEEDBACK = {"accepted", "needs_changes", "rejected", "unknown"}
 RUN_KINDS = {"chain", "principal-eval"}
 RUN_ROLES = {"author", "reviewer", "synthesizer"}
 HANDOFF_MODES = {"full", "delta", "synthesis"}
+MAX_CALL_CAP = 64
+DEFAULT_SESSION_CALL_CAP = 6
+DEFAULT_PROVIDER_CALL_CAP = 4
+INFRASTRUCTURE_FAILURES = {
+    "provider_limit", "authentication_failed", "connection_failed",
+    "environment_blocked", "cli_incompatible", "model_unavailable",
+    "invalid_provider_output",
+}
+DIAGNOSTIC_MESSAGES = {
+    "structured_output_failed": "A CLI esgotou as tentativas de estruturar a entrega. Revise o formato solicitado antes de tentar novamente.",
+    "budget_limit": "A CLI informou limite de orçamento. Nenhuma tentativa adicional foi iniciada.",
+    "provider_limit": "A CLI informou limite de uso ou capacidade. Aguarde a disponibilidade do provedor; o modelo escolhido foi preservado.",
+    "connection_failed": "A CLI informou falha de conexão. Confira rede e permissões do terminal; não houve troca para API.",
+    "authentication_failed": "A CLI informou falha de autenticação. Confira o login da assinatura neste terminal.",
+    "model_unavailable": "O modelo solicitado não está disponível.",
+    "environment_blocked": "A CLI informou restrição do ambiente. Confira a permissão de execução antes de nova tentativa.",
+    "cli_incompatible": "A CLI recusou os argumentos da integração. Verifique a versão com doctor.",
+    "provider_failed": "A CLI falhou sem diagnóstico reconhecido. A entrega não foi aceita; os logs brutos não foram retidos.",
+    "invalid_provider_output": "A saída do provedor não passou na validação estrutural. A entrega não foi aceita.",
+    "provider_command_failed": "A CLI encerrou com erro; os logs brutos não foram preservados.",
+}
 
 
 class DelegationError(ValueError):
@@ -48,6 +69,66 @@ def _digest(data):
 
 def _short(value, limit=1000):
     return str(value).replace("\x00", "")[:limit]
+
+
+def _call_cap(value, label):
+    if type(value) is not int or not 1 <= value <= MAX_CALL_CAP:
+        raise DelegationError(f"{label} must be between 1 and {MAX_CALL_CAP}")
+    return value
+
+
+def _safe_text(value, label, limit):
+    if not isinstance(value, str):
+        raise DelegationError(f"{label} must be text")
+    value = re.sub(r"[\x00-\x1f\x7f]+", " ", value).strip()
+    if not value or len(value.encode()) > limit:
+        raise DelegationError(f"{label} must be short nonempty text")
+    if re.search(r"(?i)\b(api[_-]?key|access_token|refresh_token|password|secret|credential|authorization)\s*[:=]", value):
+        raise DelegationError(f"{label} must not contain credentials")
+    return value
+
+
+def _retry_reason(value):
+    return _safe_text(value, "A diagnostic retry reason", 512)
+
+
+def _routing(value):
+    if value is None:
+        return None
+    allowed = {"action", "benefit", "independent", "principal", "principal_identity",
+               "critical_review", "quota", "quota_evidence", "same_model", "reason", "note"}
+    if not isinstance(value, dict) or set(value) - allowed:
+        raise DelegationError("Routing metadata is invalid")
+    required = {"action", "benefit", "independent", "principal", "principal_identity",
+                "critical_review", "quota", "same_model", "reason", "note"}
+    if not required <= set(value):
+        raise DelegationError("Routing metadata is incomplete")
+    if value["action"] not in {"local", "delegate", "blocked"}:
+        raise DelegationError("Routing action is invalid")
+    if value["principal_identity"] not in {"declared_not_verified", "unknown"}:
+        raise DelegationError("Routing principal identity is invalid")
+    if value["quota"] not in {"unknown", "available", "blocked", "constrained"}:
+        raise DelegationError("Routing quota is invalid")
+    if "quota_evidence" in value and value["quota_evidence"] != "manual_account_snapshot_not_attributed":
+        raise DelegationError("Routing quota evidence is invalid")
+    if any(type(value[key]) is not bool for key in ("independent", "critical_review", "same_model")):
+        raise DelegationError("Routing flags are invalid")
+    principal = value["principal"]
+    if principal is not None:
+        if not isinstance(principal, dict) or set(principal) != {"provider", "model", "effort", "identity_evidence"}:
+            raise DelegationError("Routing principal is invalid")
+        if (not isinstance(principal["provider"], str)
+                or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}", principal["provider"])
+                or not isinstance(principal["model"], str)
+                or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,150}", principal["model"])
+                or principal["effort"] not in {"low", "medium", "high", "xhigh", "max", "ultra"}
+                or principal["identity_evidence"] != "declared_not_verified"):
+            raise DelegationError("Routing principal is invalid")
+    copied = dict(value)
+    copied["benefit"] = _safe_text(value["benefit"], "Routing benefit", 1000) if value["benefit"] else ""
+    copied["reason"] = _safe_text(value["reason"], "Routing reason", 160)
+    copied["note"] = _safe_text(value["note"], "Routing note", 1000)
+    return copied
 
 
 def _identifier(value, label="session"):
@@ -155,11 +236,24 @@ class DelegationStore:
             os.close(fd)
 
     def _config(self):
-        value = _read(self.state / "config.json", {"enabled": False, "concurrency": 2, "sessions": {}})
+        value = _read(self.state / "config.json")
+        if value is None:
+            return {"enabled": True, "default_enabled": True, "concurrency": 2,
+                    "max_calls_session": DEFAULT_SESSION_CALL_CAP,
+                    "max_calls_provider": DEFAULT_PROVIDER_CALL_CAP, "sessions": {}}
+        # Old private state had no inherited availability. Do not silently turn
+        # a previous global stop into permission to submit new calls.
+        legacy = "default_enabled" not in value
+        value.setdefault("default_enabled", bool(value.get("enabled")) if legacy else True)
+        value.setdefault("max_calls_session", DEFAULT_SESSION_CALL_CAP)
+        value.setdefault("max_calls_provider", DEFAULT_PROVIDER_CALL_CAP)
         if (type(value.get("enabled")) is not bool or
+                type(value.get("default_enabled")) is not bool or
                 type(value.get("concurrency")) is not int or
                 not 1 <= value["concurrency"] <= 8 or not isinstance(value.get("sessions"), dict)):
             raise DelegationError("Malformed delegation config; delegation is disabled")
+        _call_cap(value["max_calls_session"], "max_calls_session")
+        _call_cap(value["max_calls_provider"], "max_calls_provider")
         for session, settings in value["sessions"].items():
             _identifier(session)
             if not isinstance(settings, dict) or type(settings.get("enabled")) is not bool or settings.get("mode") not in {"request", "auto"}:
@@ -167,6 +261,9 @@ class DelegationStore:
             profile = settings.get("profile")
             if profile is not None and (not isinstance(profile, str) or not profile.strip() or len(profile) > 256):
                 raise DelegationError("Malformed delegation session profile; delegation is disabled")
+            for key in ("max_calls_session", "max_calls_provider"):
+                if key in settings and settings[key] is not None:
+                    _call_cap(settings[key], key)
         return value
 
     def status(self, session=None):
@@ -176,27 +273,40 @@ class DelegationStore:
             config = self._config()
         except DelegationError as exc:
             return {"enabled": False, "global_enabled": False, "error": str(exc), "state_dir": str(self.state)}
-        setting = config["sessions"].get(session, {"enabled": False, "mode": "request"})
+        explicit = config["sessions"].get(session)
+        setting = explicit or {"enabled": config["default_enabled"], "mode": "auto"}
         return {"enabled": config["enabled"] and setting["enabled"],
                 "global_enabled": config["enabled"], "session": session,
                 "session_enabled": setting["enabled"], "mode": setting["mode"],
                 "profile": setting.get("profile"),
                 "concurrency": config["concurrency"], "state_dir": str(self.state),
+                "session_explicit": explicit is not None,
+                "max_calls_session": setting.get("max_calls_session") or config["max_calls_session"],
+                "max_calls_provider": setting.get("max_calls_provider") or config["max_calls_provider"],
                 "notification": "poll or inbox; no native host wakeup is promised"}
 
-    def configure(self, enabled=None, concurrency=None):
+    def configure(self, enabled=None, concurrency=None, default_enabled=None,
+                  max_calls_session=None, max_calls_provider=None):
         _require_parent()
         if enabled is not None and type(enabled) is not bool:
             raise DelegationError("enabled must be boolean")
         if concurrency is not None and (type(concurrency) is not int or not 1 <= concurrency <= 8):
             raise DelegationError("concurrency must be between 1 and 8")
+        if default_enabled is not None and type(default_enabled) is not bool:
+            raise DelegationError("default_enabled must be boolean")
+        if max_calls_session is not None:
+            _call_cap(max_calls_session, "max_calls_session")
+        if max_calls_provider is not None:
+            _call_cap(max_calls_provider, "max_calls_provider")
         with self._lock():
             try:
                 config = self._config()
             except DelegationError:
                 if enabled is not False:
                     raise
-                config = {"enabled": False, "concurrency": 2, "sessions": {}}
+                config = {"enabled": False, "default_enabled": False, "concurrency": 2,
+                          "max_calls_session": DEFAULT_SESSION_CALL_CAP,
+                          "max_calls_provider": DEFAULT_PROVIDER_CALL_CAP, "sessions": {}}
             if enabled is not None:
                 config["enabled"] = enabled
             if enabled is False:
@@ -204,25 +314,39 @@ class DelegationStore:
                 # one session back on must never revive another old session.
                 for setting in config["sessions"].values():
                     setting["enabled"] = False
+                config["default_enabled"] = False
+            if default_enabled is not None:
+                config["default_enabled"] = default_enabled
             if concurrency is not None:
                 config["concurrency"] = concurrency
+            if max_calls_session is not None:
+                config["max_calls_session"] = max_calls_session
+            if max_calls_provider is not None:
+                config["max_calls_provider"] = max_calls_provider
             _atomic(self.state / "config.json", config)
             if enabled is False:
                 self._cancel_locked(None, "global off")
         return self.status()
 
-    def set_session(self, session, enabled, mode="request", profile=None):
+    def set_session(self, session, enabled, mode="request", profile=None,
+                    max_calls_session=None, max_calls_provider=None):
         _require_parent()
         _identifier(session)
         if type(enabled) is not bool or mode not in {"request", "auto"}:
             raise DelegationError("Session requires boolean enabled and request or auto mode")
         if profile is not None and (not isinstance(profile, str) or not profile.strip() or len(profile) > 256):
             raise DelegationError("Session profile must be a nonempty short string")
+        if max_calls_session is not None:
+            _call_cap(max_calls_session, "max_calls_session")
+        if max_calls_provider is not None:
+            _call_cap(max_calls_provider, "max_calls_provider")
         with self._lock():
             config = self._config()
             previous = config["sessions"].get(session, {})
             config["sessions"][session] = {"enabled": enabled, "mode": mode,
-                                          "profile": profile if profile is not None else previous.get("profile")}
+                                          "profile": profile if profile is not None else previous.get("profile"),
+                                          "max_calls_session": max_calls_session if max_calls_session is not None else previous.get("max_calls_session"),
+                                          "max_calls_provider": max_calls_provider if max_calls_provider is not None else previous.get("max_calls_provider")}
             _atomic(self.state / "config.json", config)
             if not enabled:
                 self._cancel_locked(session, "session off")
@@ -231,6 +355,55 @@ class DelegationStore:
     def _paths(self):
         jobs = self.state / "jobs"
         return sorted(jobs.glob("*/job.json")) if jobs.exists() else []
+
+    def _limits(self, config, session):
+        setting = config["sessions"].get(session, {})
+        return (setting.get("max_calls_session") or config["max_calls_session"],
+                setting.get("max_calls_provider") or config["max_calls_provider"])
+
+    def _session_enabled(self, config, session):
+        return config["enabled"] and config["sessions"].get(session, {}).get("enabled", config["default_enabled"])
+
+    def _provider(self, profile):
+        provider = profile.get("provider") if isinstance(profile, dict) else None
+        if not isinstance(provider, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}", provider):
+            raise DelegationError("An explicit safe provider identifier is required")
+        return provider
+
+    def _request_fingerprint(self, session, profile, task, snapshot):
+        material = {"session": session, "provider": self._provider(profile),
+                    "model": profile.get("model"), "effort": profile.get("effort"),
+                    "task": task,
+                    "sources": [(item["path"], item["sha256"]) for item in snapshot["sources"]],
+                    "instructions": [(item["path"], item["sha256"]) for item in snapshot["instructions"]]}
+        return _digest(json.dumps(material, ensure_ascii=False, sort_keys=True,
+                                  separators=(",", ":")).encode())
+
+    def _failed_request_locked(self, request_fingerprint):
+        return any(_read(path).get("state") == "failed"
+                   and _read(path).get("request_fingerprint") == request_fingerprint
+                   for path in self._paths())
+
+    def _provider_blocked_locked(self, session, provider):
+        jobs = sorted((_read(path) for path in self._paths()),
+                      key=lambda job: (job.get("created_epoch", 0), job.get("created_at", "")), reverse=True)
+        for job in jobs:
+            if job.get("session") != session or job.get("profile", {}).get("provider") != provider:
+                continue
+            if job.get("state") == "completed":
+                return False
+            if job.get("state") == "failed" and job.get("error_code") in INFRASTRUCTURE_FAILURES:
+                return True
+        return False
+
+    def _enforce_call_budget_locked(self, config, session, provider):
+        session_cap, provider_cap = self._limits(config, session)
+        jobs = [_read(path) for path in self._paths()]
+        if sum(job.get("session") == session for job in jobs) >= session_cap:
+            raise DelegationError("Session call cap reached; raise the configured cap before another call")
+        if sum(job.get("session") == session and job.get("profile", {}).get("provider") == provider
+               for job in jobs) >= provider_cap:
+            raise DelegationError("Provider call cap reached for this session; raise the configured cap before another call")
 
     def _cancel_locked(self, session, reason):
         for path in self._paths():
@@ -300,7 +473,8 @@ class DelegationStore:
 
     def submit(self, session, profile, task, context_paths=(), timeout=300,
                model_source="session", retry_of=None, reason="", task_type="review",
-               run_id=None, stage=None, role=None, parent_job=None, handoff=None):
+               run_id=None, stage=None, role=None, parent_job=None, handoff=None,
+               retry_reason=None, routing=None):
         _require_parent()
         _identifier(session)
         if not self.status(session)["enabled"]:
@@ -315,7 +489,12 @@ class DelegationStore:
             profile = json.loads(json.dumps(profile, allow_nan=False))
         except (ValueError, TypeError):
             raise DelegationError("Profile must be JSON serializable") from None
+        provider = self._provider(profile)
+        if retry_reason is not None:
+            retry_reason = _retry_reason(retry_reason)
+        routing = _routing(routing)
         snapshot = self._snapshot(tuple(context_paths))
+        request_fingerprint = self._request_fingerprint(session, profile, task, snapshot)
         identifier = str(uuid.uuid4())
         job = {"schema": 1, "id": identifier, "attempt_id": str(uuid.uuid4()),
                "session": session, "vault": str(self.vault), "profile": profile,
@@ -324,9 +503,13 @@ class DelegationStore:
                "task": task, "snapshot": snapshot, "timeout": timeout,
                "state": "queued", "created_at": _now(), "updated_at": _now(),
                "created_epoch": time.time(), "retry_of": retry_of,
+               "request_fingerprint": request_fingerprint,
+               "retry_reason": retry_reason,
                "transport_success": None, "validation": "pending",
                "acceptance": "pending", "feedback": "unknown", "acknowledged": False,
                "limitations": ["Completion requires polling; no native host wakeup is promised."]}
+        if routing is not None:
+            job["routing"] = routing
         if run_id is not None:
             _run_id(run_id)
             if type(stage) is not int or not 1 <= stage <= 1000:
@@ -341,8 +524,13 @@ class DelegationStore:
             raise DelegationError("Run metadata requires a run identifier")
         with self._lock():
             config = self._config()
-            if not config["enabled"] or not config["sessions"].get(session, {}).get("enabled"):
+            if not self._session_enabled(config, session):
                 raise DelegationError("Delegation was disabled before submission")
+            self._enforce_call_budget_locked(config, session, provider)
+            if retry_reason is None and self._failed_request_locked(request_fingerprint):
+                raise DelegationError("An identical failed attempt requires an explicit diagnostic retry reason")
+            if retry_reason is None and self._provider_blocked_locked(session, provider):
+                raise DelegationError("Provider is blocked after an infrastructure failure; supply an explicit diagnostic retry reason")
             if run_id is not None:
                 run = self._run_locked(run_id)
                 if run.get("session") != session or run.get("status") != "active":
@@ -534,7 +722,7 @@ class DelegationStore:
                "quota": [], "feedback": "unknown", "events": []}
         with self._lock():
             config = self._config()
-            if not config["enabled"] or not config["sessions"].get(session, {}).get("enabled"):
+            if not self._session_enabled(config, session):
                 raise DelegationError("Delegation was disabled before run creation")
             _atomic(self.state / "runs" / (identifier + ".json"), run)
         return run
@@ -569,7 +757,7 @@ class DelegationStore:
         with self._lock():
             run = self._run_locked(identifier)
             config = self._config()
-            if not config["enabled"] or not config["sessions"].get(run["session"], {}).get("enabled"):
+            if not self._session_enabled(config, run["session"]):
                 raise DelegationError("Delegation is OFF; quota observation was not recorded")
             observation = {"when": when, "metric": metric, "value": value, "unit": unit,
                            "source": "manual", "observed_at": _now(),
@@ -586,7 +774,7 @@ class DelegationStore:
         with self._lock():
             run = self._run_locked(identifier)
             config = self._config()
-            if not config["enabled"] or not config["sessions"].get(run["session"], {}).get("enabled"):
+            if not self._session_enabled(config, run["session"]):
                 raise DelegationError("Delegation is OFF; run feedback was not recorded")
             run.update(feedback=value, feedback_note=_short(note), feedback_at=_now(), updated_at=_now())
             _atomic(self.state / "runs" / (identifier + ".json"), run)
@@ -599,7 +787,7 @@ class DelegationStore:
         with self._lock():
             run = self._run_locked(identifier)
             config = self._config()
-            if not config["enabled"] or not config["sessions"].get(run["session"], {}).get("enabled"):
+            if not self._session_enabled(config, run["session"]):
                 raise DelegationError("Delegation is OFF; run cannot be finished")
             if run.get("status") != "active":
                 raise DelegationError("Run is already finished")
@@ -629,15 +817,22 @@ class DelegationStore:
                 _atomic(self.state / "jobs" / identifier / "job.json", job)
         return self.get(identifier)
 
-    def retry(self, identifier, session=None):
+    def retry(self, identifier, session=None, reason=None, retry_reason=None, routing=None):
         _require_parent()
+        if reason is not None and retry_reason is not None:
+            raise DelegationError("Specify one diagnostic retry reason")
+        override = retry_reason if retry_reason is not None else reason
         job = self.get(identifier)
+        if job.get("state") == "failed" and override is None:
+            raise DelegationError("A failed attempt requires an explicit diagnostic retry reason")
         return self.submit(session or job["session"], job["profile"], job["task"],
                            [item["path"] for item in job["snapshot"]["sources"]],
                            timeout=job["timeout"], model_source=job["model_source"],
                            retry_of=identifier, reason=job.get("reason", ""), task_type=job.get("task_type", "review"),
                            run_id=job.get("run_id"), stage=job.get("stage"), role=job.get("role"),
-                           parent_job=job.get("parent_job"), handoff=job.get("handoff"))
+                           parent_job=job.get("parent_job"), handoff=job.get("handoff"),
+                           retry_reason=override,
+                           routing=routing if routing is not None else job.get("routing"))
 
     def _finish(self, identifier, state, **fields):
         with self._lock():
@@ -687,7 +882,7 @@ class DelegationStore:
         with self._lock():
             job = self._get_locked(identifier)
             config = self._config()
-            if not config["enabled"] or not config["sessions"].get(job["session"], {}).get("enabled"):
+            if not self._session_enabled(config, job["session"]):
                 raise DelegationError("Delegation is OFF; proposal incorporation is disabled")
             if job["state"] != "completed" or job["validation"] != "valid":
                 raise DelegationError("Only a structurally valid completed proposal can be accepted")
@@ -698,8 +893,10 @@ class DelegationStore:
             destination = directory / f"{identifier}.md"
             warning = ("A fonte mudou após o envio: " + ", ".join(stale) +
                        ". Compare esta proposta com a versão atual antes de aproveitar o conteúdo.\n\n") if stale else ""
+            reported = (job.get("result") or {}).get("model_reported") or "não informado"
             content = ("# Proposta de revisão\n\n"
-                       f"Contribuição de {job['profile']['model']}\n\n"
+                       f"Perfil solicitado: {job['profile']['model']}; modelo reportado: {reported}; "
+                       "identidade servida não verificada.\n\n"
                        + warning + job["result"]["text"] + "\n")
             # Hard-link a complete temporary file: atomic publication with an
             # exclusive destination, including under concurrent acceptance.
@@ -911,6 +1108,20 @@ def _stream_diagnostics(output_path, error_path, returncode, complete):
             "stdout": describe(output_path), "stderr": describe(error_path)}
 
 
+def _diagnose(adapters, profile, stdout, stderr, returncode, fallback):
+    """Accept only fixed diagnostic classes, never adapter-provided log text."""
+    diagnose = getattr(adapters, "diagnose_failure", None)
+    if callable(diagnose):
+        try:
+            diagnosis = diagnose(profile, stdout, stderr, returncode)
+            code = diagnosis.get("code") if isinstance(diagnosis, dict) else None
+            if code in DIAGNOSTIC_MESSAGES:
+                return code, DIAGNOSTIC_MESSAGES[code]
+        except Exception:
+            pass
+    return fallback, DIAGNOSTIC_MESSAGES[fallback]
+
+
 def worker(state, identifier):
     _job_id(identifier)
     state = Path(state)
@@ -948,7 +1159,7 @@ def _work_owned(store, identifier, directory):
                 if job["state"] in TERMINAL:
                     return 0
                 config = store._config()
-                off = not config["enabled"] or not config["sessions"].get(job["session"], {}).get("enabled")
+                off = not store._session_enabled(config, job["session"])
                 cancel = job.get("cancel_requested") or off
                 running = sum(store._recover_locked(_read(path))["state"] == "running" for path in store._paths())
                 if not cancel and running < config["concurrency"]:
@@ -973,7 +1184,7 @@ def _work_owned(store, identifier, directory):
             with store._lock():
                 current = store._get_locked(identifier)
                 config = store._config()
-                cancelled = current.get("cancel_requested") or not config["enabled"] or not config["sessions"].get(job["session"], {}).get("enabled")
+                cancelled = current.get("cancel_requested") or not store._session_enabled(config, job["session"])
                 if not cancelled:
                     current["profile"] = job["profile"]
                     _atomic(directory / "job.json", current)
@@ -989,7 +1200,7 @@ def _work_owned(store, identifier, directory):
                 with store._lock():
                     current = store._get_locked(identifier)
                     config = store._config()
-                    cancelled = current.get("cancel_requested") or not config["enabled"] or not config["sessions"].get(job["session"], {}).get("enabled")
+                    cancelled = current.get("cancel_requested") or not store._session_enabled(config, job["session"])
                 if cancelled:
                     outcome = "cancelled"
                 elif time.monotonic() - started > job["timeout"]:
@@ -1009,7 +1220,7 @@ def _work_owned(store, identifier, directory):
         with store._lock():
             current = store._get_locked(identifier)
             config = store._config()
-            cancelled = current.get("cancel_requested") or not config["enabled"] or not config["sessions"].get(job["session"], {}).get("enabled")
+            cancelled = current.get("cancel_requested") or not store._session_enabled(config, job["session"])
         if cancelled:
             diagnostic = _stream_diagnostics(output_path, error_path, returncode, True)
             store._finish(identifier, "cancelled", returncode=returncode, diagnostic=diagnostic,
@@ -1023,20 +1234,8 @@ def _work_owned(store, identifier, directory):
         stdout = output_path.read_text(encoding="utf-8", errors="replace")
         stderr = error_path.read_text(encoding="utf-8", errors="replace")
         if returncode != 0:
-            code = "provider_command_failed"
-            message = "A CLI encerrou com erro; os logs brutos não foram preservados."
-            diagnose = getattr(adapters, "diagnose_failure", None)
-            if callable(diagnose):
-                try:
-                    # The adapter returns predefined safe labels, never raw
-                    # provider text. Ignore unsupported or malformed metadata.
-                    diagnosis = diagnose(job["profile"], stdout, stderr, returncode)
-                    if (isinstance(diagnosis, dict) and isinstance(diagnosis.get("code"), str)
-                            and re.fullmatch(r"[a-z0-9_]{1,80}", diagnosis["code"])
-                            and isinstance(diagnosis.get("message"), str) and diagnosis["message"].strip()):
-                        code, message = diagnosis["code"], _short(diagnosis["message"])
-                except Exception:
-                    pass
+            code, message = _diagnose(adapters, job["profile"], stdout, stderr, returncode,
+                                      "provider_command_failed")
             diagnostic = _stream_diagnostics(output_path, error_path, returncode, True)
             diagnostic["classification"] = code
             store._finish(identifier, "failed", returncode=returncode, diagnostic=diagnostic,
@@ -1044,15 +1243,14 @@ def _work_owned(store, identifier, directory):
             return 0
         try:
             result = adapters.parse_result(job["profile"], stdout, stderr, returncode)
-        except Exception as exc:
-            adapter_error = getattr(adapters, "AdapterError", None)
-            message = (str(exc) if isinstance(adapter_error, type) and isinstance(exc, adapter_error)
-                       else f"Provider output failed structural validation ({type(exc).__name__}); raw output omitted")
+        except Exception:
+            code, message = _diagnose(adapters, job["profile"], stdout, stderr, returncode,
+                                      "invalid_provider_output")
             diagnostic = _stream_diagnostics(output_path, error_path, returncode, True)
-            diagnostic["classification"] = "invalid_provider_output"
+            diagnostic["classification"] = code
             store._finish(identifier, "failed", transport_success=True, validation="invalid",
                           returncode=returncode, diagnostic=diagnostic,
-                          error_code="invalid_provider_output", error=_short(message))
+                          error_code=code, error=message)
             return 0
         valid = isinstance(result, dict) and isinstance(result.get("text"), str) and bool(result["text"].strip())
         if not valid:

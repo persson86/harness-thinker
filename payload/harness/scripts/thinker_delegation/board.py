@@ -17,6 +17,7 @@ import shutil
 import sys
 import time
 import unicodedata
+import re
 
 ACTIVE = {"queued", "running"}
 BROKEN = {"failed", "timed_out", "interrupted"}
@@ -194,8 +195,11 @@ def task_of(job):
     return kind
 
 
-def payload(store, session, all_sessions=False, limit=10):
+def payload(store, session, all_sessions=False, limit=10, native_reports=None):
     """Estado do board como dado, para --json e para o renderizador."""
+    if native_reports is None and hasattr(store, "state"):
+        from . import native
+        native_reports = native.snapshot(store, session, all_sessions, locked=True)
     every = store.list_jobs()
     status = store.status(session)
     scoped = every if all_sessions else [j for j in every if j.get("session") == session]
@@ -222,17 +226,53 @@ def payload(store, session, all_sessions=False, limit=10):
                      "role": job.get("role"), "retry_of": job.get("retry_of"),
                      "cancel_requested": job.get("cancel_requested")})
 
+    # Estes totais são deliberadamente calculados no escopo selecionado, não
+    # apenas nas linhas mostradas. Um statusline não pode dizer que há zero
+    # falhas só porque o limite visual do board ocultou uma entrada antiga.
+    native_reports = native_reports or {"reported": 0, "running": 0, "completed": 0,
+                                        "failed": 0, "cancelled": 0, "unknown": 0, "reports": []}
     return {"board": {"session": session, "scope": "all" if all_sessions else "session",
                       "enabled": status.get("enabled", False),
                       "global_enabled": status.get("global_enabled", False),
                       "mode": status.get("mode"),
                       "concurrency": status.get("concurrency", 0),
-                      "running": sum(1 for j in every if j.get("state") == "running"),
+                      "queued": sum(1 for j in scoped if j.get("state") == "queued"),
+                      "running": sum(1 for j in scoped if j.get("state") == "running"),
+                      "pending": sum(1 for j in scoped if delivery_of(j) == "inbox"),
                       "waiting": sum(1 for j in shown if delivery_of(j) == "inbox"),
-                      "failed": sum(1 for j in shown if j.get("state") in BROKEN),
+                      "failed": sum(1 for j in scoped if j.get("state") in BROKEN),
+                      "needs_attention": sum(1 for j in scoped if j.get("state") in BROKEN and not j.get("acknowledged")),
                       "sessions": len({j.get("session") for j in every}),
                       "shown": len(shown), "hidden": max(0, len(done) - max(0, limit))},
-            "jobs": rows}
+            "jobs": rows, "native": native_reports}
+
+
+def render_indicator(data, model_limit=3):
+    """Uma linha curta para a statusline, baseada somente no snapshot local.
+
+    Ela cobre a extensao de delegacao entre CLIs; agentes nativos do Codex nao
+    gravam este estado e, portanto, nunca sao inferidos aqui. Nao ha barra nem
+    porcentagem: os adaptadores nao fornecem progresso semantico confiavel.
+    """
+    head, jobs, native = data["board"], data["jobs"], data.get("native", {})
+    counts = "q%d r%d p%d f%d" % (head.get("queued", 0), head.get("running", 0),
+                                   head.get("pending", head.get("waiting", 0)),
+                                   head.get("needs_attention", head.get("failed", 0)))
+    models = []
+    for job in jobs:
+        # Alias e a identidade mais curta; clean elimina controles antes da
+        # linha chegar ao terminal e o limite evita uma statusline expansiva.
+        # Remover a sequencia inteira evita expor fragmentos como "[31m" de
+        # um alias malicioso; `clean` em seguida cobre controles restantes.
+        name = clean(re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", str(job.get("agent") or "")))
+        if name and name not in models:
+            models.append(name)
+        if len(models) >= max(0, model_limit):
+            break
+    suffix = " · " + ", ".join(clip(name, 18) for name in models) if models else ""
+    native_counts = "r%d c%d f%d u%d" % (native.get("running", 0), native.get("completed", 0),
+                                           native.get("failed", 0), native.get("unknown", 0))
+    return "delegacao externa: %s%s · nativa reportada: %s" % (counts, suffix, native_counts)
 
 
 def _layout(width, show_quality, show_session):
@@ -271,6 +311,11 @@ def render(data, color=False, ascii_only=False, width=None):
         if head.get("mode"):
             title.append("· modo " + head["mode"])
     title.append("· %d/%d slots" % (head["running"], head["concurrency"]))
+    native = data.get("native", {})
+    if native.get("reported"):
+        title.append("· nativos reportados r%d c%d f%d u%d" %
+                     (native.get("running", 0), native.get("completed", 0),
+                      native.get("failed", 0), native.get("unknown", 0)))
     lines = [" ".join(title), ""]
 
     if not jobs:

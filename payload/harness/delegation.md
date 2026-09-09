@@ -1,6 +1,6 @@
 # Delegação — uso e limites
 
-A interface principal é a conversa descrita em [operations/delegate.md](operations/delegate.md). Este manual reúne os comandos de apoio. A extensão é distribuída com o harness, mas começa OFF e usa apenas Python 3 e as CLIs já instaladas.
+A interface principal é a conversa descrita em [operations/delegate.md](operations/delegate.md). Este manual reúne os comandos de apoio. A extensão está disponível após a instalação, mas disponibilidade não cria nem dispara colaboradores: cada `submit` ainda exige uma decisão de rota e contexto declarado. Usa apenas Python 3 e as CLIs já instaladas.
 
 ## Começar
 
@@ -10,9 +10,11 @@ python3 harness/scripts/delegate.py doctor
 python3 harness/scripts/delegate.py --session MINHA-SESSAO on
 ```
 
-Use um ID exclusivo por conversa. `on --mode auto` permite ao principal decidir quando delegar dentro do pedido; não amplia escopo ou autorizações. `on --model sonnet` fixa preferência desta sessão. `--model` em `submit` sempre vence essa preferência. `set-default --task git --model luna --reason "Pedido explícito do usuário"` altera o padrão persistente apenas quando solicitado.
+Use um ID exclusivo por conversa; a interface também pode obter o contexto da sessão do host. `on --mode auto` permite ao principal decidir quando delegar dentro do pedido; não amplia escopo, autorizações nem dispara um job por si só. `on --model sonnet` fixa preferência desta sessão. `--model` em `submit` sempre vence essa preferência. `set-default --task git --model luna --reason "Pedido explícito do usuário"` altera o padrão persistente apenas quando solicitado.
 
-Os perfis iniciais são Luna low para Git e contexto delimitado; Sol High para transcrições e revisão; Sonnet High para drafts. Esses defaults só escolhem o modelo depois que o principal decide delegar; não obrigam delegação por tipo de tarefa. Terra, Astra, Fable, Opus e Grok também têm perfis. Fable usa o alias de assinatura `fable`; o acesso e o ID efetivamente servido dependem da CLI/conta e não são presumidos pelo nome. IDs específicos podem ser informados junto de `--provider`.
+Os perfis iniciais são Luna low para Git e contexto delimitado; Sonnet medium para contribuições delimitadas de transcrição/draft; Opus high para revisão crítica. Esses defaults só escolhem o modelo depois que o principal decide delegar; não obrigam delegação por tipo de tarefa. Terra, Astra, Fable, Sol e Grok também têm perfis. Fable usa o alias de assinatura `fable`; o acesso e o ID efetivamente servido dependem da CLI/conta e não são presumidos pelo nome. IDs específicos podem ser informados junto de `--provider`.
+
+`route` e `submit` exigem um benefício explícito (`--benefit`) e uma condição verificável: `--independent` para contribuição que o principal pode deixar correr em paralelo, ou `--critical-review` para uma segunda leitura crítica. Sem isso, a rota honesta é local; outro modelo não é ganho automático.
 
 `doctor` verifica flags, versão e login por assinatura quando a CLI expõe esse diagnóstico, sem chamada de geração. `doctor --all-profiles` repete a verificação para cada perfil e mantém `model_access: not_tested`; acesso ao modelo e retorno precisam de teste real. As ferramentas do colaborador são removidas/restritas; ele devolve texto/Markdown/HTML como proposta para o principal. Implementação arbitrária com ferramentas de escrita não está habilitada nestes adaptadores.
 
@@ -30,7 +32,7 @@ Não apagar estados automaticamente: isso perderia entregas e histórico. Limpez
 
 ```bash
 # Brief preparado pelo principal e contexto mínimo selecionado
-python3 harness/scripts/delegate.py --session S --json submit --task draft --model opus --brief drafts/brief.md --file drafts/proposta.md --reason "Revisar a clareza da tese" --timeout 300
+python3 harness/scripts/delegate.py --session S --json submit --task draft --model sonnet --brief drafts/brief.md --file drafts/proposta.md --reason "Revisar a clareza da tese" --benefit "Proposta independente de estrutura" --independent --timeout 300
 python3 harness/scripts/delegate.py --session S inbox
 python3 harness/scripts/delegate.py --session S board
 python3 harness/scripts/delegate.py --session S board --watch 5
@@ -42,9 +44,9 @@ python3 harness/scripts/delegate.py --session S ack JOB
 python3 harness/scripts/delegate.py --session S feedback JOB --value useful --note "Perguntas aproveitadas após revisão"
 python3 harness/scripts/delegate.py --session S record --task context --reason "Contexto já disponível; resolvido no principal"
 python3 harness/scripts/delegate.py --session S run start --kind chain --objective "Comparar uma tese" --principal-provider codex --principal-model gpt-6-astra --principal-effort high
-python3 harness/scripts/delegate.py --session S run quota RUN --when before --metric quota_remaining --value 75 --unit percent
-python3 harness/scripts/delegate.py --session S --json submit --task draft --model sol --brief drafts/brief.md --reason "Primeira formulação" --run RUN --stage 1 --role author --handoff full
-python3 harness/scripts/delegate.py --session S --json submit --task review --model sonnet --brief drafts/handoff.md --reason "Crítica por deltas" --run RUN --stage 2 --role reviewer --handoff delta --parent-job JOB-1
+python3 harness/scripts/delegate.py --session S quota --provider claude --availability constrained --reason "Aviso observado" # snapshot TTL 30 min
+python3 harness/scripts/delegate.py --session S --json submit --task draft --model sonnet --brief drafts/brief.md --reason "Primeira formulação" --benefit "Rascunho independente" --independent --run RUN --stage 1 --role author --handoff full
+python3 harness/scripts/delegate.py --session S --json submit --task review --model opus --brief drafts/handoff.md --reason "Crítica por deltas" --benefit "Objeções críticas independentes" --critical-review --run RUN --stage 2 --role reviewer --handoff delta --parent-job JOB-1
 python3 harness/scripts/delegate.py --session S run show RUN
 python3 harness/scripts/delegate.py --session S run finish RUN --final-job JOB-FINAL
 python3 harness/scripts/delegate.py --session S run feedback RUN --value accepted --note "Resultado aproveitado após revisão"
@@ -56,7 +58,7 @@ python3 harness/scripts/delegate.py off --all
 
 IDs de jobs podem ser abreviados se forem únicos. `--json` é opção global e vem antes do comando. O resultado normal mostra estado curto e caminhos de leitura. Uma entrada na inbox só é reconhecida com `ack`; consultar status não consome a entrega.
 
-`off` desliga a sessão atual; `off --all` revoga todas as sessões e solicita cancelamento dos trabalhos da extensão. Uma nova ativação posterior habilita apenas a conversa escolhida. O histórico mostra até 30 registros recentes, com motivos, execução, esforço, duração observada e feedback separado; os registros anteriores permanecem no estado privado. Runs agrupam cadeias sem reconstruir relações antigas e sem somar tokens entre provedores. O principal é somente declarado; sua identidade não é confirmada e seu consumo aparece como indisponível. Snapshots manuais de quota são observações da conta, não consumo atribuído automaticamente à conversa.
+`off` desliga a sessão atual; `off --all` revoga todas as sessões e solicita cancelamento dos trabalhos da extensão. Uma nova ativação posterior habilita apenas a conversa escolhida. O histórico mostra até 30 registros recentes, com motivos, execução, esforço, duração observada e feedback separado; os registros anteriores permanecem no estado privado. Runs agrupam cadeias sem reconstruir relações antigas e sem somar tokens entre provedores. O principal é somente declarado; sua identidade não é confirmada e seu consumo aparece como indisponível. Snapshots manuais de quota são observações da conta, não consumo atribuído automaticamente à conversa; duram 30 minutos e depois voltam a `unknown`. Os limites locais são 6 chamadas por sessão e 4 por provedor, incluindo falhas e retries; não são medição de quota da conta.
 
 ## Board
 
@@ -64,7 +66,9 @@ IDs de jobs podem ser abreviados se forem únicos. `--json` é opção global e 
 
 Execução e entrega são eixos separados. A execução vai de `na fila` a `voltou`, `saída inválida`, `falhou`, `cancelado`, `tempo esgotado` ou `interrompido`; entrega vai de `na inbox` a `lido` e `materializado`, com aviso quando a entrada mudou depois. `voltou` afirma transporte e validação estrutural, nunca qualidade — a coluna de qualidade só aparece depois de `feedback`. A barra ao lado do tempo compara o decorrido com o timeout; não é progresso da tarefa, porque os adaptadores não emitem essa telemetria.
 
-`--all-sessions` cruza os terminais do vault e dispensa `--session`. `--limit` controla quantos jobs encerrados aparecem; ativos aparecem sempre. `--watch SEG` redesenha em laço determinístico, sem custar turno do principal — prefira oferecê-lo a fazer polling pelo agente. Colunas caem conforme a largura do terminal, nesta ordem: barra, modelo, qualidade. `--ascii` troca os símbolos quando a fonte ou o locale alargam os glifos.
+`--all-sessions` cruza os terminais do vault e dispensa `--session`. `--limit` controla quantos jobs encerrados aparecem; ativos aparecem sempre. `board --watch 5` redesenha a cada 5 segundos em laço contínuo até Ctrl-C, sem custar turno do principal. `delegation-indicator.py --watch 30` é diferente: emite status por no máximo 30 segundos (1–60). Colunas caem conforme a largura do terminal, nesta ordem: barra, modelo, qualidade. `--ascii` troca os símbolos quando a fonte ou o locale alargam os glifos.
+
+O indicador compacto mostra `externa q/r/p/f` e `nativa reportada r/c/f/u`. O segundo grupo é metadado declarado pelo principal sobre agentes nativos, não telemetria: use `native report` quando o host informar o estado; running sem atualização por 15 minutos vira `unknown`. `off` não cancela esses agentes nativos. No Claude, o installer adiciona uma `statusLine` de 5 segundos somente se o vault não tiver uma personalizada; preserva settings, permissões e hooks locais em updates repetidos. Codex não promete callback arbitrário de statusline.
 
 ## Avaliação de modelos
 
@@ -76,7 +80,7 @@ Comparações de rotas usam [operations/model-eval.md](operations/model-eval.md)
 
 `run finish` escolhe uma vez o job final e materializa somente essa contribuição em `drafts/delegation/`. Intermediários continuam recuperáveis no estado privado e só são materializados por `accept` explícito. `principal-eval` também pode terminar com `--final-artifact` para registrar o caminho e hash de um MD existente dentro de `drafts/`, sem afirmar telemetria inexistente.
 
-Jobs antigos continuam avulsos. Retry preserva run, etapa, papel, parent e modo de handoff. Desligar a feature impede novas mutações, preserva runs existentes e cancela os jobs conforme o lifecycle já documentado.
+Jobs antigos continuam avulsos. Retry preserva run, etapa, papel, parent e modo de handoff, e exige `retry JOB --reason "diagnóstico e correção observados"`. Desligar a feature impede novas mutações, preserva runs existentes e cancela os jobs conforme o lifecycle já documentado.
 
 ## Auth e controles por provedor
 

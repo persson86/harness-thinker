@@ -49,7 +49,7 @@ Não traduza Luna/Terra/Sol para nomes Grok.
 
 ## Delegação opcional entre CLIs
 
-Quando solicitada, siga a skill `thinker-delegate` e `harness/operations/delegate.md`. A extensão começa OFF; a regra de ignorar roteamento Codex acima trata dos subagentes nativos, não impede uma chamada explícita à CLI Codex pela extensão. Escolha explícita do usuário vence sessão e padrão. Git começa em Luna low; não traduza Luna/Sonnet para modelos Grok. Registre a execução efetiva e consulte a inbox enquanto houver trabalhos da sessão. O principal preserva a coautoria e o escopo de publicação.
+Siga a skill `thinker-delegate` e `harness/operations/delegate.md`. A extensão está disponível por padrão em sessões novas, sem spawn obrigatório e respeitando off explícito; a regra de ignorar roteamento Codex acima trata dos subagentes nativos, não impede chamada à CLI Codex pela extensão. Escolha explícita do usuário vence sessão e padrão. Git prefere execução determinística; não traduza Luna/Sonnet para modelos Grok. Registre a execução efetiva e consulte a inbox enquanto houver trabalhos da sessão. O principal preserva a coautoria e o escopo de publicação.
 
 Para benchmark local, regressão ou qualificação de modelo, siga a skill `thinker-model-eval` e `harness/operations/model-eval.md`. Congele caso, gabarito e spec antes das chamadas; acompanhe no board e não traduza nomes de outros provedores para modelos Grok.
 

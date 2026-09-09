@@ -72,6 +72,10 @@ class CLITests(unittest.TestCase):
         self.temporary.cleanup()
 
     def command(self, *args, session="host-a", json_output=True):
+        if args and args[0] == "submit" and "--benefit" not in args:
+            args = (*args, "--benefit", "Independent synthetic contribution", "--independent")
+        if args and args[0] == "retry" and "--reason" not in args:
+            args = (*args, "--reason", "Synthetic diagnosis completed")
         command = [sys.executable, "-B", str(self.cli_path), "--state-dir", str(self.state)]
         if session is not None:
             command += ["--session", session]
@@ -113,17 +117,57 @@ class CLITests(unittest.TestCase):
         self.assertEqual("valid", result["validation"])
         return result
 
-    def test_default_off_status_and_route_create_no_state(self):
+    def test_default_available_status_and_route_create_no_state(self):
         status = self.cli("status", session=None)
-        self.assertFalse(status["enabled"])
+        self.assertTrue(status["enabled"])
         self.assertEqual([], status["jobs"])
         self.assertFalse(self.state.exists())
         route = self.cli("route", "--task", "git")
         self.assertEqual("gpt-5.6-luna", route["model"])
         self.assertEqual("low", route["effort"])
         self.assertEqual("default", route["model_source"])
-        self.refused("submit", "--prompt", "blocked", "--reason", "test")
+        self.assertEqual("local", route["routing"]["action"])
         self.assertFalse(self.state.exists())
+        self.cli("off")
+        self.refused("submit", "--prompt", "blocked", "--reason", "test")
+        self.assertEqual([], self.cli("status")["jobs"])
+
+    def test_routing_requires_benefit_and_tracks_principal_and_quota(self):
+        self.cli("session-context", "--provider", "codex", "--model", "sol", "--effort", "high")
+        result = self.cli("route", "--model", "sol")
+        self.assertTrue(result["routing"]["same_model"])
+        self.assertEqual("local", result["routing"]["action"])
+        self.refused("submit", "--model", "sol", "--prompt", "repeat", "--reason", "repeat", "--benefit", "")
+        result = self.cli("route", "--model", "sonnet", "--benefit", "Separate evidence review", "--critical-review")
+        self.assertEqual("delegate", result["routing"]["action"])
+        self.cli("quota", "--provider", "claude", "--availability", "blocked", "--reason", "Observed fixture limit")
+        result = self.cli("route", "--model", "sonnet", "--benefit", "Review", "--critical-review")
+        self.assertEqual("blocked", result["routing"]["action"])
+        self.assertEqual([], self.cli("status")["jobs"])
+
+    def test_limits_are_bounded_and_global_off_is_not_reversed_by_local_on(self):
+        self.cli("limits", "--session-calls", "3", "--provider-calls", "2")
+        self.assertEqual(3, self.cli("status")["max_calls_session"])
+        self.refused("limits", "--session-calls", "0")
+        self.cli("off", "--all")
+        self.cli("on")
+        self.assertFalse(self.cli("status", session="unseen")["enabled"])
+
+    def test_available_quota_submits_but_blocked_quota_refuses_retry(self):
+        self.enable()
+        self.cli("quota", "--provider", "claude", "--availability", "available", "--reason", "Observed fixture capacity")
+        job = self.completed(self.submit())
+        self.cli("quota", "--provider", "claude", "--availability", "blocked", "--reason", "Observed fixture limit")
+        refusal = self.refused("retry", job["id"], "--reason", "Earlier failure reviewed")
+        self.assertIn("provider_quota_blocked", refusal["error"])
+        self.assertEqual(1, len(self.cli("status")["jobs"]))
+
+    def test_malformed_optional_policy_fields_fail_without_traceback(self):
+        self.enable()
+        for field, invalid in (("principals", []), ("quotas", []), ("quotas", {"claude": {"availability": "available"}})):
+            (self.state / "policy.json").write_text(json.dumps({"defaults": {}, "decisions": [], field: invalid}))
+            self.refused("route")
+        (self.state / "policy.json").write_text(json.dumps({"defaults": {}, "decisions": []}))
 
     def test_session_preference_and_explicit_override_do_not_change_defaults(self):
         self.enable()

@@ -12,6 +12,9 @@ import time
 import unittest
 from unittest import mock
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "payload/harness/scripts"))
+from thinker_delegation import adapters as real_adapters, routing
+
 SOURCE = Path(__file__).resolve().parents[1] / "payload/harness/scripts/thinker_delegation/runtime.py"
 FAKE_ADAPTER = '''import json, os, sys, time
 from pathlib import Path
@@ -78,20 +81,26 @@ class RuntimeTests(unittest.TestCase):
             time.sleep(0.03)
         self.fail(f"Job did not reach {state or 'terminal'} state: {job['state']}")
 
-    def test_default_off_does_not_create_state_or_launch(self):
+    def test_default_availability_does_not_create_state_or_launch(self):
         with mock.patch.object(self.runtime.subprocess, "Popen") as launch:
-            self.assertFalse(self.store.status("host-a")["enabled"])
+            status = self.store.status("host-a")
+            self.assertTrue(status["enabled"])
+            self.assertFalse(status["session_explicit"])
+            self.assertEqual("auto", status["mode"])
             self.assertEqual([], self.store.list_jobs())
-            with self.assertRaisesRegex(self.runtime.DelegationError, "OFF"):
-                self.submit()
             launch.assert_not_called()
         self.assertFalse(self.state.exists())
 
     def test_session_requires_global_on_and_global_off_dominates(self):
-        self.store.set_session("host-a", True)
+        self.store.set_session("host-a", False)
         self.assertFalse(self.store.status("host-a")["enabled"])
         self.store.configure(enabled=True)
-        self.assertTrue(self.store.status("host-a")["enabled"])
+        self.assertFalse(self.store.status("host-a")["enabled"])
+        self.store.set_session("host-a", True)
+        status = self.store.status("host-a")
+        self.assertTrue(status["enabled"])
+        self.assertEqual(6, status["max_calls_session"])
+        self.assertEqual(4, status["max_calls_provider"])
         self.store.configure(enabled=False)
         self.assertFalse(self.store.status("host-a")["enabled"])
 
@@ -110,6 +119,28 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(self.store.status("host-b")["session_enabled"])
         self.assertEqual("sonnet", self.store.status("host-a")["profile"])
         self.assertEqual("luna", self.store.status("host-b")["profile"])
+
+    def test_legacy_global_off_remains_off_without_status_writes(self):
+        self.state.mkdir()
+        config = self.state / "config.json"
+        config.write_text('{"enabled":false,"concurrency":2,"sessions":{}}')
+        before = config.read_bytes()
+        status = self.store.status("legacy")
+        self.assertFalse(status["enabled"])
+        self.assertFalse(status["session_enabled"])
+        self.assertEqual(before, config.read_bytes())
+
+    def test_submit_stores_bounded_explicit_routing_decision_without_identity_inference(self):
+        self.enable()
+        selected = real_adapters.resolve_profile("review")
+        host = routing.principal("codex", "luna", "low")
+        decision = routing.decide(selected, "review", host=host,
+                                  benefit="independent critique", independent=True,
+                                  quota={"availability": "available", "expires_at": 101}, now=100)
+        job = self.wait(self.submit(routing=decision)["id"])
+        self.assertEqual(decision, job["routing"])
+        self.assertEqual("declared_not_verified", job["routing"]["principal_identity"])
+        self.assertEqual("available", job["routing"]["quota"])
 
     def test_explicit_model_snapshot_and_output_isolation(self):
         self.enable()
@@ -142,6 +173,69 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(job["transport_success"])
         self.assertNotIn("result", job)
         self.assertEqual("provider_command_failed", job["error_code"])
+
+    def test_call_caps_are_atomic_and_bound_session_and_provider(self):
+        self.enable()
+        for number in range(4):
+            self.store.submit("host-a", self.profile, f"Independent review {number}")
+        with self.assertRaisesRegex(self.runtime.DelegationError, "Provider call cap"):
+            self.store.submit("host-a", self.profile, "Different fifth fake provider call")
+        other = {**self.profile, "provider": "other"}
+        self.store.submit("host-a", other, "Other provider one")
+        self.store.submit("host-a", other, "Other provider two")
+        with self.assertRaisesRegex(self.runtime.DelegationError, "Session call cap"):
+            self.store.submit("host-a", other, "Other provider three")
+
+    def test_failed_attempts_need_diagnostic_reason_and_infrastructure_blocks_provider(self):
+        self.enable()
+        self.store.configure(max_calls_provider=6)
+        self.profile["fail"] = True
+        original = self.wait(self.submit()["id"])
+        with self.assertRaisesRegex(self.runtime.DelegationError, "identical failed"):
+            self.submit()
+        with self.assertRaisesRegex(self.runtime.DelegationError, "explicit diagnostic"):
+            self.store.retry(original["id"])
+        current_routing = routing.decide(real_adapters.resolve_profile("review"), "review",
+                                         benefit="independent retry review", independent=True)
+        retried = self.store.retry(original["id"], reason="confirmed transient provider incident",
+                                   routing=current_routing)
+        self.assertEqual(current_routing, retried["routing"])
+        self.assertEqual("failed", self.wait(retried["id"])["state"])
+
+        adapter = self.root / "fake-runtime/adapters.py"
+        adapter.write_text(FAKE_ADAPTER + '''
+def diagnose_failure(profile, stdout, stderr, returncode):
+    return {"code": "provider_limit", "message": "PRIVATE PROVIDER LOG"}
+''')
+        self.profile["fail"] = True
+        limited = self.wait(self.store.submit("host-a", self.profile, "A distinct request")["id"])
+        self.assertEqual("provider_limit", limited["error_code"])
+        self.profile["fail"] = False
+        with self.assertRaisesRegex(self.runtime.DelegationError, "Provider is blocked"):
+            self.store.submit("host-a", self.profile, "Whitespace cannot bypass this distinct request")
+        allowed = self.store.submit("host-a", self.profile, "Explicitly reviewed new request",
+                                    retry_reason="quota was checked and is available")
+        allowed = self.wait(allowed["id"])
+        self.assertEqual("completed", allowed["state"])
+        self.assertEqual("quota was checked and is available", allowed["retry_reason"])
+        followup = self.store.submit("host-a", self.profile, "Provider is healthy after reviewed retry")
+        self.assertEqual("completed", self.wait(followup["id"])["state"])
+
+    def test_parse_failure_with_zero_exit_uses_sanitized_provider_diagnosis(self):
+        adapter = self.root / "fake-runtime/adapters.py"
+        adapter.write_text(FAKE_ADAPTER + '''
+class AdapterError(ValueError): pass
+def parse_result(profile, stdout, stderr, returncode):
+    raise AdapterError("provider returned PRIVATE-TOKEN")
+def diagnose_failure(profile, stdout, stderr, returncode):
+    return {"code": "provider_limit", "message": "PRIVATE-TOKEN"}
+''')
+        self.enable()
+        job = self.wait(self.submit()["id"])
+        self.assertTrue(job["transport_success"])
+        self.assertEqual("provider_limit", job["error_code"])
+        self.assertEqual("provider_limit", job["diagnostic"]["classification"])
+        self.assertNotIn("PRIVATE-TOKEN", json.dumps(job))
 
     def test_off_or_cancel_during_preflight_prevents_provider_launch(self):
         for action in ("off", "cancel"):
@@ -201,11 +295,11 @@ def parse_result(profile, stdout, stderr, returncode):
         self.enable()
         self.profile["known_error"] = True
         known = self.wait(self.submit()["id"])
-        self.assertEqual("A entrega estruturada está incompleta.", known["error"])
+        self.assertEqual("A saída do provedor não passou na validação estrutural. A entrega não foi aceita.", known["error"])
         self.assertTrue(known["transport_success"])
         self.assertEqual("invalid", known["validation"])
         self.profile["known_error"] = False
-        arbitrary = self.wait(self.submit()["id"])
+        arbitrary = self.wait(self.submit(retry_reason="adapter parser was corrected")["id"])
         self.assertNotIn("arbitrary-private-exception-text", json.dumps(arbitrary))
         self.assertEqual("invalid_provider_output", arbitrary["error_code"])
 
@@ -258,7 +352,9 @@ def parse_result(profile, stdout, stderr, returncode):
         self.assertTrue(job["stale"])
         accepted = self.store.accept(job["id"])
         self.assertTrue(accepted["accepted_stale"])
-        self.assertIn("A fonte mudou após o envio", Path(accepted["accepted_path"]).read_text())
+        proposal = Path(accepted["accepted_path"]).read_text()
+        self.assertIn("A fonte mudou após o envio", proposal)
+        self.assertIn("Perfil solicitado: explicit-test-model; modelo reportado: explicit-test-model; identidade servida não verificada.", proposal)
         self.assertEqual("Human draft v2\n", (self.vault / "drafts/live.md").read_text())
         with self.assertRaisesRegex(self.runtime.DelegationError, "already published"):
             self.store.accept(job["id"])

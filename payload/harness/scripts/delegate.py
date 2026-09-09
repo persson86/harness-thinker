@@ -13,7 +13,7 @@ import time
 import uuid
 
 sys.dont_write_bytecode = True
-from thinker_delegation import adapters, board
+from thinker_delegation import adapters, board, routing, native
 from thinker_delegation.runtime import DelegationStore, DelegationError, _atomic, _read
 from thinker_delegation.git_publish import prepare_plan, execute_plan, PublicationError, _load_plan
 
@@ -23,13 +23,32 @@ LABELS = {"queued": "na fila", "running": "em andamento", "completed": "concluí
 
 
 def parser():
-    p = argparse.ArgumentParser(description="Delegação opcional do Thinker. Começa desligada.")
+    p = argparse.ArgumentParser(description="Delegação disponível, não obrigatória; principal responsável.")
     p.add_argument("--vault", default=str(Path(__file__).resolve().parents[2]))
     p.add_argument("--state-dir", help="Área privada de estado; útil para laboratório isolado")
     p.add_argument("--session", default=os.environ.get("THINKER_SESSION_ID") or os.environ.get("CLAUDE_SESSION_ID"))
     p.add_argument("--json", action="store_true", help="Saída estruturada para o agente principal")
     sub = p.add_subparsers(dest="command", required=True)
     sub.add_parser("status", help="Estado, limites e sessão; não inicia agentes")
+    natives = sub.add_parser("native", help="Estado reportado de agentes nativos; não agenda nem cancela")
+    natives.add_argument("operation", choices=["report"])
+    natives.add_argument("--id", required=True)
+    natives.add_argument("--model", required=True)
+    natives.add_argument("--state", choices=sorted(native.STATES), required=True)
+    natives.add_argument("--task", required=True)
+    context = sub.add_parser("session-context", help="Declarar o principal atual, sem inferir identidade")
+    context.add_argument("--provider", choices=["codex", "claude", "grok"], required=True)
+    context.add_argument("--model", required=True)
+    context.add_argument("--effort", choices=sorted(adapters.EFFORTS), required=True)
+    limits = sub.add_parser("limits", help="Limites locais de chamadas; não são a quota da assinatura")
+    limits.add_argument("--session-calls", type=int)
+    limits.add_argument("--provider-calls", type=int)
+    limits.add_argument("--auto-default", choices=["on", "off"])
+    balance = sub.add_parser("quota", help="Snapshot manual por provedor; nunca saldo inferido")
+    balance.add_argument("--provider", choices=["codex", "claude", "grok"], required=True)
+    balance.add_argument("--availability", choices=["unknown", "available", "constrained", "blocked"], required=True)
+    balance.add_argument("--ttl-seconds", type=int, default=1800)
+    balance.add_argument("--reason", required=True)
     on = sub.add_parser("on", help="Ativar explicitamente para esta sessão")
     on.add_argument("--mode", choices=["request", "auto"], default="request")
     on.add_argument("--model", choices=sorted(adapters.PROFILES), help="Preferência desta sessão")
@@ -47,12 +66,19 @@ def parser():
         command.add_argument("--model", help="Escolha explícita: tem prioridade sobre sessão e padrão")
         command.add_argument("--provider", choices=["codex", "claude", "grok"])
         command.add_argument("--effort", choices=sorted(adapters.EFFORTS))
+        command.add_argument("--benefit", default="", help="Contribuição adicional que justifica contexto e revisão")
+        command.add_argument("--independent", action="store_true", help="Há trabalho independente útil para o principal")
+        command.add_argument("--critical-review", action="store_true", help="Segunda leitura crítica justificada")
+        command.add_argument("--principal-provider", choices=["codex", "claude", "grok"])
+        command.add_argument("--principal-model")
+        command.add_argument("--principal-effort", choices=sorted(adapters.EFFORTS))
     brief = submit.add_mutually_exclusive_group(required=True)
     brief.add_argument("--brief", help="MD/texto de instrução preparado pelo principal, dentro do vault")
     brief.add_argument("--prompt", help="Instrução curta; prefira --brief para textos longos")
     submit.add_argument("--file", action="append", default=[], help="Arquivo de contexto selecionado; repetível")
     submit.add_argument("--reason", required=True, help="Motivo curto da delegação")
     submit.add_argument("--timeout", type=float, default=300)
+    submit.add_argument("--retry-reason", help="Diagnóstico e mudança que justificam nova tentativa após falha")
     submit.add_argument("--run", help="Run ao qual este job pertence")
     submit.add_argument("--stage", type=int, help="Etapa linear do run, começando em 1")
     submit.add_argument("--role", choices=["author", "reviewer", "synthesizer"])
@@ -63,6 +89,8 @@ def parser():
                             ("ack", "Marcar entrega como recebida")):
         command = sub.add_parser(name, help=help_text)
         command.add_argument("job")
+        if name == "retry":
+            command.add_argument("--reason", required=True, help="Diagnóstico feito antes de repetir")
     waiting = sub.add_parser("wait", help="Aguardar por até 60 segundos, mantendo resultado recuperável")
     waiting.add_argument("job")
     waiting.add_argument("--seconds", type=float, default=20)
@@ -169,6 +197,20 @@ def policy(store):
     for task, name in value["defaults"].items():
         if task not in adapters.DEFAULT_ROUTES or name not in adapters.PROFILES:
             raise DelegationError("Política contém tarefa ou perfil desconhecido.")
+    principals, quotas = value.get("principals", {}), value.get("quotas", {})
+    if not isinstance(principals, dict) or not isinstance(quotas, dict):
+        raise DelegationError("Principal/quota da política deve ser um objeto.")
+    for host in principals.values():
+        if not isinstance(host, dict) or host.get("identity_evidence") != "declared_not_verified":
+            raise DelegationError("Identidade do principal inválida na política.")
+        if routing.principal(host.get("provider"), host.get("model"), host.get("effort")) is None:
+            raise DelegationError("Identidade vazia na política.")
+    for provider, observation in quotas.items():
+        if (provider not in {"codex", "claude", "grok"} or not isinstance(observation, dict)
+                or observation.get("availability") not in {"unknown", "available", "constrained", "blocked"}
+                or type(observation.get("expires_at")) not in (int, float)
+                or not 0 < observation["expires_at"] < 10**12):
+            raise DelegationError("Snapshot de quota inválido na política.")
     return value
 
 
@@ -179,6 +221,12 @@ def resolve(store, args):
                                       defaults=policy(store)["defaults"])
     result["auth"] = "subscription"
     adapters.validate_profile(result)
+    declared = routing.principal(args.principal_provider, args.principal_model, args.principal_effort)
+    stored = policy(store)
+    host = declared or stored.get("principals", {}).get(args.session)
+    result["routing"] = routing.decide(result, args.task, host=host, benefit=args.benefit,
+                                        independent=args.independent, critical=args.critical_review,
+                                        quota=stored.get("quotas", {}).get(result["provider"]))
     return result
 
 
@@ -186,7 +234,7 @@ def public_job(job):
     keys = ("id", "session", "state", "task_type", "reason", "created_at", "started_at", "finished_at",
             "transport_success", "validation", "acceptance", "accepted_path", "acceptance_action", "feedback", "feedback_note", "error", "error_code",
             "cancel_requested", "stale", "accepted_stale", "accepted_stale_sources", "model_source", "attempt_id", "retry_of",
-            "run_id", "stage", "role", "parent_job", "handoff", "diagnostic")
+            "run_id", "stage", "role", "parent_job", "handoff", "diagnostic", "routing", "retry_reason")
     result = {key: job[key] for key in keys if key in job}
     result["profile"] = {key: job.get("profile", {}).get(key) for key in
                          ("provider", "model", "effort", "model_source", "cli_version", "isolation")}
@@ -302,9 +350,9 @@ def git_history(store, sid):
                  f"Ação: `{spec['action']}`. Resultado registrado: `{outcome['status']}`. "
                  "Execução Git determinística.\n\n")
         if metadata.get("job_id"):
-            entry += (f"Contribuição vinculada: `{metadata['job_id']}`; "
+            entry += (f"Contribuição vinculada: `{metadata['job_id']}`; perfil solicitado: "
                       f"{metadata.get('provider', 'não informado')} / {metadata.get('model', 'não informado')} "
-                      f"({metadata.get('effort', 'esforço não informado')}).\n\n")
+                      f"({metadata.get('effort', 'esforço não informado')}); identidade servida não verificada.\n\n")
         else:
             entry += "Sem contribuição de modelo vinculada a esta publicação.\n\n"
         commit = outcome.get("commit_sha") or "não confirmado"
@@ -324,11 +372,38 @@ def dispatch(store, args):
         result["defaults"] = {**adapters.DEFAULT_ROUTES, **policy(store)["defaults"]}
         result["jobs"] = [public_job(j) for j in store.list_jobs(args.session)] if store.state.exists() else []
         return result
+    if command == "native":
+        return native.report(store, enabled(store, args), args.id, args.model, args.state, args.task)
+    if command == "session-context":
+        sid = enabled(store, args)
+        host = routing.principal(args.provider, args.model, args.effort)
+        with store._lock():
+            value = policy(store)
+            value.setdefault("principals", {})[sid] = host
+            _atomic(store.state / "policy.json", value)
+        return {"principal": host, "session": sid}
+    if command == "quota":
+        enabled(store, args)
+        if not 1 <= args.ttl_seconds <= 86400 or not args.reason.strip():
+            raise DelegationError("Snapshot exige motivo e validade entre 1 e 86400 segundos.")
+        now = time.time()
+        observation = {"availability": args.availability, "observed_at": now,
+                       "expires_at": now + args.ttl_seconds, "reason": args.reason[:1000],
+                       "source": "manual_account_snapshot_not_attributed"}
+        with store._lock():
+            value = policy(store)
+            value.setdefault("quotas", {})[args.provider] = observation
+            _atomic(store.state / "policy.json", value)
+        return {"provider": args.provider, "quota": observation}
+    if command == "limits":
+        return store.configure(default_enabled=None if args.auto_default is None else args.auto_default == "on",
+                               max_calls_session=args.session_calls, max_calls_provider=args.provider_calls)
     if command == "board":
         # Ler o quadro não exige a extensão ligada: quando ela está desligada é
         # justamente quando se quer conferir o que ficou para trás.
         sid = args.session if args.all_sessions else session(args)
-        data = board.payload(store, sid, args.all_sessions, args.limit)
+        data = board.payload(store, sid, args.all_sessions, args.limit,
+                             native_reports=native.snapshot(store, sid, args.all_sessions, locked=True))
         if not args.json:
             data["text"] = board.render(data, color=board.wants_color(args.no_color),
                                         ascii_only=args.ascii)
@@ -361,6 +436,10 @@ def dispatch(store, args):
     if command == "submit":
         sid = enabled(store, args)
         profile = resolve(store, args)
+        decision = profile["routing"]
+        if decision["action"] != "delegate":
+            raise DelegationError("Rota não delegada: " + decision["reason"] +
+                                  ". Use o principal ou explicite benefício e trabalho independente/revisão crítica.")
         # Probe in a neutral existing directory: live vault integrations are not worker integrations.
         profile.update(adapters.probe(profile, cwd=str(Path(os.environ.get("TMPDIR", "/tmp")).resolve())))
         task = store._source(args.brief)["text"] if args.brief else args.prompt
@@ -371,7 +450,8 @@ def dispatch(store, args):
                                        timeout=args.timeout, model_source=profile["model_source"],
                                        reason=args.reason, task_type=args.task,
                                        run_id=selected_run, stage=args.stage, role=args.role,
-                                       parent_job=selected_parent, handoff=args.handoff))
+                                       parent_job=selected_parent, handoff=args.handoff,
+                                       retry_reason=args.retry_reason, routing=decision))
     if command == "set-default":
         with store._lock():
             value = policy(store)
@@ -493,6 +573,17 @@ def dispatch(store, args):
         return result
     if command == "feedback":
         return public_job(store.feedback(identifier, args.value, args.note))
+    if command == "retry":
+        job = store.get(identifier)
+        old, current = job.get("routing") or {}, policy(store)
+        decision = routing.decide(job["profile"], job.get("task_type", "review"),
+                                  host=current.get("principals", {}).get(args.session) or old.get("principal"),
+                                  benefit=old.get("benefit", ""), independent=old.get("independent", False),
+                                  critical=old.get("critical_review", False),
+                                  quota=current.get("quotas", {}).get(job["profile"].get("provider")))
+        if decision["action"] != "delegate":
+            raise DelegationError("Retry bloqueado pela política atual: " + decision["reason"])
+        return public_job(store.retry(identifier, reason=args.reason, routing=decision))
     method = {"accept": store.accept, "cancel": store.cancel, "retry": store.retry, "ack": store.acknowledge}[command]
     return public_job(method(identifier))
 

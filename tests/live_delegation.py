@@ -79,7 +79,9 @@ def main():
             print(json.dumps({"starting": model}), flush=True)
             submitted = call("submit", "--task", "transcript" if args.scenario == "summary" else "draft", "--model", model,
                              "--brief", "drafts/brief.md", "--file", "drafts/synthetic.md",
-                             "--reason", "Teste sintético explícito de integração", "--timeout", "120")
+                             "--reason", "Teste sintético explícito de integração",
+                             "--benefit", "Contribuição sintética independente para validar o adaptador",
+                             "--independent", "--timeout", "120")
             identifier = submitted.get("id")
             entry = {"requested": model, "submission": submitted}
             if identifier:

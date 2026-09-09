@@ -11,7 +11,7 @@ Este adaptador define como o Codex deve operar o second-brain sem depender dos h
 ## Execucao de operacoes
 
 - Para `query`, `review`, `ingest`, `inbox`, `lint`, `feed`, `transcript`, `deep`, `handoff` e `model-eval`, seguir o arquivo correspondente em `harness/operations/`.
-- Para delegação opcional entre CLIs, seguir `harness/operations/delegate.md`; começa desligada. O Codex consulta a inbox durante a conversa porque não recebe os hooks passivos do Claude.
+- Para delegação entre CLIs, seguir `harness/operations/delegate.md`; disponível por padrão, respeitando off explícito. O Codex consulta a inbox durante a conversa porque não recebe os hooks passivos do Claude. Declare o principal conhecido e o benefício antes do spawn; mantenha identidade desconhecida quando o host não a expuser.
 - Para criar ou editar arquivos, respeitar as regras de seguranca do ambiente Codex e nunca tocar `raw/`.
 - Para operacoes com mudanca duravel, atualizar `wiki/log.md` quando aplicavel e regenerar o indice quando paginas indexaveis forem criadas/removidas.
 
