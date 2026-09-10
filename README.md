@@ -146,6 +146,16 @@ Delegation is available after installation but never auto-spawns an agent. `rout
 
 For Claude, installation merges settings instead of replacing them: a custom statusLine is retained, as are local settings, permissions and unrelated hooks; a new vault receives the harness statusLine at a five-second refresh. The merge script is source-owned at `scripts/merge-settings.py`. Codex has no promised arbitrary statusline callback; use the board and its native UI.
 
+## 7.17.0 - Live delegation board
+
+The board now focuses on active helpers and completions from the last five minutes. `--recent-seconds 120` changes that display window; `--history --limit 30` includes older entries. Nothing is deleted or acknowledged by hiding a row. Old inbox items and unacknowledged failures remain compact alerts. Native helpers have separate, explicitly reported model/task/state rows; the principal itself is not monitored.
+
+```bash
+python3 harness/scripts/delegate.py board --all-sessions --watch 5
+```
+
+Restart an already-running watch after updating the harness. Interactive terminals redraw in place, including with `--no-color`; redirected output remains append-only.
+
 ## 7.14.0 — Delegation board
 
 `board` draws agents, tasks and progress as a table, with execution and delivery as separate columns: a job that returned is not a job you read. It reads state, starts nothing and works while the extension is off. `--watch` refreshes in a deterministic loop, so following the work costs no model turn.

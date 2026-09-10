@@ -21,6 +21,7 @@ import re
 
 ACTIVE = {"queued", "running"}
 BROKEN = {"failed", "timed_out", "interrupted"}
+RECENT_SECONDS = 300
 
 # Glifos escolhidos entre os não-emoji: ⏱ e ⚠ têm apresentação emoji e podem vir
 # largos por fallback de fonte, quebrando o alinhamento da tabela inteira.
@@ -93,7 +94,12 @@ def clean(text):
 
 def clip(text, width):
     text = clean(text)
-    return text if len(text) <= width else text[: max(0, width - 1)].rstrip() + "…"
+    if visible_len(text) <= width:
+        return text
+    end = 0
+    while end < len(text) and visible_len(text[:end + 1]) <= max(0, width - 1):
+        end += 1
+    return text[:end].rstrip() + "…"
 
 
 def to_ascii(text):
@@ -195,8 +201,17 @@ def task_of(job):
     return kind
 
 
-def payload(store, session, all_sessions=False, limit=10, native_reports=None):
+def payload(store, session, all_sessions=False, limit=10, native_reports=None,
+            recent_seconds=RECENT_SECONDS, history=False, now=None):
     """Estado do board como dado, para --json e para o renderizador."""
+    if not isinstance(recent_seconds, int) or recent_seconds < 0:
+        raise ValueError("A janela recente deve ser um número inteiro de segundos >= 0")
+    now = now or dt.datetime.now(dt.timezone.utc)
+
+    def recent(value):
+        timestamp = _parse(value)
+        return timestamp is not None and 0 <= (now - timestamp).total_seconds() <= recent_seconds
+
     if native_reports is None and hasattr(store, "state"):
         from . import native
         native_reports = native.snapshot(store, session, all_sessions, locked=True)
@@ -209,7 +224,8 @@ def payload(store, session, all_sessions=False, limit=10, native_reports=None):
     done = sorted((j for j in scoped if j.get("state") not in ACTIVE),
                   key=lambda j: _parse(j.get("finished_at")) or _parse(j.get("created_at"))
                   or dt.datetime.min.replace(tzinfo=dt.timezone.utc), reverse=True)
-    shown = active + done[: max(0, limit)]
+    eligible = done if history else [j for j in done if recent(j.get("finished_at"))]
+    shown = active + eligible[: max(0, limit)]
 
     rows = []
     for job in shown:
@@ -220,18 +236,27 @@ def payload(store, session, all_sessions=False, limit=10, native_reports=None):
                      "effort": (job.get("profile") or {}).get("effort"),
                      "task_type": job.get("task_type"), "reason": clean(job.get("reason")),
                      "state": job.get("state"), "validation": job.get("validation"),
+                     "transport_success": job.get("transport_success"),
                      "delivery": delivery_of(job), "feedback": job.get("feedback"),
                      "seconds": elapsed(job), "timeout": job.get("timeout"),
                      "run_id": job.get("run_id"), "stage": job.get("stage"),
                      "role": job.get("role"), "retry_of": job.get("retry_of"),
                      "cancel_requested": job.get("cancel_requested")})
 
-    # Estes totais são deliberadamente calculados no escopo selecionado, não
-    # apenas nas linhas mostradas. Um statusline não pode dizer que há zero
-    # falhas só porque o limite visual do board ocultou uma entrada antiga.
+    # Pendências continuam no escopo completo, mesmo depois de sair da tela.
+    # Falhas recentes e antigas não compartilham o mesmo alerta visual.
     native_reports = native_reports or {"reported": 0, "running": 0, "completed": 0,
                                         "failed": 0, "cancelled": 0, "unknown": 0, "reports": []}
+    reports = native_reports.get("reports", [])
+    native_active = [r for r in reports if r["state"] == "running"]
+    native_done = sorted((r for r in reports if r["state"] != "running" and
+                          (history or recent(r.get("updated_at")))),
+                         key=lambda r: r.get("updated_at") or "", reverse=True)
+    native_visible = native_active + native_done[:max(0, limit)]
+    native_view = {**native_reports, "visible_reports": native_visible,
+                   "hidden": len(reports) - len(native_visible)}
     return {"board": {"session": session, "scope": "all" if all_sessions else "session",
+                      "recent_seconds": recent_seconds, "history": history,
                       "enabled": status.get("enabled", False),
                       "global_enabled": status.get("global_enabled", False),
                       "mode": status.get("mode"),
@@ -240,11 +265,13 @@ def payload(store, session, all_sessions=False, limit=10, native_reports=None):
                       "running": sum(1 for j in scoped if j.get("state") == "running"),
                       "pending": sum(1 for j in scoped if delivery_of(j) == "inbox"),
                       "waiting": sum(1 for j in shown if delivery_of(j) == "inbox"),
-                      "failed": sum(1 for j in scoped if j.get("state") in BROKEN),
+                      "failed": sum(1 for j in eligible if j.get("state") in BROKEN),
                       "needs_attention": sum(1 for j in scoped if j.get("state") in BROKEN and not j.get("acknowledged")),
-                      "sessions": len({j.get("session") for j in every}),
-                      "shown": len(shown), "hidden": max(0, len(done) - max(0, limit))},
-            "jobs": rows, "native": native_reports}
+                      "hidden_pending": sum(1 for j in scoped if j not in shown and delivery_of(j) == "inbox"),
+                      "hidden_failures": sum(1 for j in scoped if j not in shown and j.get("state") in BROKEN and not j.get("acknowledged")),
+                      "sessions": len({j.get("session") for j in shown + native_visible}),
+                      "shown": len(shown), "hidden": len(scoped) - len(shown)},
+            "jobs": rows, "native": native_view}
 
 
 def render_indicator(data, model_limit=3):
@@ -291,7 +318,31 @@ def _layout(width, show_quality, show_session):
                 + (10 if show_session else 0) + (16 if show_bar else 0))
         if cost <= width:
             break
-    return widths, show_bar, quality, max(14, min(reason, width - (cost - reason)))
+    return widths, show_bar, quality, max(4, min(reason, width - (cost - reason)))
+
+
+def render_native(reports, style, width, show_session):
+    """Linhas declaradas pelo host, não telemetria de execução da extensão."""
+    if not reports:
+        return []
+    task_width = max(8, width - 26 - 19 - 10 - (10 if show_session else 0))
+    header = pad("MODELO NATIVO", 26) + pad("TAREFA", task_width)
+    if show_session:
+        header += pad("SESSÃO", 10)
+    lines = ["", style("NATIVOS · estado reportado pelo host", "bold"),
+             style(header + pad("ESTADO", 19) + "REPORTE HÁ", "dim")]
+    now = dt.datetime.now(dt.timezone.utc)
+    for report in reports:
+        state = report["state"]
+        symbol, label, tint = EXECUTION.get(state, ("?", "desconhecido", "yellow"))
+        observed = _parse(report.get("updated_at"))
+        age = max(0, (now - observed).total_seconds()) if observed else None
+        row = pad(clip(report.get("model"), 25), 26) + pad(clip(report.get("task"), task_width - 1), task_width)
+        if show_session:
+            row += pad(clip(report.get("session"), 8), 10)
+        row += pad(style(symbol + " " + label, tint), 19) + clock(age)
+        lines.append(row)
+    return lines
 
 
 def render(data, color=False, ascii_only=False, width=None):
@@ -304,25 +355,22 @@ def render(data, color=False, ascii_only=False, width=None):
         # Conta terminais que produziram jobs, não sessões registradas no
         # config: dizer "4 sessões" quando três nunca delegaram engana.
         count = head["sessions"]
-        title.append("· todos os terminais · %d %s" % (count, "com jobs" if count != 1 else "com job"))
+        title.append("· todos os terminais · %d na tela" % count)
     else:
         title.append("· sessão " + (head["session"] or "—")[:8])
         title.append("· " + (style("ligada", "green") if head["enabled"] else style("desligada", "dim")))
         if head.get("mode"):
             title.append("· modo " + head["mode"])
-    title.append("· %d/%d slots" % (head["running"], head["concurrency"]))
+    title.append("· %d/%d slots externos" % (head["running"], head["concurrency"]))
     native = data.get("native", {})
-    if native.get("reported"):
-        title.append("· nativos reportados r%d c%d f%d u%d" %
-                     (native.get("running", 0), native.get("completed", 0),
-                      native.get("failed", 0), native.get("unknown", 0)))
-    lines = [" ".join(title), ""]
+    native_visible = native.get("visible_reports", native.get("reports", []))
+    focus = ("histórico" if head.get("history") else
+             "ativos + finalizados nos últimos " + clock(head.get("recent_seconds", RECENT_SECONDS)))
+    lines = [" ".join(title), style(focus + " · limpeza só da tela", "dim"), ""]
 
     if not jobs:
-        where = "registrado" if head["scope"] == "all" else "nesta sessão"
-        lines.append(style("Nenhum job %s. `submit` cria o primeiro." % where, "dim"))
-        out = "\n".join(lines)
-        return to_ascii(out) if ascii_only else out
+        lines.append(style("Nenhum job externo ativo ou recente." if not head.get("history")
+                           else "Nenhum job externo neste escopo.", "dim"))
 
     show_session = head["scope"] == "all"
     widths, show_bar, show_quality, reason_width = _layout(
@@ -337,7 +385,8 @@ def render(data, color=False, ascii_only=False, width=None):
     header += [pad("EXECUÇÃO", widths["exec"]), pad("ENTREGA", widths["delivery"]), "TEMPO"]
     if show_quality:
         header.insert(-1, pad("QUALIDADE", 10))
-    lines.append(style("".join(header), "dim"))
+    if jobs:
+        lines.append(style("".join(header), "dim"))
 
     for job in jobs:
         symbol, label, color_name, note = execution_of(job)
@@ -370,6 +419,8 @@ def render(data, color=False, ascii_only=False, width=None):
             notes.append("a entrada mudou depois; a proposta é de versão antiga")
         lines += [style("%s↳ %s" % (" " * 8, item), "dim") for item in notes]
 
+    lines += render_native(native_visible, style, width, show_session)
+
     tally = []
     if head["running"]:
         tally.append(style("%d rodando" % head["running"], "cyan"))
@@ -377,10 +428,17 @@ def render(data, color=False, ascii_only=False, width=None):
         tally.append(style("%d esperando você" % head["waiting"], "yellow"))
     if head["failed"]:
         tally.append(style("%d com falha" % head["failed"], "red"))
-    lines += ["", " · ".join(tally or [style("nada pendente", "dim")])]
+    lines += ["", " · ".join(tally or [style("sem atividade externa nesta janela", "dim")])]
 
-    if head["hidden"]:
-        lines.append(style("%d job(s) anterior(es) oculto(s) — use --limit." % head["hidden"], "dim"))
+    if head["hidden"] or native.get("hidden"):
+        lines.append(style("Fora da tela: %d externos, %d nativos. Histórico: --history --limit N."
+                           % (head["hidden"], native.get("hidden", 0)), "dim"))
+    if head.get("hidden_pending") or head.get("hidden_failures"):
+        lines.append(style("Fora da tela: %d na inbox, %d falhas sem ack. Consulte inbox / history."
+                           % (head.get("hidden_pending", 0), head.get("hidden_failures", 0)), "yellow"))
+    if native.get("unknown"):
+        lines.append(style("%d nativo(s) sem estado atual; consulte a UI do host." % native["unknown"], "yellow"))
+    lines.append(style("Principal não monitorado; nativos exigem `native report`.", "dim"))
     if head["waiting"]:
         lines.append(style("Leia com `result JOB`; `ack JOB` tira da inbox.", "dim"))
 
@@ -388,16 +446,19 @@ def render(data, color=False, ascii_only=False, width=None):
     return to_ascii(out) if ascii_only else out
 
 
-def watch(store, session, all_sessions, limit, seconds, color, ascii_only, stream=None):
+def watch(store, session, all_sessions, limit, seconds, color, ascii_only, stream=None,
+          recent_seconds=RECENT_SECONDS, history=False):
     """Laço determinístico: atualiza sem custar um turno do principal, que é o
     ponto de o board não ser desenhado pelo modelo."""
     stream = stream or sys.stdout
     interval = min(3600.0, max(1.0, float(seconds)))
     try:
         while True:
-            frame = render(payload(store, session, all_sessions, limit), color, ascii_only)
+            frame = render(payload(store, session, all_sessions, limit,
+                                   recent_seconds=recent_seconds, history=history), color, ascii_only)
             stamp = dt.datetime.now().strftime("%H:%M:%S")
-            stream.write("\033[H\033[J" if color else "\n" + "=" * 60 + "\n")
+            interactive = bool(getattr(stream, "isatty", lambda: False)()) and os.environ.get("TERM") != "dumb"
+            stream.write("\033[H\033[J" if interactive else "\n" + "=" * 60 + "\n")
             stream.write(frame + "\n\n")
             stream.write(Style(color)("atualizado %s · a cada %gs · ctrl-c encerra"
                                       % (stamp, interval), "dim") + "\n")

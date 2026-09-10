@@ -86,6 +86,8 @@ python3 harness/scripts/delegate.py --session ID result JOB
 
 Execução e entrega são colunas distintas. `voltou` é transporte, não qualidade; a coluna de qualidade só aparece depois de `feedback`. Um job `voltou + na inbox` é o que espera por você. Não relate no chat um estado diferente do que o board mostra.
 
+O painel padrão mostra ativos e finalizados nos últimos 5 minutos, retirando os antigos da tela a cada refresh sem apagar histórico. Use `--recent-seconds SEG` para outra janela e `--history --limit N` para consultar antigos. Pendências ocultas continuam sinalizadas; ausência de linhas não significa inbox vazia. Nativos reportados têm linhas próprias, sem alegar telemetria de processo nem cobertura do principal. Após atualizar o harness, reinicie um `board --watch` já aberto para carregar a nova versão.
+
 A submissão devolve um job ID e libera o principal. Comunique uma linha (“Sonnet está conferindo as pendências; vou relacionar o contexto”) e continue apenas trabalho independente. Não preencha o intervalo com tarefas inventadas. Quando depender do retorno, use `wait --seconds 20`, atualize o usuário e aguarde sem polling frenético.
 
 Enquanto a sessão estiver ativa, consulte a inbox antes de encerrar e nos próximos turnos pertinentes. No Claude, o hook passivo pode avisar durante eventos suportados se o ID coincidir. No Codex e Grok, consulte pela operação. Não prometa que um terminal ocioso será despertado automaticamente. A entrega fica persistida para retomada mesmo sem aviso.

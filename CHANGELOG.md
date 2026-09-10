@@ -1,5 +1,12 @@
 # Changes
 
+## 7.17.0 - 2026-09-09
+
+- Live delegation board defaults to active jobs plus completions from the last five minutes. Expired rows leave the screen, never the stored history; `--recent-seconds` adjusts the window and `--history` restores historical inspection.
+- Native helpers get individual model/task/session/reported-state rows, distinct from externally supervised jobs. Unknown native state remains explicit; the principal is not falsely presented as monitored.
+- Old unread deliveries and unacknowledged failures remain compact alerts instead of filling the table. Indicator totals retain the full scope.
+- Watch redraws interactive terminals even with colors disabled; narrow all-session layouts and wide Unicode text respect terminal columns. Native report confirmations display the supplied model.
+
 ## 7.16.0 — 2026-09-09
 
 - Delegation available by default for new sessions, without automatic model calls. Explicit session/global stops survive updates; configurable 6 calls/session and 4/provider defaults.

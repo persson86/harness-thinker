@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Board da delegação: eixos de estado, alinhamento e sanitização. Sem contas."""
 import datetime as dt
+import io
 import json
 from pathlib import Path
 import re
@@ -9,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "payload/harness/scripts"))
@@ -180,6 +182,44 @@ class InjectionTests(unittest.TestCase):
         self.assertEqual(1, sum(1 for l in text.split("\n") if "normal" in l))
 
 
+class WatchTests(unittest.TestCase):
+    def test_refresh_expires_rows_and_clears_tty_without_color(self):
+        store = FakeStore([job()])
+        stream = io.StringIO()
+        stream.isatty = lambda: True
+
+        def tick():
+            store._jobs[0]["finished_at"] = moment(hours=1)
+
+        with mock.patch.dict(board.os.environ, {"TERM": "xterm", "NO_COLOR": "1"}):
+            # First frame gets a fresh timestamp; first sleep makes it expire.
+            store._jobs[0]["finished_at"] = moment(seconds=1)
+            calls = 0
+
+            def sleep(_):
+                nonlocal calls
+                calls += 1
+                if calls == 2:
+                    raise KeyboardInterrupt
+                tick()
+
+            with mock.patch.object(board.time, "sleep", side_effect=sleep):
+                self.assertEqual(0, board.watch(store, "host-a", False, 10, 5, False, False,
+                                               stream=stream, recent_seconds=10))
+        frames = stream.getvalue().split("\033[H\033[J")
+        self.assertEqual(3, len(frames))
+        self.assertIn("luna", frames[1])
+        self.assertNotIn("luna", frames[2])
+        self.assertIn("1 na inbox", frames[2])
+        self.assertNotIn("\033[36m", stream.getvalue())
+
+    def test_redirected_output_contains_no_terminal_clear(self):
+        stream = io.StringIO()
+        with mock.patch.object(board.time, "sleep", side_effect=KeyboardInterrupt):
+            board.watch(FakeStore([]), "host-a", False, 10, 5, False, False, stream=stream)
+        self.assertNotIn("\033", stream.getvalue())
+
+
 class BoardCLITests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="delegation-board-")
@@ -217,6 +257,23 @@ class BoardCLITests(unittest.TestCase):
         status = json.loads(self.run_cli("--json", "status").stdout)
         self.assertTrue(status["enabled"], "disponibilidade default-on e intencional")
         self.assertEqual([], status["jobs"])
+
+    def test_recent_and_history_flags_reach_json(self):
+        result = self.run_cli("--json", "board", "--recent-seconds", "120", "--history")
+        self.assertEqual(0, result.returncode, result.stderr)
+        head = json.loads(result.stdout)["board"]
+        self.assertEqual(120, head["recent_seconds"])
+        self.assertTrue(head["history"])
+
+    def test_negative_recent_window_is_rejected(self):
+        result = self.run_cli("board", "--recent-seconds", "-1")
+        self.assertEqual(2, result.returncode)
+
+    def test_native_report_confirmation_names_the_model(self):
+        result = self.run_cli("native", "report", "--id", "review", "--model", "gpt-5.6-terra",
+                              "--state", "running", "--task", "review board")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("gpt-5.6-terra", result.stdout)
 
     def test_json_output_carries_data_not_a_drawn_table(self):
         payload = json.loads(self.run_cli("--json", "board").stdout)

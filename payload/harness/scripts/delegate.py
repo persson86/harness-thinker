@@ -97,7 +97,10 @@ def parser():
     sub.add_parser("inbox", help="Entregas ainda não reconhecidas")
     quadro = sub.add_parser("board", help="Tabela de agentes, tarefas e andamento; não inicia agentes")
     quadro.add_argument("--all-sessions", action="store_true", help="Todos os terminais deste vault")
-    quadro.add_argument("--limit", type=int, default=10, help="Jobs já encerrados exibidos")
+    quadro.add_argument("--limit", type=int, default=10, help="Encerrados exibidos por origem (externos/nativos)")
+    quadro.add_argument("--recent-seconds", type=int, default=board.RECENT_SECONDS, metavar="SEG",
+                        help="Janela dos encerrados (padrão: 300s); ativos sempre aparecem")
+    quadro.add_argument("--history", action="store_true", help="Inclui encerrados antigos, sem filtro de tempo")
     quadro.add_argument("--watch", nargs="?", type=float, const=5.0, metavar="SEG",
                         help="Redesenha a cada SEG segundos, sem custar turno do principal")
     quadro.add_argument("--ascii", action="store_true", help="Sem símbolos Unicode")
@@ -403,6 +406,7 @@ def dispatch(store, args):
         # justamente quando se quer conferir o que ficou para trás.
         sid = args.session if args.all_sessions else session(args)
         data = board.payload(store, sid, args.all_sessions, args.limit,
+                             recent_seconds=args.recent_seconds, history=args.history,
                              native_reports=native.snapshot(store, sid, args.all_sessions, locked=True))
         if not args.json:
             data["text"] = board.render(data, color=board.wants_color(args.no_color),
@@ -617,7 +621,7 @@ def render(value):
     if "jobs" in value:
         return value.get("message", "") + "\n" + "\n".join(render(j) for j in value["jobs"])
     if "state" in value:
-        model = value.get("profile", {}).get("model") or "modelo não informado"
+        model = value.get("profile", {}).get("model") or value.get("model") or "modelo não informado"
         text = f"{value['id'][:8]} · {model} · {LABELS.get(value['state'], value['state'])}"
         if value.get("cancel_requested") and value["state"] in {"running", "queued"}:
             text += " · cancelamento solicitado"
@@ -640,7 +644,8 @@ def main(argv=None):
                 raise DelegationError("Um colaborador não pode delegar, publicar ou alterar o controle do principal.")
             sid = args.session if args.all_sessions else session(args)
             return board.watch(store, sid, args.all_sessions, args.limit, args.watch,
-                               board.wants_color(args.no_color), args.ascii)
+                               board.wants_color(args.no_color), args.ascii,
+                               recent_seconds=args.recent_seconds, history=args.history)
         value = dispatch(store, args)
         print(json.dumps(value, ensure_ascii=False, indent=2) if args.json else render(value))
         return 0
