@@ -16,6 +16,8 @@ Fixtures e relatórios ficam em drafts/model-eval/ID/. Não escrever em raw/ nem
 
 Prefira candidate a repetir todos os perfis. Use screening completo somente quando solicitado ou quando cobertura ampla for o objetivo.
 
+Para um primeiro recorte pequeno, use `harness/evals/knowledge-mini-v1/`: oito casos sinteticos de revisao guiada, com controles corretos, caso cego, spec e rubrica separados. Copie-os para o diretorio da rodada e congele hashes antes das respostas. Envie apenas `case.md`; nao envie gabarito/spec nem reutilize como candidato um agente que os leu. O README da fixture descreve o procedimento sem introduzir servico ou chamadas automaticas. Screening nao valida ingestao end-to-end.
+
 ## Preparação
 
 1. Leia wiki/index.md, vault.config.json, harness/contract.md, vault-heuristics.md quando existir e harness/operations/delegate.md.

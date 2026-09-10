@@ -1,0 +1,19 @@
+{
+  "expected_ids": ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8"],
+  "allowed_evidence_ids": ["E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13"],
+  "max_words": 800,
+  "action_fields": {
+    "claim_action": ["promover", "somente source", "descartar"],
+    "corrected_evidence_action": ["promover", "somente source", "descartar"]
+  },
+  "expected_actions": {
+    "C1": {"claim_action": "descartar", "corrected_evidence_action": "somente source"},
+    "C2": {"claim_action": "descartar", "corrected_evidence_action": "promover"},
+    "C3": {"claim_action": "descartar", "corrected_evidence_action": "promover"},
+    "C4": {"claim_action": "descartar", "corrected_evidence_action": "somente source"},
+    "C5": {"claim_action": "promover", "corrected_evidence_action": "promover"},
+    "C6": {"claim_action": "descartar", "corrected_evidence_action": "somente source"},
+    "C7": {"claim_action": "descartar", "corrected_evidence_action": "promover"},
+    "C8": {"claim_action": "promover", "corrected_evidence_action": "promover"}
+  }
+}

@@ -7,7 +7,7 @@ Se a pergunta for sobre agenda, calendario, compromisso, reuniao do dia, disponi
 ## Passos
 
 1. Ler `wiki/index.md` e `vault.config.json`.
-2. Abrir shards relevantes `wiki/[categoria]/_index.md`; para recall amplo, usar `python3 .claude/scripts/build-index.py search "<termos>"`.
+2. Abrir shards relevantes `wiki/[categoria]/_index.md`; para recall amplo, usar `python3 .claude/scripts/build-index.py search "<termos>"`. Busca ignora caixa/acentos e mantém OR amplo por padrão. Para exigir todos os termos, use `search --all 'separacao formal'`; para frase exata, passe aspas internas: `search '"separacao formal"'`. Os filtros estreitam candidatos, não determinam verdade, prioridade atual ou relevância semântica. Ler contexto e sinalização histórica antes da síntese.
 3. Ler ate 5 paginas de conteudo mais relevantes, salvo pedido explicito de analise ampla.
 4. Quando o dominio justificar (estrategia, produto, negocio, decisao, investimento, filosofia, posicionamento), procurar pagina de personas/lentes no vault e selecionar 2-4 lentes com base suficiente. Pular em pergunta factual simples ou execucao tecnica pura.
 5. Conferir se a pergunta pede estado atual ou historico. Busca por palavra-chave indica relevancia, nao vigencia: ler datas, status e fontes posteriores antes de concluir. Responder com citacoes reais: "segundo [[slug]]..." ou "de acordo com [[slug]] e [[slug2]]...".

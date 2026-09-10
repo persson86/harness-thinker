@@ -11,6 +11,7 @@ import datetime as dt
 import fcntl
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -226,11 +227,14 @@ class DelegationStore:
         self.state.mkdir(parents=True, exist_ok=True, mode=0o700)
 
     @contextlib.contextmanager
-    def _lock(self):
+    def _lock(self, nonblocking=False):
         self._ensure()
         fd = os.open(self.state / ".lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
         try:
-            fcntl.flock(fd, fcntl.LOCK_EX)
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | (fcntl.LOCK_NB if nonblocking else 0))
+            except BlockingIOError:
+                raise DelegationError("Delegation state is busy") from None
             yield
         finally:
             os.close(fd)
@@ -603,9 +607,44 @@ class DelegationStore:
         if path.parent.is_symlink():
             raise DelegationError("Unsafe job directory")
         job = _read(path)
-        if not job or job.get("vault") != str(self.vault) or job.get("id") != identifier:
+        if not isinstance(job, dict) or job.get("vault") != str(self.vault) or job.get("id") != identifier:
             raise DelegationError("Job does not belong to this vault")
         return job
+
+    def _board_job_locked(self, job):
+        """Small, validated board view. It intentionally does not hash sources.
+
+        `get` and `accept` remain the integrity boundaries: their complete job
+        reads still call `_stale`. The board needs only enough state to render
+        and to recover an orphaned supervisor safely.
+        """
+        try:
+            _job_id(job.get("id"))
+            _identifier(job.get("session"))
+        except DelegationError:
+            raise DelegationError("Malformed delegation job state") from None
+        if not isinstance(job.get("state"), str) or job["state"] not in ACTIVE | TERMINAL:
+            raise DelegationError("Malformed delegation job state")
+        if job["state"] in ACTIVE and (type(job.get("created_epoch")) not in (int, float)
+                                       or not math.isfinite(job["created_epoch"])):
+            raise DelegationError("Malformed active delegation job state")
+        profile = job.get("profile")
+        if profile is not None and (not isinstance(profile, dict) or
+                any(profile.get(key) is not None and not isinstance(profile[key], str)
+                    for key in ("model", "provider", "effort", "requested_profile"))):
+            raise DelegationError("Malformed delegation profile state")
+        for key in ("validation", "acceptance", "feedback", "task_type", "requested_profile", "role"):
+            if job.get(key) is not None and not isinstance(job[key], str):
+                raise DelegationError("Malformed delegation display state")
+        timeout = job.get("timeout")
+        if timeout is not None and (type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout < 0):
+            raise DelegationError("Malformed delegation timeout state")
+        fields = ("id", "session", "state", "validation", "acceptance", "accepted_stale",
+                  "feedback", "acknowledged", "transport_success", "timeout", "task_type",
+                  "reason", "created_at", "started_at", "finished_at", "profile",
+                  "requested_profile", "run_id", "stage", "role", "retry_of",
+                  "cancel_requested")
+        return {field: job.get(field) for field in fields}
 
     def _stale(self, job):
         changed = []
@@ -653,6 +692,28 @@ class DelegationStore:
             return []
         return [job for job in (self.get(path.parent.name) for path in self._paths())
                 if session is None or job["session"] == session]
+
+    def board_jobs(self, session=None):
+        """Return render metadata without source hashing, or fail promptly.
+
+        This is deliberately a separate public read API. Callers that need a
+        proposal, acceptance eligibility, or stale-source status must use
+        `get`; using this view for those actions would weaken that contract.
+        """
+        if session is not None:
+            _identifier(session)
+        if not self.state.exists():
+            return []
+        with self._lock(nonblocking=True):
+            jobs = []
+            for path in self._paths():
+                job = self._get_locked(path.parent.name)
+                # Refuse incomplete metadata before recovery indexes state.
+                # A bad file must make the board unavailable, never look idle.
+                self._board_job_locked(job)
+                jobs.append(self._recover_locked(job))
+            values = [self._board_job_locked(job) for job in jobs]
+        return [job for job in values if session is None or job["session"] == session]
 
     def _run_locked(self, identifier):
         _run_id(identifier)

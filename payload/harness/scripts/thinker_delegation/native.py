@@ -82,7 +82,7 @@ def snapshot(store, session=None, all_sessions=False, stale_after=MAX_AGE_SECOND
                 _text(record["model"], "model", 128); _text(record["task"], "task", 256)
             except (KeyError, DelegationError):
                 raise DelegationError("Malformed native delegation report") from None
-            if record["state"] not in STATES or record["reported"] is not True:
+            if not isinstance(record["state"], str) or record["state"] not in STATES or record["reported"] is not True:
                 raise DelegationError("Malformed native delegation report")
             if not all_sessions and record["session"] != session:
                 continue

@@ -2,6 +2,8 @@
 
 Casos de avaliacao humana/in-process, separados dos testes deterministicos. Nenhum check estrutural prova que o agente passa estes casos. Executar preferencialmente em copia temporaria com dados sinteticos; simular a autorizacao dentro da fixture nunca autoriza escrita no vault real.
 
+Para executar um screening pequeno e reproduzivel, use [knowledge-mini-v1/README.md](knowledge-mini-v1/README.md): oito casos sinteticos, caso cego e gabarito separados. Reusa a operacao model-eval; nao inicia chamadas por instalar ou consultar estes arquivos.
+
 ## Casos
 
 | Caso | Entrada e contexto | Resultado esperado | Falha material |

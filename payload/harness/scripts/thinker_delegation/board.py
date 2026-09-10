@@ -19,6 +19,8 @@ import time
 import unicodedata
 import re
 
+from .runtime import DelegationError
+
 ACTIVE = {"queued", "running"}
 BROKEN = {"failed", "timed_out", "interrupted"}
 RECENT_SECONDS = 300
@@ -215,8 +217,12 @@ def payload(store, session, all_sessions=False, limit=10, native_reports=None,
     if native_reports is None and hasattr(store, "state"):
         from . import native
         native_reports = native.snapshot(store, session, all_sessions, locked=True)
-    every = store.list_jobs()
     status = store.status(session)
+    # `status` preserves a safe configuration error for mutation commands, but
+    # the board must not turn that into a believable "desligada" snapshot.
+    if status.get("error"):
+        raise DelegationError("Delegation state is unavailable")
+    every = store.board_jobs() if hasattr(store, "board_jobs") else store.list_jobs()
     scoped = every if all_sessions else [j for j in every if j.get("session") == session]
 
     active = sorted((j for j in scoped if j.get("state") in ACTIVE),
@@ -274,6 +280,15 @@ def payload(store, session, all_sessions=False, limit=10, native_reports=None,
             "jobs": rows, "native": native_view}
 
 
+def unavailable(session, all_sessions=False, last_success_at=None):
+    """A watch-frame failure is explicit data, never a stale live snapshot."""
+    return {"board": {"session": session, "scope": "all" if all_sessions else "session",
+                      "available": False, "last_success_at": last_success_at},
+            "jobs": [],
+            "native": {"reported": 0, "running": 0, "completed": 0, "failed": 0,
+                       "cancelled": 0, "unknown": 0, "reports": []}}
+
+
 def render_indicator(data, model_limit=3):
     """Uma linha curta para a statusline, baseada somente no snapshot local.
 
@@ -282,6 +297,8 @@ def render_indicator(data, model_limit=3):
     porcentagem: os adaptadores nao fornecem progresso semantico confiavel.
     """
     head, jobs, native = data["board"], data["jobs"], data.get("native", {})
+    if head.get("available") is False:
+        return "delegacao externa: estado desconhecido"
     counts = "q%d r%d p%d f%d" % (head.get("queued", 0), head.get("running", 0),
                                    head.get("pending", head.get("waiting", 0)),
                                    head.get("needs_attention", head.get("failed", 0)))
@@ -349,6 +366,17 @@ def render(data, color=False, ascii_only=False, width=None):
     style = Style(color)
     head, jobs = data["board"], data["jobs"]
     width = width or shutil.get_terminal_size((100, 24)).columns
+
+    if head.get("available") is False:
+        scope = "todos os terminais" if head["scope"] == "all" else "sessão " + (head["session"] or "—")[:8]
+        lines = [style("DELEGAÇÃO · estado indisponível", "yellow"),
+                 style(scope, "dim"), "",
+                 style("Não foi possível ler o estado nesta atualização.", "yellow"),
+                 style("Nova tentativa no próximo intervalo; nenhum estado ativo foi inferido.", "dim")]
+        if head.get("last_success_at"):
+            lines.append(style("Última leitura válida: " + head["last_success_at"], "dim"))
+        out = "\n".join(lines)
+        return to_ascii(out) if ascii_only else out
 
     title = [style("DELEGAÇÃO", "bold")]
     if head["scope"] == "all":
@@ -452,10 +480,19 @@ def watch(store, session, all_sessions, limit, seconds, color, ascii_only, strea
     ponto de o board não ser desenhado pelo modelo."""
     stream = stream or sys.stdout
     interval = min(3600.0, max(1.0, float(seconds)))
+    last_success_at = None
     try:
         while True:
-            frame = render(payload(store, session, all_sessions, limit,
-                                   recent_seconds=recent_seconds, history=history), color, ascii_only)
+            try:
+                data = payload(store, session, all_sessions, limit,
+                               recent_seconds=recent_seconds, history=history)
+                last_success_at = dt.datetime.now().astimezone().strftime("%H:%M:%S")
+            except (OSError, DelegationError):
+                # State/configuration reads and a contended board lock are
+                # expected operational failures. Do not expose their text or
+                # filesystem paths, and do not reuse old jobs as if live.
+                data = unavailable(session, all_sessions, last_success_at)
+            frame = render(data, color, ascii_only)
             stamp = dt.datetime.now().strftime("%H:%M:%S")
             interactive = bool(getattr(stream, "isatty", lambda: False)()) and os.environ.get("TERM") != "dumb"
             stream.write("\033[H\033[J" if interactive else "\n" + "=" * 60 + "\n")

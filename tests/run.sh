@@ -246,8 +246,8 @@ assert_out "shim Stop pede Calendar do Mac" "Calendar do Mac"
 run python3 -B -m unittest discover -s "$REPO/tests" -p 'test_delegation_*.py'
 assert_rc "delegação: ciclo, adaptadores, CLI, hook e Git isolados" 0
 [ "$RC" -ne 0 ] || printf '%s\n' "$OUT" | tail -4
-run python3 -B -m unittest discover -s "$REPO/tests" -p 'test_knowledge_review.py'
-assert_rc "revisão de conhecimento existente" 0
+run python3 -B -m unittest discover -s "$REPO/tests" -p 'test_knowledge_*.py'
+assert_rc "revisão de conhecimento e busca" 0
 [ "$RC" -ne 0 ] || printf '%s\n' "$OUT" | tail -4
 
 # ----------------------------------------------------------------

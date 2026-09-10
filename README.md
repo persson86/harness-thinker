@@ -146,6 +146,19 @@ Delegation is available after installation but never auto-spawns an agent. `rout
 
 For Claude, installation merges settings instead of replacing them: a custom statusLine is retained, as are local settings, permissions and unrelated hooks; a new vault receives the harness statusLine at a five-second refresh. The merge script is source-owned at `scripts/merge-settings.py`. Codex has no promised arbitrary statusline callback; use the board and its native UI.
 
+## 7.18.0 - Resilient monitoring, focused search and small quality evals
+
+The board retries expected read failures without showing stale rows as live. Its metadata path avoids hashing source files on every refresh, uses a nonblocking lock and still recovers orphaned supervisors. Reading/accepting a proposal retains full integrity checks. Historical metadata is still scanned; this is not a new index or daemon.
+
+Search keeps broad keyword matching by default, now insensitive to case and accents. Quoted phrases require word boundaries; `--all` requires every term/phrase. Quotes must reach the script, as in the second example:
+
+```bash
+python3 .claude/scripts/build-index.py search --all 'separacao formal'
+python3 .claude/scripts/build-index.py search '"separacao formal"'
+```
+
+`harness/evals/knowledge-mini-v1/` provides eight synthetic review cases and a withheld semantic rubric. Follow the existing model-eval workflow, freeze inputs and declare a bounded budget before model calls. Deterministic checks do not certify factual quality; model responses and private reports stay outside the public source repository. No default routing changed.
+
 ## 7.17.0 - Live delegation board
 
 The board now focuses on active helpers and completions from the last five minutes. `--recent-seconds 120` changes that display window; `--history --limit 30` includes older entries. Nothing is deleted or acknowledged by hiding a row. Old inbox items and unacknowledged failures remain compact alerts. Native helpers have separate, explicitly reported model/task/state rows; the principal itself is not monitored.

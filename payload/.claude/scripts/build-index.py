@@ -29,8 +29,8 @@ Subcomandos:
   quality [<paths>]    Juiz determinístico de conteúdo: wikilinks quebrados nas
                        páginas especificadas (relativas a wiki/). Sem args: lê
                        paths de stdin. Exit 0 = limpo; 1 = links quebrados.
-  search "<termos>"    Recall ranqueado por keyword (title>summary>tags>body)
-                       sobre todas as páginas — grep-before-fetch para base grande.
+  search "<termos>"    Recall ranqueado por keyword (title>summary>tags>body);
+                       frases entre aspas são exatas e --all exige todos os termos.
   review <slug>         Referências diretas candidatas a revisão (wikilinks no
                        corpo e `sources:`), sem inferir correção automática.
   graph                Saúde do grafo: publicadas vs. inbox, ilhas e links quebrados.
@@ -51,6 +51,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 
 # Raiz do vault: $CLAUDE_PROJECT_DIR quando o Claude Code define; senão, três
 # níveis acima deste script (.claude/scripts/build-index.py → raiz do vault).
@@ -588,10 +589,68 @@ def strip_code(text):
     return re.sub(r"`[^`]*`", " ", text)
 
 
-def cmd_search(query):
+SEARCH_QUOTES = {'"': '"', "“": "”", "«": "»"}
+SEARCH_CLOSERS = set(SEARCH_QUOTES.values()) - set(SEARCH_QUOTES)
+
+
+def _normalize_search(value):
+    """Case/accent-insensitive text with stable whitespace for phrase search."""
+    if value.isascii():
+        return " ".join(value.casefold().split())
+    value = unicodedata.normalize("NFKD", value.casefold())
+    value = value.translate({ord(ch): None for ch in set(value) if unicodedata.combining(ch)})
+    return " ".join(value.split())
+
+
+def _parse_search_query(query):
+    """Return [(token, is_phrase)], rejecting unterminated quoted phrases."""
+    tokens = []
+    i = 0
+    while i < len(query):
+        while i < len(query) and query[i].isspace():
+            i += 1
+        if i >= len(query):
+            break
+        if query[i] in SEARCH_CLOSERS:
+            raise ValueError("aspas não fechadas na busca")
+        if query[i] in SEARCH_QUOTES:
+            opener = query[i]
+            closer = SEARCH_QUOTES[opener]
+            i += 1
+            start = i
+            while i < len(query) and query[i] != closer:
+                i += 1
+            if i >= len(query):
+                raise ValueError("aspas não fechadas na busca")
+            tokens.append((query[start:i], True))
+            i += 1
+            if i < len(query) and not query[i].isspace():
+                raise ValueError("separe frases e termos com espaço")
+            continue
+        start = i
+        while i < len(query) and not query[i].isspace():
+            if query[i] in SEARCH_CLOSERS or query[i] in SEARCH_QUOTES:
+                raise ValueError("aspas não fechadas ou mal posicionadas na busca")
+            i += 1
+        tokens.append((query[start:i], False))
+    normalized = []
+    seen = set()
+    for token, phrase in tokens:
+        token = _normalize_search(token)
+        if token and (token, phrase) not in seen:
+            normalized.append((token, phrase))
+            seen.add((token, phrase))
+    return normalized
+
+
+def cmd_search(query, require_all=False):
     """Recall ranqueado por keyword. grep-before-fetch: devolve candidatos com
     summary inline para o agente abrir só os melhores."""
-    terms = [t.lower() for t in query.split() if t]
+    try:
+        terms = _parse_search_query(query)
+    except ValueError as exc:
+        print("[search] erro: %s" % exc)
+        return 2
     if not terms:
         print('uso: build-index.py search "<termos>"')
         return 2
@@ -601,13 +660,25 @@ def cmd_search(query):
         if res is None:
             continue
         fm, end_idx, lines = res
-        title = (fm_get(fm, "title") or "").lower()
-        summary = (fm_get(fm, "summary") or "").lower()
-        tags = (fm_get(fm, "tags") or "").lower()
-        body = "\n".join(lines[end_idx + 1:]).lower()
+        title = _normalize_search(fm_get(fm, "title") or "")
+        summary = _normalize_search(fm_get(fm, "summary") or "")
+        tags = _normalize_search(fm_get(fm, "tags") or "")
+        body = _normalize_search("\n".join(lines[end_idx + 1:]))
+        fields = ((title, 5), (summary, 3), (tags, 2), (body, 1))
         score = 0
-        for t in terms:
-            score += 5 * (t in title) + 3 * (t in summary) + 2 * (t in tags) + (t in body)
+        matched = 0
+        for token, phrase in terms:
+            if phrase:
+                pattern = r"(?<!\w)%s(?!\w)" % re.escape(token)
+                field_score = sum(weight for value, weight in fields
+                                  if re.search(pattern, value))
+            else:
+                field_score = sum(weight for value, weight in fields if token in value)
+            if field_score:
+                matched += 1
+                score += field_score
+        if require_all and matched != len(terms):
+            score = 0
         if score:
             status, as_of, superseded_by = knowledge_status(fm)
             results.append((score, page_category(p), slug_of(p), fm_get(fm, "summary") or "",
@@ -928,7 +999,9 @@ def main():
     if args[0] == "migrate":
         return cmd_migrate("--dry-run" in args)
     if args[0] == "search":
-        return cmd_search(" ".join(args[1:]))
+        require_all = "--all" in args[1:]
+        query_args = [arg for arg in args[1:] if arg != "--all"]
+        return cmd_search(" ".join(query_args), require_all=require_all)
     if args[0] == "review":
         if len(args) != 2:
             print("uso: build-index.py review <slug>")

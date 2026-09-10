@@ -1,5 +1,12 @@
 # Changes
 
+## 7.18.0 - 2026-09-09
+
+- Board watch survives expected state-read failures with an explicit unavailable frame and last successful read time. It retries on the next interval without presenting old rows as live or exposing private errors.
+- Board metadata reads skip source hashing and fail promptly on lock contention, while preserving orphan-supervisor recovery. Full result/acceptance integrity checks remain unchanged; malformed display/native state is rejected.
+- Keyword search normalizes case/accents, supports quoted exact phrases and optional `--all`, and keeps broad OR matching by default. Search remains read-only and dependency-free; fixed synthetic retrieval checks compare against the prior ranking.
+- Added reusable knowledge-mini-v1 screening fixture: eight synthetic cases, two positive controls, separate blind case/spec/semantic rubric. Reuses model-eval with no automatic calls, new skill, service or model-default changes. Private model outputs are not part of the release.
+
 ## 7.17.0 - 2026-09-09
 
 - Live delegation board defaults to active jobs plus completions from the last five minutes. Expired rows leave the screen, never the stored history; `--recent-seconds` adjusts the window and `--history` restores historical inspection.
