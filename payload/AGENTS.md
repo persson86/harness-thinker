@@ -50,6 +50,7 @@ Felipe autoriza o Codex a identificar automaticamente tarefas delegáveis e esco
 - **Classe eficiente, como Luna:** trabalho delimitado, repetitivo ou verificável mecanicamente — inspeção Git, coleta e classificação, busca dirigida, validações, formatação e execução de runbooks.
 - **Classe equilibrada, como Terra:** implementação cotidiana, síntese com critérios claros, investigação moderada e tarefas que combinam ferramentas com algum julgamento local.
 - **Classe de fronteira, como Sol:** análise estratégica, fontes conflitantes, arquitetura, revisão adversarial, alto impacto ou ambiguidade semântica relevante.
+- **Classe de orquestração longa, como Astra:** coordenação de múltiplas frentes independentes, reconciliação difícil e integração de resultados. É uma opção contextual, não o principal obrigatório nem um default promovido sem avaliação comparável.
 - **Outros modelos disponíveis:** podem ser escolhidos quando oferecerem melhor adequação de capacidade, contexto, custo ou latência. Os nomes acima são papéis de referência, não uma allowlist.
 
 ### Heurística de esforço
@@ -85,6 +86,14 @@ Para trabalho Git, o agente principal primeiro delimita o escopo. Um subagente e
 
 Quando houver override explícito de modelo ou esforço, prefira um recorte curto de contexto compatível com a plataforma. Informe no andamento quando a delegação ocorrer e reporte limitações que afetem a confiança no resultado.
 
+### Supervisão de tarefas longas
+
+- Ao delegar escrita, atribua caminhos exclusivos a cada agente. Agentes nativos podem compartilhar o mesmo worktree; não permita edições concorrentes nos mesmos arquivos nem trate isolamento como implícito.
+- Cada retorno deve declarar resultado, arquivos consultados ou alterados, evidências e checks executados, limitações e qualquer divergência em relação ao contrato recebido. Auto-relato de conclusão não substitui a verificação do principal.
+- Prefira os eventos reais do host para conclusão, falha, bloqueio ou mudança de premissa. O principal pode orientar, interromper ou redistribuir trabalho quando nova evidência justificar; não faça polling de modelo apenas para produzir status.
+- Um intervalo periódico, como 15 minutos, é somente um limiar para detectar estado desatualizado quando a plataforma permitir consulta. Ausência de atualização significa estado desconhecido, não falha, cancelamento ou autorização para repetir o trabalho.
+- Antes de concluir, reconcilie agentes ativos, aceite ou rejeite entregas contra os critérios e verifique o resultado integrado. Se o objetivo incluir eficiência, compare tempo total, uso disponível, intervenções, conflitos e retrabalho; delegação não presume economia.
+
 ## Delegação opcional entre CLIs
 
 Delegação fica disponível por padrão em sessões novas; instalação e status não iniciam agentes. Desligamentos explícitos de sessão e globais prevalecem, inclusive durante atualização. Use a skill `thinker-delegate` e `harness/operations/delegate.md`. O controle é `python3 harness/scripts/delegate.py`; não gerencie CLIs com send-keys nem reimplemente o supervisor.
@@ -95,7 +104,7 @@ Com o recurso ativo, mantenha um ID exclusivo desta sessão, confira entregas pe
 
 Antes do primeiro job, informe o principal conhecido com `session-context`; atualize ao trocar de modelo. `route` compara a alternativa local e `submit` exige benefício mais trabalho independente ou revisão crítica. Use Sonnet em contribuições delimitadas e Opus em revisão crítica quando adequados; defaults são hipóteses de rota, não resultados de benchmark. Quotas são snapshots manuais por provedor, expiram e nunca são somadas entre provedores. Falha exige diagnóstico antes de retry.
 
-Mantenha indicação visual ao escalar: `delegation-indicator.py --watch 5`/`board --watch 5` para jobs externos. Agentes nativos usam a UI do host e, quando registrados via `native report`, aparecem separados como estado reportado; atualizar ao receber retorno. Não afirmar progresso ou cancelamento nativo a partir da extensão.
+Mantenha indicação visual ao escalar: `delegation-indicator.py --watch 5`/`board --watch 5` para jobs externos. Agentes nativos usam a UI do host e, quando registrados via `native report`, aparecem separados como estado reportado; atualizar ao receber retorno. Esse registro não cria heartbeat nem desperta uma sessão ociosa. Não afirmar progresso ou cancelamento nativo a partir da extensão.
 
 ## Manutenção e release do harness
 

@@ -66,6 +66,16 @@ Para uma comparação ou cadeia com mais de um estágio, crie um `run`. Declare 
 
 Não use a extensão para ocultar exportação de material a um provedor fora do escopo do pedido. Se a tarefa estiver autorizada, não invente aprovações repetidas para passos rotineiros dentro desse escopo.
 
+## Agentes nativos e supervisão longa
+
+Agentes nativos pertencem ao host e não são jobs externos da extensão. Eles podem compartilhar o worktree com o principal e entre si; atribua caminhos exclusivos para escrita e não execute em paralelo etapas que dependam umas das outras ou disputem o mesmo estado mutável. A UI e os controles do host são a autoridade para criar, orientar, interromper e aguardar esses agentes. `native report` apenas espelha metadados declarados no painel do harness.
+
+O brief de um agente nativo segue o mesmo contrato mínimo desta operação. O retorno deve informar resultado, arquivos consultados ou alterados, evidências e checks executados, limitações e divergências do contrato. O principal revisa o artefato real; uma mensagem `completed`, um exit code ou concordância entre agentes não demonstra qualidade.
+
+Supervisão prefere eventos reais de conclusão, falha, bloqueio ou mudança de premissa. Consulte estado por intervalo apenas quando o host oferecer essa capacidade e houver razão operacional; não chame um modelo periodicamente só para gerar status. Um limiar como 15 minutos indica que o estado pode estar desatualizado. Sem atualização, classifique como `unknown`: não presuma falha, cancelamento nem autorização para repetir trabalho. Antes de encerrar, reconcilie agentes ativos e aceite ou rejeite cada entrega contra os critérios definidos.
+
+Delegação pode reduzir tempo de parede ou poluição do contexto principal, mas não presume economia de uso. Quando eficiência fizer parte do objetivo, compare o fluxo completo: uso disponível, tempo, intervenções, conflitos, integração e retrabalho.
+
 ## Executar, continuar e receber
 
 ```bash
@@ -115,7 +125,7 @@ Falha de infraestrutura bloqueia novas tentativas do mesmo provedor nesta sessã
 
 No Claude, o installer acrescenta statusLine com refresh de 5 segundos quando não há uma personalizada; preserva a existente. No Codex/Grok, use o painel do harness no terminal e a UI nativa para agentes do host; não há promessa de callback arbitrário no rodapé do Codex. Acompanhamento não inicia jobs.
 
-Ao escalar agente nativo, use `native report --id ID --model MODELO --state running --task "frente delimitada"`; ao retorno, reporte completed/failed/cancelled. É metadado declarado pelo principal, não telemetria de processo; após 15 minutos sem atualização running vira unknown. Off da extensão não cancela agentes nativos: use o controle do host. Nunca reportar nativos inexistentes para preencher o indicador.
+Ao escalar agente nativo, use `native report --id ID --model MODELO --state running --task "frente delimitada"`; ao retorno, reporte completed/failed/cancelled. É metadado declarado pelo principal, não telemetria de processo; após 15 minutos sem atualização running vira unknown. Esse prazo é TTL de estado reportado, não heartbeat, consulta ao agente ou callback para o principal. Off da extensão não cancela agentes nativos: use o controle do host. Nunca reportar nativos inexistentes para preencher o indicador.
 
 `cancel JOB` solicita parada. `off --all` bloqueia novos jobs e incorporações, e solicita cancelamento aos jobs da extensão. Só declare cancelado depois do estado confirmado. Um processo interrompido com resultado desconhecido exige reconciliação antes de nova tentativa. `retry JOB` é nova tentativa explícita, com cópia atualizada das entradas; não é continuação silenciosa da conversa anterior. Não desfazer commits/publicações já concluídos ao desligar.
 

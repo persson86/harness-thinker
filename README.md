@@ -142,6 +142,8 @@ Profiles are discovered at runtime, so a candidate can be compared with current 
 
 Delegation is available after installation but never auto-spawns an agent. `route` and `submit` require an explicit benefit plus independent work or critical-review rationale; the principal remains responsible for the decision and integration. Initial routes use Sonnet medium for bounded transcript/draft work and Opus high for critical review.
 
+Native Codex subagents remain distinct from external `delegate.py` jobs. Long-running native work uses event-driven supervision, exclusive write ownership and an evidence-bearing return contract. The 15-minute native-report expiry marks stale declared metadata as unknown; it is not a model heartbeat, a process probe or an idle-session wakeup. Delegation may improve latency and context focus, but any efficiency claim must include integration and rework.
+
 `harness/scripts/delegation-indicator.py` renders compact external (`q/r/p/f`) and native-reported (`r/c/f/u`) counts without reading prompts, inventing progress, or claiming native-host coverage. A read failure is `unknown`, not zero. `--watch 1..60` is bounded; `board --watch 5` remains the persistent terminal board.
 
 For Claude, installation merges settings instead of replacing them: a custom statusLine is retained, as are local settings, permissions and unrelated hooks; a new vault receives the harness statusLine at a five-second refresh. The merge script is source-owned at `scripts/merge-settings.py`. Codex has no promised arbitrary statusline callback; use the board and its native UI.

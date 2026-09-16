@@ -1,5 +1,12 @@
 # Changes
 
+## 7.19.0 - 2026-09-16
+
+- Added a Codex-native long-task supervision contract: exclusive write ownership, evidence-bearing returns, principal verification and reconciliation before completion.
+- Distinguished host-native subagents from external `delegate.py` jobs across the Codex adapter and delegation runbook. Native reports remain declared metadata and do not imply process telemetry.
+- Defined event-driven course correction and clarified that the 15-minute native-report expiry is a stale-state TTL, not a heartbeat, callback, failure signal or retry authorization.
+- Added Astra as a contextual long-horizon orchestration class without changing the existing principal default or promoting an unverified model ranking. Efficiency remains an end-to-end measurement, not an assumed benefit of delegation.
+
 ## 7.18.0 - 2026-09-09
 
 - Board watch survives expected state-read failures with an explicit unavailable frame and last successful read time. It retries on the next interval without presenting old rows as live or exposing private errors.
