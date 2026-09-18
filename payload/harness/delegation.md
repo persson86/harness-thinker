@@ -100,6 +100,8 @@ O build Grok `1.0.13 (5e9a58528b76) [stable]` tem uma limitação: `inspect` lis
 
 Se a assinatura atingir um limite ou o login falhar, a tarefa falha com diagnóstico; não há troca para API ou chave alternativa. As CLIs podem informar estimativas de uso: esses valores não são fatura nem comprovam cobrança avulsa.
 
+Esforço é solicitado, não confirmado. O valor vai como parâmetro à CLI (`--effort` para Claude, `model_reasoning_effort` para Codex) e nenhuma delas devolve confirmação de que o aplicou. A única pista indireta é o contador de tokens de raciocínio relatado pelo provedor quando presente, exposto em `history()`; um valor zero não distingue "o modelo não precisou raciocinar" de "o esforço não foi aplicado".
+
 ## Git: plano revisável e execução serial
 
 O helper funciona apenas em vaults Thinker instalados. O projeto-fonte harness-thinker tem seu próprio processo de release. No vault real, siga também o runbook de publicação disponível na sessão.

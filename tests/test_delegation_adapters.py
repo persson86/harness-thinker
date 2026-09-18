@@ -107,6 +107,40 @@ class AdapterTests(unittest.TestCase):
         with self.assertRaises(a.AdapterError):
             a.parse_result(p, output + '\n{"type":"error"}', "", 0)
 
+    def test_codex_stream_schema_records_key_names_only_when_model_is_unreported(self):
+        p = {"provider": "codex"}
+        events = [{"type": "thread.started", "thread_id": "t-1"},
+                  {"type": "item.completed", "item": {"type": "agent_message", "text": "Proposta", "model": "nested-model-value"}},
+                  {"type": "turn.completed", "usage": {"input_tokens": 10}}]
+        result = a.parse_result(p, "\n".join(map(json.dumps, events)), "", 0)
+        self.assertIsNone(result["model_reported"])
+        self.assertEqual({"thread.started": ["thread_id", "type"],
+                          "item.completed": ["item", "type"],
+                          "turn.completed": ["type", "usage"]}, result["stream_schema"])
+        serialized = json.dumps(result["stream_schema"])
+        for forbidden in ("t-1", "Proposta", "nested-model-value", "agent_message"):
+            self.assertNotIn(forbidden, serialized)
+
+    def test_codex_concatenates_all_agent_messages_and_flags_the_count(self):
+        p = {"provider": "codex"}
+        events = [{"type": "item.completed", "item": {"type": "agent_message", "text": "Primeira parte"}},
+                  {"type": "item.completed", "item": {"type": "agent_message", "text": "   "}},
+                  {"type": "item.completed", "item": {"type": "agent_message", "text": "Segunda parte"}},
+                  {"type": "turn.completed", "usage": {"input_tokens": 10}}]
+        result = a.parse_result(p, "\n".join(map(json.dumps, events)), "", 0)
+        self.assertEqual("Primeira parte\n\nSegunda parte", result["text"])
+        self.assertEqual(["Codex emitiu 2 mensagens de agente; concatenadas em ordem."], result["limitations"])
+        single = a.parse_result(p, "\n".join(map(json.dumps, [events[0], events[3]])), "", 0)
+        self.assertEqual("Primeira parte", single["text"])
+        self.assertEqual([], single["limitations"])
+
+    def test_sandbox_argv_echo_is_cli_incompatible_not_environment_blocked(self):
+        p = {"provider": "codex"}
+        echoed = "error: unexpected argument '--sandbox' found\n  codex exec --json --sandbox read-only PRIVATE-PROMPT"
+        self.assertEqual("cli_incompatible", a.diagnose_failure(p, "", echoed, 2)["code"])
+        for blocked in ("sandbox: operation blocked by policy PRIVATE", "Sandbox violation: write denied PRIVATE"):
+            self.assertEqual("environment_blocked", a.diagnose_failure(p, "", blocked, 1)["code"])
+
     def test_claude_structured_field_and_error(self):
         p = {"provider": "claude"}
         payload = {"subtype": "success", "structured_output": {"text": "Resumo", "limitations": ["Atribuição incerta"]},

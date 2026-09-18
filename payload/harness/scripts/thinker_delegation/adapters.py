@@ -171,10 +171,14 @@ def parse_result(profile, stdout, stderr, returncode):
         events = [_json(line) for line in stdout.splitlines() if line.strip()]
         completed = False
         messages = []
+        schema = {}
         for event in events:
             if not isinstance(event, dict):
                 raise AdapterError("Evento Codex inválido.")
             kind = event.get("type")
+            # Only top-level key names per event type, never values: keeps the stream
+            # shape diagnosable without retaining raw provider content.
+            schema.setdefault(str(kind), set()).update(str(key) for key in event.keys())
             if kind in {"error", "turn.failed"}:
                 raise AdapterError("Codex reportou falha durante a execução.")
             if kind == "thread.started":
@@ -189,7 +193,11 @@ def parse_result(profile, stdout, stderr, returncode):
                 result["model_reported"] = event["model"]
         if not completed:
             raise AdapterError("Stream Codex terminou sem turn.completed.")
-        result["text"] = messages[-1] if messages else ""
+        messages = [message for message in messages if isinstance(message, str) and message.strip()]
+        result["text"] = "\n\n".join(messages)
+        if len(messages) > 1:
+            result["limitations"].append(f"Codex emitiu {len(messages)} mensagens de agente; concatenadas em ordem.")
+        result["stream_schema"] = {k: sorted(v) for k, v in schema.items()}
     elif provider == "claude":
         data = _json(stdout)
         if not isinstance(data, dict) or data.get("is_error") or data.get("subtype") != "success":
@@ -242,7 +250,7 @@ def diagnose_failure(profile, stdout, stderr, returncode):
          "A CLI informou falha de autenticação. Confira o login da assinatura neste terminal."),
         (r"(unknown|unsupported|invalid) model|model.{0,60}(not found|not available|not supported|does not exist)", "model_unavailable",
          "A CLI informou que o modelo solicitado está indisponível. A escolha foi preservada; nenhuma substituição ocorreu."),
-        (r"permission denied|operation not permitted|sandbox", "environment_blocked",
+        (r"permission denied|operation not permitted|sandbox.{0,40}(denied|blocked|violat|not permitted)", "environment_blocked",
          "A CLI informou restrição do ambiente. Confira a permissão de execução antes de nova tentativa."),
         (r"unknown (argument|option)|unexpected argument|cannot.{0,40}(with|combined)|unrecognized.{0,20}(option|argument)", "cli_incompatible",
          "A CLI recusou os argumentos da integração. Verifique a versão com doctor."),

@@ -1,5 +1,14 @@
 # Changes
 
+## 7.20.0 - 2026-09-18
+
+- Codex parse results now capture a sanitized structural schema (event type to top-level key names, never values) so a missing `model_reported` is diagnosable from `job.json` instead of unexplained; `history()` flags when that schema is available.
+- Codex agent messages are concatenated in order instead of keeping only the last one; when more than one is emitted, the count is recorded in the job's `limitations`.
+- `history()` now surfaces the provider-reported reasoning-token counter (Codex top-level `reasoning_output_tokens`, Claude's nested `output_tokens_details.thinking_tokens`) alongside the existing usage counters.
+- `delegation.md` documents that `--effort` is a parameter sent to the CLI, never confirmed by it; the reasoning-token counter is the only indirect signal, and zero does not distinguish "did not need to reason" from "effort was not applied".
+- Fixed a `diagnose_failure` false positive: an incompatible-argument error whose stderr echoes the CLI's own `--sandbox` flag no longer misclassifies as `environment_blocked`; the pattern now requires an actual denial/violation phrase near "sandbox".
+- `provider_failed` (an unrecognized CLI failure) now blocks further attempts against the same provider in the session, matching the existing behavior for classified failures like `model_unavailable`.
+
 ## 7.19.0 - 2026-09-16
 
 - Added a Codex-native long-task supervision contract: exclusive write ownership, evidence-bearing returns, principal verification and reconciliation before completion.

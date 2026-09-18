@@ -39,7 +39,7 @@ DEFAULT_PROVIDER_CALL_CAP = 4
 INFRASTRUCTURE_FAILURES = {
     "provider_limit", "authentication_failed", "connection_failed",
     "environment_blocked", "cli_incompatible", "model_unavailable",
-    "invalid_provider_output",
+    "invalid_provider_output", "provider_failed",
 }
 DIAGNOSTIC_MESSAGES = {
     "structured_output_failed": "A CLI esgotou as tentativas de estruturar a entrega. Revise o formato solicitado antes de tentar novamente.",
@@ -1076,8 +1076,10 @@ class DelegationStore:
                              + (f" · parent `{prose(parent, 40)}`." if parent else "."), ""])
             origin = record.get("model_source", profile.get("model_source", "unknown"))
             reported = result.get("model_reported")
+            schema_hint = (" Esquema do stream disponível para diagnóstico em job.json."
+                           if not reported and result.get("stream_schema") else "")
             rows.extend([f"**Modelo solicitado:** {prose(profile.get('model') or 'não informado', 160)}; esforço {prose(profile.get('effort') or 'não informado', 40)}; provedor {prose(profile.get('provider') or 'não informado', 40)}.", "",
-                         f"Escolha: {prose(source_labels.get(origin, origin), 100)} ({prose(origin, 40)}). Modelo informado pelo provedor: {prose(reported or 'não informado', 160)}.", ""])
+                         f"Escolha: {prose(source_labels.get(origin, origin), 100)} ({prose(origin, 40)}). Modelo informado pelo provedor: {prose(reported or 'não informado', 160)}.{schema_hint}", ""])
             state, validation, acceptance = record.get("state", "unknown"), record.get("validation", "pending"), record.get("acceptance", "pending")
             feedback = record.get("feedback", "unknown")
             rows.extend([f"- **Execução:** {prose(state_labels.get(state, state), 40)} ({prose(state, 40)}); duração observada: {duration(record)}.",
@@ -1097,6 +1099,13 @@ class DelegationStore:
                     value = usage.get(key)
                     if type(value) in (int, float) and 0 <= value < 10 ** 12:
                         counters.append(f"{label}: {value:g} tokens")
+                # Reasoning counter lives at top level (Codex) or nested (Claude); checked apart from the allowlist.
+                reasoning = usage.get("reasoning_output_tokens")
+                if type(reasoning) not in (int, float):
+                    details = usage.get("output_tokens_details")
+                    reasoning = details.get("thinking_tokens") if isinstance(details, dict) else None
+                if type(reasoning) in (int, float) and 0 <= reasoning < 10 ** 12:
+                    counters.append(f"raciocínio relatado: {reasoning:g} tokens")
             cost = result.get("cost_estimate_usd")
             cost_text = (f"Estimativa do provedor: US$ {cost:.6g}; não é fatura" if type(cost) in (int, float) and 0 <= cost < 100000 else "Custo não informado")
             rows.extend(["Uso informado pelo provedor: " + ("; ".join(counters) if counters else "não disponível") + ". " + cost_text + ".", ""])
@@ -1326,6 +1335,8 @@ def _work_owned(store, identifier, directory):
         if type(cost) in (int, float) and 0 <= cost < 100000:
             normalized["cost_estimate_usd"] = cost
             normalized["cost_source"] = "provider estimate; not a bill"
+        if result.get("stream_schema"):
+            normalized["stream_schema"] = result["stream_schema"]
         json.dumps(normalized, allow_nan=False)
         store._finish(identifier, "completed", transport_success=True, validation="valid",
                       result=normalized, returncode=returncode,

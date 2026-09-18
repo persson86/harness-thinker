@@ -221,6 +221,26 @@ def diagnose_failure(profile, stdout, stderr, returncode):
         followup = self.store.submit("host-a", self.profile, "Provider is healthy after reviewed retry")
         self.assertEqual("completed", self.wait(followup["id"])["state"])
 
+    def test_provider_failed_blocks_provider_like_model_unavailable(self):
+        adapter = self.root / "fake-runtime/adapters.py"
+        adapter.write_text(FAKE_ADAPTER + '''
+def diagnose_failure(profile, stdout, stderr, returncode):
+    return {"code": "provider_failed", "message": "PRIVATE PROVIDER LOG"}
+''')
+        self.enable()
+        self.assertIn("provider_failed", self.runtime.INFRASTRUCTURE_FAILURES)
+        self.profile["fail"] = True
+        failed = self.wait(self.submit()["id"])
+        self.assertEqual("failed", failed["state"])
+        self.assertEqual("provider_failed", failed["error_code"])
+        self.assertNotIn("PRIVATE PROVIDER LOG", json.dumps(failed))
+        self.profile["fail"] = False
+        with self.assertRaisesRegex(self.runtime.DelegationError, "Provider is blocked"):
+            self.store.submit("host-a", self.profile, "A distinct request after unrecognized failure")
+        allowed = self.store.submit("host-a", self.profile, "Explicitly reviewed new request",
+                                    retry_reason="provider incident confirmed and resolved")
+        self.assertEqual("completed", self.wait(allowed["id"])["state"])
+
     def test_parse_failure_with_zero_exit_uses_sanitized_provider_diagnosis(self):
         adapter = self.root / "fake-runtime/adapters.py"
         adapter.write_text(FAKE_ADAPTER + '''
@@ -525,6 +545,47 @@ def parse_result(profile, stdout, stderr, returncode):
         history = self.store.history("host-a")
         self.assertIn("Modelo informado pelo provedor: não informado", history)
         self.assertIn("Uso informado pelo provedor: não disponível. Custo não informado", history)
+
+    def test_history_reports_reasoning_counter_from_codex_and_claude_usage_shapes(self):
+        self.enable()
+        job = self.wait(self.submit()["id"])
+        path = self.state / "jobs" / job["id"] / "job.json"
+        value = json.loads(path.read_text())
+        value["result"]["usage"] = {"input_tokens": 3, "output_tokens": 2, "reasoning_output_tokens": 128}
+        path.write_text(json.dumps(value))
+        history = self.store.history("host-a")
+        self.assertIn("entrada: 3 tokens; saída: 2 tokens; raciocínio relatado: 128 tokens", history)
+        value["result"]["usage"] = {"output_tokens": 5, "output_tokens_details": {"thinking_tokens": 64, "secret": "never-render-detail"}}
+        path.write_text(json.dumps(value))
+        history = self.store.history("host-a")
+        self.assertIn("saída: 5 tokens; raciocínio relatado: 64 tokens", history)
+        self.assertNotIn("never-render-detail", history)
+        value["result"]["usage"] = {"output_tokens": 5, "reasoning_output_tokens": "never-render-string"}
+        path.write_text(json.dumps(value))
+        history = self.store.history("host-a")
+        self.assertNotIn("raciocínio relatado", history)
+        self.assertNotIn("never-render-string", history)
+
+    def test_stream_schema_persists_to_job_and_history_flags_it_when_model_unreported(self):
+        adapter = self.root / "fake-runtime/adapters.py"
+        adapter.write_text(FAKE_ADAPTER + '''
+def parse_result(profile, stdout, stderr, returncode):
+    result = json.loads(stdout)
+    result["model_reported"] = None
+    result["stream_schema"] = {"turn.completed": ["type", "usage"]}
+    return result
+''')
+        self.enable()
+        job = self.wait(self.submit()["id"])
+        self.assertEqual("completed", job["state"])
+        self.assertEqual({"turn.completed": ["type", "usage"]}, job["result"]["stream_schema"])
+        history = self.store.history("host-a")
+        self.assertIn("Modelo informado pelo provedor: não informado. Esquema do stream disponível para diagnóstico", history)
+        path = self.state / "jobs" / job["id"] / "job.json"
+        value = json.loads(path.read_text())
+        value["result"]["model_reported"] = "reported-alias"
+        path.write_text(json.dumps(value))
+        self.assertNotIn("Esquema do stream", self.store.history("host-a"))
 
     def test_malformed_config_fails_closed_but_status_is_readable(self):
         self.enable()
