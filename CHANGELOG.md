@@ -1,5 +1,10 @@
 # Changes
 
+## 7.20.1 - 2026-09-19
+
+- `board --all-sessions` shows the full session id instead of an 8-char prefix, so it can be copied straight into `--session`. The SESSÃO column now competes for width on equal footing with the progress bar and other columns — it degrades from the full id down to a shortened, ellipsis-clipped one only when the terminal is too narrow, and always fits without breaking row alignment.
+- Fixed a layout edge case where a narrow MOTIVO column could pad to exactly the length of its own header, leaving it glued to the next column with no visible gap.
+
 ## 7.20.0 - 2026-09-18
 
 - Codex parse results now capture a sanitized structural schema (event type to top-level key names, never values) so a missing `model_reported` is diagnosable from `job.json` instead of unexplained; `history()` flags when that schema is available.

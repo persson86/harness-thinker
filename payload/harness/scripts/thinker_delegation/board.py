@@ -25,6 +25,12 @@ ACTIVE = {"queued", "running"}
 BROKEN = {"failed", "timed_out", "interrupted"}
 RECENT_SECONDS = 300
 
+# Sessão inteira, não os 8 primeiros caracteres: o valor precisa ser
+# colável direto em `--session`, e um prefixo truncado não serve para isso.
+# 37 cobre um UUID padrão (36) com uma coluna de respiro; ids fora desse
+# formato ainda são clipados com "…" para não quebrar o alinhamento da tabela.
+SESSION_WIDTH = 37
+
 # Glifos escolhidos entre os não-emoji: ⏱ e ⚠ têm apresentação emoji e podem vir
 # largos por fallback de fonte, quebrando o alinhamento da tabela inteira.
 EXECUTION = {
@@ -319,33 +325,72 @@ def render_indicator(data, model_limit=3):
     return "delegacao externa: %s%s · nativa reportada: %s" % (counts, suffix, native_counts)
 
 
+def _session_width(width, other_cost):
+    """Coluna SESSÃO: id inteiro quando cabe, encolhendo (clip com "…") antes de
+    deixar a linha estourar. 10 é o piso histórico da coluna, sempre cabível nas
+    larguras suportadas — a mesma garantia que as demais colunas já tinham."""
+    for candidate in (SESSION_WIDTH, 20, 10):
+        if other_cost + candidate <= width:
+            return candidate
+    return 10
+
+
 def _layout(width, show_quality, show_session):
     """Degradação por largura, em ordem de dispensabilidade: a barra é redundante
     com o número ao lado; MODELO repete o que o alias já diz; QUALIDADE também
     vive em `history`. Perder coluna é melhor que deixar a linha quebrar, porque
-    quebra destrói o alinhamento da tabela inteira."""
+    quebra destrói o alinhamento da tabela inteira.
+
+    SESSÃO colável tem prioridade sobre barra/colunas: para cada largura de
+    sessão (id inteiro primeiro, depois encolhido), tenta as tiers da mais
+    rica à mais estreita antes de aceitar uma sessão menor. Um id truncado
+    não serve para colar; a barra ou uma coluna a menos, sim."""
     tiers = [
         ({"agent": 8, "model": 16, "task": 14, "exec": 17, "delivery": 18}, True, show_quality, 30),
         ({"agent": 8, "model": 0, "task": 14, "exec": 17, "delivery": 18}, True, show_quality, 26),
         ({"agent": 8, "model": 0, "task": 12, "exec": 17, "delivery": 16}, False, show_quality, 18),
         ({"agent": 8, "model": 0, "task": 12, "exec": 17, "delivery": 16}, False, False, 14),
     ]
-    for widths, show_bar, quality, reason in tiers:
-        cost = (sum(widths.values()) + reason + 2 + 8 + (10 if quality else 0)
-                + (10 if show_session else 0) + (16 if show_bar else 0))
-        if cost <= width:
+    session_candidates = (SESSION_WIDTH, 20, 10) if show_session else (0,)
+    chosen = None
+    for session_w in session_candidates:
+        for widths, show_bar, quality, reason in tiers:
+            other_cost = (sum(widths.values()) + reason + 2 + 8 + (10 if quality else 0)
+                          + (16 if show_bar else 0))
+            cost = other_cost + session_w
+            if cost <= width:
+                chosen = (widths, show_bar, quality, reason, cost, session_w)
+                break
+        if chosen:
             break
-    return widths, show_bar, quality, max(4, min(reason, width - (cost - reason)))
+    if chosen is None:
+        # Nem a tier mais estreita com a sessão mais curta coube: mesmo piso
+        # que as outras colunas já tinham em larguras não suportadas — a
+        # linha pode estourar, mas não há mais nada dispensável para cortar.
+        widths, show_bar, quality, reason = tiers[-1]
+        session_w = session_candidates[-1]
+        cost = sum(widths.values()) + reason + 2 + 8 + (10 if quality else 0) + session_w
+        chosen = (widths, show_bar, quality, reason, cost, session_w)
+    widths, show_bar, quality, reason, cost, session_w = chosen
+    # Piso 6, não 4: com reason_width 4 a coluna MOTIVO (padded a 6) cabe
+    # exatamente no comprimento do próprio cabeçalho "MOTIVO" e gruda na
+    # coluna seguinte sem espaço — regressão visível quando SESSÃO consome
+    # boa parte do orçamento de largura.
+    return widths, show_bar, quality, max(6, min(reason, width - (cost - reason))), session_w
 
 
 def render_native(reports, style, width, show_session):
     """Linhas declaradas pelo host, não telemetria de execução da extensão."""
     if not reports:
         return []
-    task_width = max(8, width - 26 - 19 - 10 - (10 if show_session else 0))
+    # +8 reserva o piso da própria TAREFA: sem isso a coluna SESSÃO podia
+    # "ganhar" espaço que o floor de TAREFA reivindica depois, estourando a
+    # linha (visto no teste com largura 80).
+    session_w = _session_width(width, 26 + 19 + 10 + 8) if show_session else 0
+    task_width = max(8, width - 26 - 19 - 10 - session_w)
     header = pad("MODELO NATIVO", 26) + pad("TAREFA", task_width)
     if show_session:
-        header += pad("SESSÃO", 10)
+        header += pad("SESSÃO", session_w)
     lines = ["", style("NATIVOS · estado reportado pelo host", "bold"),
              style(header + pad("ESTADO", 19) + "REPORTE HÁ", "dim")]
     now = dt.datetime.now(dt.timezone.utc)
@@ -356,7 +401,7 @@ def render_native(reports, style, width, show_session):
         age = max(0, (now - observed).total_seconds()) if observed else None
         row = pad(clip(report.get("model"), 25), 26) + pad(clip(report.get("task"), task_width - 1), task_width)
         if show_session:
-            row += pad(clip(report.get("session"), 8), 10)
+            row += pad(clip(report.get("session"), session_w - 1), session_w)
         row += pad(style(symbol + " " + label, tint), 19) + clock(age)
         lines.append(row)
     return lines
@@ -368,7 +413,7 @@ def render(data, color=False, ascii_only=False, width=None):
     width = width or shutil.get_terminal_size((100, 24)).columns
 
     if head.get("available") is False:
-        scope = "todos os terminais" if head["scope"] == "all" else "sessão " + (head["session"] or "—")[:8]
+        scope = "todos os terminais" if head["scope"] == "all" else "sessão " + (head["session"] or "—")
         lines = [style("DELEGAÇÃO · estado indisponível", "yellow"),
                  style(scope, "dim"), "",
                  style("Não foi possível ler o estado nesta atualização.", "yellow"),
@@ -385,7 +430,7 @@ def render(data, color=False, ascii_only=False, width=None):
         count = head["sessions"]
         title.append("· todos os terminais · %d na tela" % count)
     else:
-        title.append("· sessão " + (head["session"] or "—")[:8])
+        title.append("· sessão " + (head["session"] or "—"))
         title.append("· " + (style("ligada", "green") if head["enabled"] else style("desligada", "dim")))
         if head.get("mode"):
             title.append("· modo " + head["mode"])
@@ -401,7 +446,7 @@ def render(data, color=False, ascii_only=False, width=None):
                            else "Nenhum job externo neste escopo.", "dim"))
 
     show_session = head["scope"] == "all"
-    widths, show_bar, show_quality, reason_width = _layout(
+    widths, show_bar, show_quality, reason_width, session_width = _layout(
         width, any(j.get("feedback") in FEEDBACK for j in jobs), show_session)
 
     header = [pad("AGENTE", widths["agent"])]
@@ -409,7 +454,7 @@ def render(data, color=False, ascii_only=False, width=None):
         header.append(pad("MODELO", widths["model"]))
     header += [pad("TAREFA", widths["task"]), pad("MOTIVO", reason_width + 2)]
     if show_session:
-        header.append(pad("SESSÃO", 10))
+        header.append(pad("SESSÃO", session_width))
     header += [pad("EXECUÇÃO", widths["exec"]), pad("ENTREGA", widths["delivery"]), "TEMPO"]
     if show_quality:
         header.insert(-1, pad("QUALIDADE", 10))
@@ -431,7 +476,7 @@ def render(data, color=False, ascii_only=False, width=None):
         cells += [pad(clip(task_of(job), widths["task"] - 1), widths["task"]),
                   pad(clip(job["reason"], reason_width), reason_width + 2)]
         if show_session:
-            cells.append(pad(style((job["session"] or "—")[:8], "dim"), 10))
+            cells.append(pad(style(clip(job["session"] or "—", session_width - 1), "dim"), session_width))
         cells.append(pad(style("%s %s" % (symbol, label), color_name), widths["exec"]))
         cells.append(pad(style(("%s %s" % (dsymbol, dlabel)).strip(), dcolor), widths["delivery"]))
         if show_quality:
