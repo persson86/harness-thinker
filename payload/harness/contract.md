@@ -21,6 +21,8 @@ O agente e o mantenedor da wiki pessoal. O usuario le a wiki; o agente escreve, 
 
 Categorias sao configuracao do vault, nao do harness: vivem em `vault.config.json` (`categories` como lista `[slug, display, escopo]`, mais `subsharded`, `fast_spheres`, `inbox_dir`). Leia o config no inicio de sessao.
 
+`vault.config.json` tolera chaves desconhecidas e omitidas (merge raso com default neutro); nenhuma chave nova precisa virar obrigatoria so por existir. Chave opcional: `transcript.review_tool_dir` — diretorio da ferramenta CLI `review_turns.py` usada pela operacao TRANSCRIPT para tocar/inspecionar trechos de `.analysis.jsonl`. Ausente = a operacao apenas lista `mm:ss`+trilha sem sugerir comando de escuta.
+
 `vault-heuristics.md` e opcional no root do vault. Conteudo do usuario, nunca sobrescrito pelo installer. Quando existir, orienta decisoes de julgamento (priorizacao, recomendacao, arquitetura de pagina, trade-offs) e prevalece sobre defaults do harness.
 
 Se uma fonte tocar multiplas categorias: pagina na principal, cross-links nas secundarias somente quando as paginas existirem.

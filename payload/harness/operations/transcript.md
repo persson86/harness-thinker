@@ -8,6 +8,9 @@ Objetivo duplo: preservar o contexto e as decisoes da reuniao e promover apenas 
 
 - Arquivo em `queue/` ou caminho fornecido.
 - Texto de transcricao colado na conversa.
+- Companions opcionais de mesmo basename: `.jsonl` (turnos) e `.analysis.jsonl`
+  (trilha `mic|system` por turno, `quality_flags`, blocos `type:"chunk"` com
+  diagnostico). Quando existir `.analysis.jsonl`, le-lo faz parte da Fase 1.
 
 ## Contrato de UX
 
@@ -21,9 +24,20 @@ A operacao tem duas fases. O verbo do pedido define o checkpoint:
 
 1. Ler a transcricao inteira antes de sintetizar. Se a leitura estiver incompleta, parar sem alterar vault, queue ou Git.
 2. Identificar fonte, data, participantes, contexto e trechos com atribuicao incerta ou possivel erro de transcricao. Nao normalizar nomes ou falas por inferencia silenciosa.
-3. Ler `vault.config.json`, paginas e sources relevantes para localizar entidades existentes, confirmacoes, contradicoes e extensoes.
-4. Iniciar a devolutiva com um **Resumo** breve e 3-5 **Ideias principais** da reuniao.
-5. Separar, quando material para decisao ou impacto:
+3. Se existir `[basename].analysis.jsonl`, ler antes de sintetizar. Preferir o
+   `track` (mic|system) e os `quality_flags` por turno de la; `remote_unclustered`
+   so sinaliza turno remoto sem separacao de falantes e nao serve de triagem
+   sozinha. Cruzar isso com blocos `type:"chunk"` e localizar trechos que mudariam
+   uma decisao ou fato duravel (polaridade/negacao, numero, entidade inesperada,
+   autoria de fala remota). Listar esses trechos na devolutiva com `mm:ss` +
+   trilha; se `vault.config.json` tiver `transcript.review_tool_dir`, incluir o
+   comando exato (`python3 <dir>/review_turns.py <arquivo.jsonl> --at mm:ss
+   --track mic|system`, ou `--chunks` para diagnostico por bloco). Sem essa
+   chave, listar so `mm:ss` + trilha. Nao pedir para ouvir a reuniao inteira —
+   so os trechos que mudam conclusao.
+4. Ler `vault.config.json`, paginas e sources relevantes para localizar entidades existentes, confirmacoes, contradicoes e extensoes.
+5. Iniciar a devolutiva com um **Resumo** breve e 3-5 **Ideias principais** da reuniao.
+6. Separar, quando material para decisao ou impacto:
    - fato observado;
    - relato atribuido;
    - inferencia;
@@ -33,14 +47,16 @@ A operacao tem duas fases. O verbo do pedido define o checkpoint:
    - producao observada;
    - aceite contratual;
    - resultado nao comprovado.
-6. Montar um ledger compacto de deltas. Para cada delta, registrar:
+7. Montar um ledger compacto de deltas. Para cada delta, registrar:
    - **delta** — o que muda em relacao ao vault;
    - **destino** — source e eventual pagina viva;
    - **estado** — classificacao epistemica relevante;
    - **acao** — `promover`, `somente source` ou `descartar`;
-   - **por que** — evidencia, contradicao, lacuna ou criterio de durabilidade.
-7. Recomendar o escopo da ingestao. A source preserva o contexto da reuniao; paginas vivas recebem somente mudancas duraveis, sem duplicar a ata inteira.
-8. Se o pedido nao autorizou ingestao, apresentar o ledger e aguardar go-ahead explicito.
+   - **por que** — evidencia, contradicao, lacuna ou criterio de durabilidade;
+   - trechos sinalizados no passo 3 entram como lacuna/
+     contradicao a resolver, nao como fato ja corrigido.
+8. Recomendar o escopo da ingestao. A source preserva o contexto da reuniao; paginas vivas recebem somente mudancas duraveis, sem duplicar a ata inteira.
+9. Se o pedido nao autorizou ingestao, apresentar o ledger e aguardar go-ahead explicito.
 
 ## Fase 2 — Execucao
 
@@ -58,6 +74,7 @@ A operacao tem duas fases. O verbo do pedido define o checkpoint:
 5. Atualizar paginas de projeto ou contexto somente com os deltas marcados `promover`. Preservar atribuicao e limites epistemicos; uso ou atividade nao prova resultado.
    Antes de encerrar, reconciliar pendencias e estado vigente ja escritos: nao deixar "aguardar aprovacao" ativo quando a mesma evidencia registra recusa. Preservar o passo antigo na cronologia, com seu desfecho e fonte. "Somente source" significa nao reproduzir o conteudo substantivo nas paginas vivas; um ponteiro neutro para a source e suficiente.
    Se o delta corrigir uma interpretacao ou substituir um estado anterior, seguir `review.md` para conferir os resumos e dependencias candidatas pertinentes. Confirmacao de registro nao comprova claims causais nem todos os detalhes da source.
+   O texto do trecho na source continua valendo como registrado — nao reescrever a source por causa de um trecho sinalizado. Uma correcao de trecho sinalizado (Fase 1, passo 3) so entra na pagina wiki quando o usuario efetivamente ouviu o trecho, com nota `(conferido no audio mm:ss)`. Trecho sinalizado e nao ouvido fica marcado como divergencia nao resolvida, nunca promovido como fato corrigido.
 6. Refrescar pagina de perfil profissional se ela existir e houver evidencia comportamental nitida:
    - reconfirmar padroes existentes;
    - adicionar padrao novo sustentado por evidencia;
@@ -96,6 +113,9 @@ Quando solicitado ou apos lote suficiente de reunioes, recomputar o perfil a par
 - Mover a queue antes das validacoes ou deletar o bruto.
 - Criar projeto duplicado.
 - Inventar `applied` sem evidencia citavel.
+- Mandar ouvir a reuniao inteira em vez de listar so os trechos que mudam conclusao.
+- Promover correcao de trecho sinalizado sem o usuario ter ouvido o audio.
+- Usar `remote_unclustered` sozinho como criterio de triagem de trecho suspeito.
 
 ## Done when
 

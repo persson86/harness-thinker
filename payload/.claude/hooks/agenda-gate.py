@@ -25,6 +25,18 @@ AGENDA_CONTEXT = (
 
 # Pedidos de agenda do usuário — não dispara em "agenda de produto" / "agenda Salesforce",
 # nem em "agenda com Fulano" no sentido de reunião/transcrição já ocorrida.
+#
+# `proxim[ao]s?\s+(reuniao|call|evento)` sozinho casava com qualquer menção futura
+# ("teste refutável na próxima reunião"), não só com pedido de agenda. Trocado por
+# formas de pergunta/pedido explícitas (qual/quando/que horas, "tenho próxima",
+# "minha próxima reunião").
+#
+# `\bcalendar\b` (inglês, sem acento) foi removido: "Calendar" aparece descrevendo
+# o app/feature em discussões técnicas do próprio harness ("Calendar do Mac",
+# "botão do Calendar do app"), sem ser pedido de agenda. `\bcalendario\b` (PT,
+# raramente usado fora do sentido de agenda) e `meu\s+calend` seguem cobrindo o
+# pedido pessoal legítimo. `disponibilidade` isolado também casava com uso técnico
+# ("disponibilidade do servidor"); restrito a formas pessoais/temporais.
 AGENDA_RE = re.compile(
     r"""
     /agenda\b
@@ -32,22 +44,39 @@ AGENDA_RE = re.compile(
     | meus?\s+compromissos
     | minhas?\s+proxim[ao]s?\s+agendas?\b
     | meu\s+calend
+    | \bmy\s+(calendar|schedule)\b
+    | \bnext\s+meeting\b
     | \bcalendario\b
-    | \bcalendar\b
     | o\s+que\s+(eu\s+)?tenho\s+(hoje|amanha|essa\s+semana|esta\s+semana|na\s+semana)
     | o\s+que\s+tem\s+(hoje|na\s+minha|na\s+agenda)
     | reunioes?\s+(de\s+)?hoje
     | reuniao\s+do\s+dia
-    | disponibilidade
+    | minha\s+disponibilidade
+    | tenho\s+disponibilidade
+    | disponibilidade\s+(hoje|amanha|essa\s+semana|esta\s+semana|de\s+horario)
     | horario\s+livre
     | planejamento\s+(do\s+dia|da\s+semana|de\s+horario)
-    | proxim[ao]s?\s+(reuniao|call|evento)
+    | (qual|quando|que\s+horas?)\s+(e\s+)?(a\s+)?(minha\s+)?proxim[ao]s?\s+(reuniao|call|evento)
+    | tenho\s+(alguma\s+)?proxim[ao]
+    | minha\s+proxim[ao]\s+(reuniao|call|evento)
     | compromissos?\s+(hoje|amanha)
     | estou\s+livre
     | fica\s+livre
     | icalbuddy
     """,
     re.I | re.X,
+)
+
+# Molduras de mensagens de outro agente/subagente chegando ao UserPromptSubmit
+# como se fossem prompt do usuário (relatório de subagente, hand-back, notificação
+# de tarefa assíncrona). Não são pedido de agenda do usuário — e não devem alterar
+# o estado do turno: nem marcar `required` (falso positivo), nem resetar uma
+# exigência de agenda real que já esteja em aberto no mesmo turno (o reset ocorreria
+# entre a pergunta do usuário e as fontes ainda sendo consultadas, apagando a
+# exigência antes do Stop poder cobrá-la).
+AGENT_MESSAGE_RE = re.compile(
+    r"<agent-message\b|\[Subagent hand-back\]|<task-notification>",
+    re.I,
 )
 
 
@@ -164,6 +193,10 @@ def main() -> int:
 
     if ev in {"userpromptsubmit", "beforesubmitprompt"}:
         text = prompt_text(data)
+        if AGENT_MESSAGE_RE.search(text):
+            # Não é prompt do usuário: nem marca `required` nem reseta o estado
+            # do turno (ver comentário em AGENT_MESSAGE_RE). Ignora e sai.
+            return 0
         # Cada novo prompt começa do zero — não deixa a exigência de uma
         # pergunta de agenda antiga bloquear turnos seguintes sem relação.
         reset(latest)

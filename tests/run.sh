@@ -7,7 +7,7 @@ set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/ht-tests.XXXXXX")"
-trap 'rm -rf "$TMP" /tmp/sb-session-httest01 /tmp/sb-session-httestgrok01 /tmp/sb-agenda-httestagenda01' EXIT
+trap 'rm -rf "$TMP" /tmp/sb-session-httest01 /tmp/sb-session-httestgrok01 /tmp/sb-agenda-httestagenda01 /tmp/sb-agenda-httestagenda02' EXIT
 
 PASS=0; FAIL=0
 OUT=""; RC=0
@@ -234,6 +234,72 @@ run gate "{\"hookEventName\":\"PreToolUse\",\"sessionId\":\"$SID\",\"promptId\":
 assert_rc "agenda-gate registra Gmail" 0
 run gate "{\"hookEventName\":\"Stop\",\"sessionId\":\"$SID\",\"promptId\":\"p2\"}"
 echo "$OUT" | grep -q '"decision"' && bad "agenda-gate libera com as duas fontes" "$OUT" || ok "agenda-gate libera com as duas fontes"
+
+# ------------------------------------------------- agenda-gate: regex mais estreito
+SID2="httestagenda02"
+rm -rf "/tmp/sb-agenda-$SID2"
+
+# positivos: formas de pergunta/pedido explícitas continuam disparando
+run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID2\",\"promptId\":\"q1\",\"prompt\":\"qual minha próxima reunião?\"}"
+assert_rc "agenda-gate marca pergunta por proxima reuniao" 0
+assert_out "agenda-gate injeta contexto para proxima reuniao (pergunta)" "Calendar do Mac"
+
+rm -rf "/tmp/sb-agenda-$SID2"
+run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID2\",\"promptId\":\"q2\",\"prompt\":\"o que tenho hoje\"}"
+assert_rc "agenda-gate marca o que tenho hoje" 0
+assert_out "agenda-gate injeta contexto para o que tenho hoje" "Calendar do Mac"
+
+rm -rf "/tmp/sb-agenda-$SID2"
+run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID2\",\"promptId\":\"q3\",\"prompt\":\"/agenda\"}"
+assert_rc "agenda-gate marca /agenda" 0
+assert_out "agenda-gate injeta contexto para /agenda" "Calendar do Mac"
+
+# negativo: uso futuro de "próxima reunião" não é pedido de agenda (não é pergunta)
+rm -rf "/tmp/sb-agenda-$SID2"
+run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID2\",\"promptId\":\"n1\",\"prompt\":\"teste refutável na próxima reunião\"}"
+assert_rc "agenda-gate ignora uso futuro de proxima reuniao" 0
+echo "$OUT" | grep -q 'Calendar do Mac' && bad "agenda-gate não injeta contexto em uso futuro de proxima reuniao" "$OUT" || ok "agenda-gate não injeta contexto em uso futuro de proxima reuniao"
+run gate "{\"hookEventName\":\"Stop\",\"sessionId\":\"$SID2\",\"promptId\":\"n1\"}"
+echo "$OUT" | grep -q '"decision"' && bad "agenda-gate não bloqueia apos uso futuro de proxima reuniao" "$OUT" || ok "agenda-gate não bloqueia apos uso futuro de proxima reuniao"
+
+# negativo: "Calendar" citado em discussão técnica (não é pedido pessoal)
+rm -rf "/tmp/sb-agenda-$SID2"
+run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID2\",\"promptId\":\"n2\",\"prompt\":\"o botão do Calendar do app não abre\"}"
+assert_rc "agenda-gate ignora Calendar em discussao tecnica" 0
+echo "$OUT" | grep -q 'Calendar do Mac' && bad "agenda-gate não injeta contexto para Calendar tecnico" "$OUT" || ok "agenda-gate não injeta contexto para Calendar tecnico"
+
+# negativo: moldura de mensagem de outro agente não é prompt do usuário
+rm -rf "/tmp/sb-agenda-$SID2"
+run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID2\",\"promptId\":\"a1\",\"prompt\":\"<agent-message from=\\\"fork\\\">relatorio: qual minha proxima reuniao ja foi verificado</agent-message>\"}"
+assert_rc "agenda-gate ignora moldura agent-message" 0
+echo "$OUT" | grep -q 'Calendar do Mac' && bad "agenda-gate não injeta contexto para agent-message" "$OUT" || ok "agenda-gate não injeta contexto para agent-message"
+run gate "{\"hookEventName\":\"Stop\",\"sessionId\":\"$SID2\",\"promptId\":\"a1\"}"
+echo "$OUT" | grep -q '"decision"' && bad "agenda-gate não bloqueia apos agent-message isolada" "$OUT" || ok "agenda-gate não bloqueia apos agent-message isolada"
+
+run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID2\",\"promptId\":\"a2\",\"prompt\":\"[Subagent hand-back] tarefa concluida, proxima reuniao mencionada no relatorio\"}"
+assert_rc "agenda-gate ignora hand-back de subagente" 0
+echo "$OUT" | grep -q 'Calendar do Mac' && bad "agenda-gate não injeta contexto para hand-back" "$OUT" || ok "agenda-gate não injeta contexto para hand-back"
+
+# moldura real: o texto chega precedido de uma linha de aviso, não começa em <agent-message>
+rm -rf "/tmp/sb-agenda-$SID2"
+run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID2\",\"promptId\":\"a3\",\"prompt\":\"Another Claude session sent a message:\\n<agent-message from=\\\"x\\\">teste na próxima reunião</agent-message>\"}"
+echo "$OUT" | grep -q 'Calendar do Mac' && bad "agenda-gate ignora agent-message com prefixo" "$OUT" || ok "agenda-gate ignora agent-message com prefixo"
+
+# positivo em inglês
+rm -rf "/tmp/sb-agenda-$SID2"
+run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID2\",\"promptId\":\"e1\",\"prompt\":\"what is on my calendar tomorrow?\"}"
+assert_out "agenda-gate injeta contexto para my calendar" "Calendar do Mac"
+
+# mensagem de agente no meio de uma virada de agenda real não zera o `required`
+rm -rf "/tmp/sb-agenda-$SID2"
+run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID2\",\"promptId\":\"r1\",\"prompt\":\"qual minha próxima reunião?\"}"
+assert_rc "agenda-gate marca virada real antes da interrupcao" 0
+run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID2\",\"promptId\":\"r1-sub\",\"prompt\":\"<task-notification>subagente concluido</task-notification>\"}"
+assert_rc "agenda-gate ignora task-notification no meio da virada" 0
+run gate "{\"hookEventName\":\"Stop\",\"sessionId\":\"$SID2\",\"promptId\":\"r1\"}"
+assert_out "agenda-gate ainda cobra fontes apos mensagem de agente no meio da virada" '"decision": "block"'
+
+rm -rf "/tmp/sb-agenda-$SID2"
 
 # shim Stop combina check-ingest + agenda-gate
 rm -rf "/tmp/sb-agenda-$SID"

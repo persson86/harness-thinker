@@ -11,7 +11,9 @@ Padroes esperados:
 - `[ts]-audio-[slug].txt`: INBOX com transcricao de audio.
 - `[ts]-url-[slug].md`: classificar como INGEST, INBOX ou ANALISE.
 - `[ts]-nota-[slug].md`: INBOX.
-- `[ts]-meeting-[slug].md`: TRANSCRIPT; companion `.jsonl` de mesmo basename deve mover junto.
+- `[ts]-meeting-[slug].md`: TRANSCRIPT; companions `.jsonl` e `.analysis.jsonl` de mesmo basename devem mover junto.
+
+`[mesmo-basename].analysis.jsonl` nunca e um item a classificar por si: e sempre companion do `.md`/`.jsonl` de reuniao com o mesmo basename, roteado junto e movido junto para `queue/processed/`.
 
 Depois de processar arquivo da fila, mover para `queue/processed/[YYYY-MM-DD]/`. Nao deletar brutos sem confirmacao.
 
