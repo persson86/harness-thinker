@@ -102,7 +102,7 @@ What is never touched: `wiki/`, `raw/`, `queue/`, `vault.config.json`, `vault-he
 
 ## Per-vault config
 
-Categories are data, not code: they live in `vault.config.json` (`categories`, `subsharded`, `fast_spheres`, `inbox_dir`). `build-index.py` reads that file, so `--update` never overwrites your categories.
+Categories are data, not code: they live in `vault.config.json` (`categories`, `subsharded`, `fast_spheres`, `inbox_dir`). The optional `transcript.review_tool_dir` points TRANSCRIPT to a local listening tool. `build-index.py` reads that file, so `--update` never overwrites your categories.
 
 Optional decision heuristics live in `vault-heuristics.md`. The installer may scaffold the file on `--init`, but update/adopt never overwrite it.
 
@@ -129,6 +129,12 @@ the link, the index or the log, and the turn closes.
 ## Operations
 
 Triggered in natural language or via `/command` (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **REVIEW**, **AGENDA** (Gmail pessoal + Calendar do Mac profissional), **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MODEL-EVAL**, **MEMORY** (Claude-only; Grok Build recusa), **DREAM**, **REVERIE**.
+
+## 7.21.0 — Quieter agenda gate and listen-first transcript review
+
+The agenda gate no longer treats a subagent report, hand-back or task notification as a user prompt: those neither mark nor reset the turn, so a real agenda question still in progress keeps its requirement. "Next meeting" only triggers as a question or request; bare `calendar` and `disponibilidade` gave way to personal forms (`meu calendário`, `my calendar`, `minha disponibilidade`).
+
+TRANSCRIPT reads the optional `<basename>.analysis.jsonl` companion (track and quality flags per turn, per-block decoding records) and lists only the passages that would change a durable fact — polarity, number, unexpected entity, remote authorship — with `mm:ss` and track. With `transcript.review_tool_dir` in `vault.config.json` it adds the exact listening command. A flagged passage is a gap to resolve, not a corrected fact: the source stays as recorded and the wiki takes a correction only after the user has listened. FEED moves the companion with the transcript.
 
 ## 7.15.0 — Repeatable model evaluation
 
