@@ -226,6 +226,14 @@ def parse_result(profile, stdout, stderr, returncode):
         result["session_id"] = data.get("session_id") or data.get("sessionId")
         result["model_reported"] = data.get("model")
         result["usage"] = data.get("usage")
+    if result["model_reported"]:
+        result["model_reported_source"] = "stream"
+    elif provider == "codex":
+        # build_command sempre passa --ephemeral: não há sessão gravada onde
+        # buscar o modelo, e configuração não prova qual modelo foi servido.
+        result["model_reported_source"] = "not_emitted_ephemeral"
+    else:
+        result["model_reported_source"] = "not_emitted"
     if not isinstance(result["text"], str) or not result["text"].strip():
         raise AdapterError("A CLI terminou sem entrega; saída vazia não é sucesso.")
     if not isinstance(result["limitations"], list) or not all(isinstance(x, str) for x in result["limitations"]):

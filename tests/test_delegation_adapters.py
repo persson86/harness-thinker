@@ -104,6 +104,7 @@ class AdapterTests(unittest.TestCase):
         result = a.parse_result(p, output, "", 0)
         self.assertEqual(result["text"], "Proposta")
         self.assertIsNone(result["model_reported"])
+        self.assertEqual("not_emitted_ephemeral", result["model_reported_source"])
         with self.assertRaises(a.AdapterError):
             a.parse_result(p, output + '\n{"type":"error"}', "", 0)
 
@@ -120,6 +121,24 @@ class AdapterTests(unittest.TestCase):
         serialized = json.dumps(result["stream_schema"])
         for forbidden in ("t-1", "Proposta", "nested-model-value", "agent_message"):
             self.assertNotIn(forbidden, serialized)
+
+    def test_reported_source_is_stream_only_when_the_provider_names_the_model(self):
+        codex = [{"type": "item.completed", "item": {"type": "agent_message", "text": "Proposta"}},
+                 {"type": "turn.completed", "usage": {}, "model": "gpt-x"}]
+        result = a.parse_result({"provider": "codex"}, "\n".join(map(json.dumps, codex)), "", 0)
+        self.assertEqual(("gpt-x", "stream"), (result["model_reported"], result["model_reported_source"]))
+        claude = {"subtype": "success", "result": "Proposta", "modelUsage": {}}
+        result = a.parse_result({"provider": "claude"}, json.dumps(claude), "", 0)
+        self.assertEqual((None, "not_emitted"), (result["model_reported"], result["model_reported_source"]))
+        claude["model"] = "claude-x"
+        result = a.parse_result({"provider": "claude"}, json.dumps(claude), "", 0)
+        self.assertEqual(("claude-x", "stream"), (result["model_reported"], result["model_reported_source"]))
+
+    def test_codex_command_keeps_ephemeral_so_no_rollout_is_read(self):
+        workspace = Path(tempfile.mkdtemp())
+        command = a.build_command({"provider": "codex", "model": "gpt-5.6-luna", "effort": "low"},
+                                  workspace, workspace / "prompt.txt")
+        self.assertIn("--ephemeral", command)
 
     def test_codex_concatenates_all_agent_messages_and_flags_the_count(self):
         p = {"provider": "codex"}
