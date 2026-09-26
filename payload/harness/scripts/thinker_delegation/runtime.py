@@ -665,7 +665,9 @@ class DelegationStore:
                   "reason", "created_at", "started_at", "finished_at", "profile",
                   "requested_profile", "run_id", "stage", "role", "retry_of",
                   "cancel_requested")
-        return {field: job.get(field) for field in fields}
+        view = {field: job.get(field) for field in fields}
+        view["model_reported"], view["model_reported_source"] = reported_view(job)
+        return view
 
     def _stale(self, job):
         changed = []
@@ -1096,11 +1098,14 @@ class DelegationStore:
                 rows.extend([f"Run `{prose(record['run_id'], 40)}` · etapa {record.get('stage')} · papel {prose(record.get('role'), 40)} · handoff {prose(record.get('handoff'), 40)}"
                              + (f" · parent `{prose(parent, 40)}`." if parent else "."), ""])
             origin = record.get("model_source", profile.get("model_source", "unknown"))
-            reported = result.get("model_reported")
+            reported, reported_source = reported_view(record)
+            provenance = {"stream": "informado no stream",
+                          "not_emitted": "não emitido pelo provedor",
+                          "not_emitted_ephemeral": "não emitido: execução efêmera, sem sessão gravada"}.get(reported_source)
             schema_hint = (" Esquema do stream disponível para diagnóstico em job.json."
                            if not reported and result.get("stream_schema") else "")
-            rows.extend([f"**Modelo solicitado:** {prose(profile.get('model') or 'não informado', 160)}; esforço {prose(profile.get('effort') or 'não informado', 40)}; provedor {prose(profile.get('provider') or 'não informado', 40)}.", "",
-                         f"Escolha: {prose(source_labels.get(origin, origin), 100)} ({prose(origin, 40)}). Modelo informado pelo provedor: {prose(reported or 'não informado', 160)}.{schema_hint}", ""])
+            rows.extend([f"**Modelo solicitado:** {prose(profile.get('model') or 'não informado', 160)}; esforço solicitado {prose(profile.get('effort') or 'não informado', 40)} (não confirmado pelo provedor); provedor {prose(profile.get('provider') or 'não informado', 40)}.", "",
+                         f"Escolha: {prose(source_labels.get(origin, origin), 100)} ({prose(origin, 40)}). Modelo informado pelo provedor: {prose(reported or 'não informado', 160)}{' (' + provenance + ')' if provenance else ''}.{schema_hint}", ""])
             state, validation, acceptance = record.get("state", "unknown"), record.get("validation", "pending"), record.get("acceptance", "pending")
             feedback = record.get("feedback", "unknown")
             rows.extend([f"- **Execução:** {prose(state_labels.get(state, state), 40)} ({prose(state, 40)}); duração observada: {duration(record)}.",

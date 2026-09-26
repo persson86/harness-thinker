@@ -516,7 +516,7 @@ def parse_result(profile, stdout, stderr, returncode):
         path.write_text(json.dumps(value))
         self.store.record_local("host-b", "private other-session task", "other-session rationale")
         history = self.store.history("host-a")
-        for expected in ("2.50 s", "explicit-test-model", "reported-alias", "esforço low", "explícita (override)",
+        for expected in ("2.50 s", "explicit-test-model", "reported-alias", "esforço solicitado low", "explícita (override)",
                          "entrada: 17 tokens", "saída: 4 tokens", "US$ 0.025; não é fatura",
                          "Useful only for the opening paragraph", "Compare \\*\\*risk\\*\\*", "\\[link\\]"):
             self.assertIn(expected, history)
@@ -603,6 +603,25 @@ def parse_result(profile, stdout, stderr, returncode):
         self.profile = {**self.profile, "source_value": "invented-by-provider"}
         job = self.wait(self.submit()["id"])
         self.assertNotIn("model_reported_source", job["result"])
+
+    def test_history_names_reported_provenance_and_board_projects_it(self):
+        adapter = self.root / "fake-runtime/adapters.py"
+        adapter.write_text(FAKE_ADAPTER + '''
+def parse_result(profile, stdout, stderr, returncode):
+    result = json.loads(stdout)
+    result["model_reported"] = None
+    result["model_reported_source"] = "not_emitted_ephemeral"
+    return result
+''')
+        self.enable()
+        job = self.wait(self.submit()["id"])
+        history = self.store.history("host-a")
+        self.assertIn("Modelo informado pelo provedor: não informado (não emitido: execução efêmera, sem sessão gravada).", history)
+        self.assertIn("esforço solicitado low (não confirmado pelo provedor)", history)
+        projected = [j for j in self.store.board_jobs() if j["id"] == job["id"]][0]
+        self.assertIsNone(projected["model_reported"])
+        self.assertEqual("not_emitted_ephemeral", projected["model_reported_source"])
+        self.assertNotIn("result", projected)
 
     def test_reported_view_tolerates_old_and_malformed_records(self):
         view = self.runtime.reported_view

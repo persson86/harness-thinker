@@ -96,6 +96,24 @@ class PresentationTests(unittest.TestCase):
                                                    "effort": "high", "requested_profile": "opus"}))
         self.assertEqual(("opus", "claude · high"), (alias, model))
 
+    def test_reported_model_is_shown_only_when_it_differs_from_requested(self):
+        differs = job(model_reported="gpt-5.6-luna-2026-09", model_reported_source="stream")
+        same = job(id="1" * 8, model_reported="gpt-5.6-luna", model_reported_source="stream")
+        text = board.render(board.payload(FakeStore([differs, same]), "host-a"), width=100)
+        self.assertEqual(1, text.count("modelo reportado:"))
+        self.assertIn("modelo reportado: gpt-5.6-luna-2026-09 (solicitado: gpt-5.6-luna)", text)
+
+    def test_payload_separates_requested_reported_and_provenance(self):
+        rows = board.payload(FakeStore([job(model_reported=None, model_reported_source="not_emitted_ephemeral")]),
+                             "host-a")["jobs"]
+        self.assertEqual("gpt-5.6-luna", rows[0]["model_requested"])
+        self.assertIsNone(rows[0]["model_reported"])
+        self.assertEqual("not_emitted_ephemeral", rows[0]["model_reported_source"])
+
+    def test_effort_is_labelled_as_requested(self):
+        text = board.render(board.payload(FakeStore([job()]), "host-a"), width=100)
+        self.assertIn("Esforço exibido é o solicitado", text)
+
     def test_chain_and_retry_are_marked(self):
         self.assertEqual("review·s2/rev ↻",
                          board.task_of(job(run_id="r1", stage=2, role="reviewer", retry_of="x")))

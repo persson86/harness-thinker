@@ -242,8 +242,12 @@ def payload(store, session, all_sessions=False, limit=10, native_reports=None,
     rows = []
     for job in shown:
         alias, model = agent_of(job)
+        requested = (job.get("profile") or {}).get("model")
+        reported = job.get("model_reported") if isinstance(job.get("model_reported"), str) else None
         rows.append({"id": job.get("id"), "session": job.get("session"),
                      "agent": alias, "model": model,
+                     "model_requested": requested, "model_reported": reported,
+                     "model_reported_source": job.get("model_reported_source"),
                      "provider": (job.get("profile") or {}).get("provider"),
                      "effort": (job.get("profile") or {}).get("effort"),
                      "task_type": job.get("task_type"), "reason": clean(job.get("reason")),
@@ -488,6 +492,9 @@ def render(data, color=False, ascii_only=False, width=None):
         # Logo abaixo da própria linha: duas tentativas do mesmo agente não podem
         # disputar a mesma nota de rodapé.
         notes = [note] if note else []
+        reported = job.get("model_reported")
+        if reported and reported != job.get("model_requested"):
+            notes.append("modelo reportado: %s (solicitado: %s)" % (clean(reported), clean(job.get("model_requested") or "?")))
         if job["delivery"] == "stale":
             notes.append("a entrada mudou depois; a proposta é de versão antiga")
         lines += [style("%s↳ %s" % (" " * 8, item), "dim") for item in notes]
@@ -512,6 +519,8 @@ def render(data, color=False, ascii_only=False, width=None):
     if native.get("unknown"):
         lines.append(style("%d nativo(s) sem estado atual; consulte a UI do host." % native["unknown"], "yellow"))
     lines.append(style("Principal não monitorado; nativos exigem `native report`.", "dim"))
+    if jobs:
+        lines.append(style("Esforço exibido é o solicitado, não confirmado pelo provedor.", "dim"))
     if head["waiting"]:
         lines.append(style("Leia com `result JOB`; `ack JOB` tira da inbox.", "dim"))
 
