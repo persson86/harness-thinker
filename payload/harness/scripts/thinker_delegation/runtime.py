@@ -1132,6 +1132,18 @@ class DelegationStore:
                     reasoning = details.get("thinking_tokens") if isinstance(details, dict) else None
                 if type(reasoning) in (int, float) and 0 <= reasoning < 10 ** 12:
                     counters.append(f"raciocínio relatado: {reasoning:g} tokens")
+                # Entrada total por provedor: o Claude separa cache de `input_tokens`;
+                # no Codex `cached_input_tokens` já está dentro de `input_tokens`.
+                # Campo ausente ou inválido torna o total desconhecido, nunca zero.
+                parts = {"claude": ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"),
+                         "codex": ("input_tokens",)}.get(profile.get("provider"))
+                if parts:
+                    values = [usage.get(key) for key in parts]
+                    if all(type(v) in (int, float) and 0 <= v < 10 ** 12 for v in values):
+                        total = f"{sum(values):g} tokens"
+                    else:
+                        total = "desconhecida"
+                    counters.append(f"entrada total informada por provedor ({'+'.join(parts)}): {total}, não comparável entre provedores")
             cost = result.get("cost_estimate_usd")
             cost_text = (f"Estimativa do provedor: US$ {cost:.6g}; não é fatura" if type(cost) in (int, float) and 0 <= cost < 100000 else "Custo não informado")
             rows.extend(["Uso informado pelo provedor: " + ("; ".join(counters) if counters else "não disponível") + ". " + cost_text + ".", ""])

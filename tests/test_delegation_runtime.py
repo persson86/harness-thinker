@@ -546,6 +546,29 @@ def parse_result(profile, stdout, stderr, returncode):
         self.assertIn("Modelo informado pelo provedor: não informado", history)
         self.assertIn("Uso informado pelo provedor: não disponível. Custo não informado", history)
 
+    def test_history_totals_input_per_provider_and_never_turns_missing_into_zero(self):
+        self.enable()
+        job = self.wait(self.submit()["id"])
+        path = self.state / "jobs" / job["id"] / "job.json"
+        value = json.loads(path.read_text())
+        # Formas sanitizadas de usage reais: Claude separa o cache, Codex o inclui.
+        value["profile"]["provider"] = "claude"
+        value["result"]["usage"] = {"input_tokens": 2, "cache_creation_input_tokens": 17630,
+                                    "cache_read_input_tokens": 0, "output_tokens": 1173}
+        path.write_text(json.dumps(value))
+        history = self.store.history("host-a")
+        self.assertIn("entrada total informada por provedor (input_tokens+cache_creation_input_tokens+cache_read_input_tokens): 17632 tokens, não comparável entre provedores", history)
+        del value["result"]["usage"]["cache_read_input_tokens"]
+        path.write_text(json.dumps(value))
+        self.assertIn("cache_read_input_tokens): desconhecida", self.store.history("host-a"))
+        value["profile"]["provider"] = "codex"
+        value["result"]["usage"] = {"input_tokens": 67830, "cached_input_tokens": 2560, "output_tokens": 2277}
+        path.write_text(json.dumps(value))
+        self.assertIn("entrada total informada por provedor (input_tokens): 67830 tokens", self.store.history("host-a"))
+        value["profile"]["provider"] = "grok"
+        path.write_text(json.dumps(value))
+        self.assertNotIn("entrada total informada", self.store.history("host-a"))
+
     def test_history_reports_reasoning_counter_from_codex_and_claude_usage_shapes(self):
         self.enable()
         job = self.wait(self.submit()["id"])
