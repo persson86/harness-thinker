@@ -33,6 +33,9 @@ RUN_FEEDBACK = {"accepted", "needs_changes", "rejected", "unknown"}
 RUN_KINDS = {"chain", "principal-eval"}
 RUN_ROLES = {"author", "reviewer", "synthesizer"}
 HANDOFF_MODES = {"full", "delta", "synthesis"}
+# Proveniência do modelo reportado. Não confundir com `model_source`, que é a
+# origem da *escolha* do modelo (explicit/session/default/override).
+REPORTED_SOURCES = {"stream", "not_emitted", "not_emitted_ephemeral"}
 MAX_CALL_CAP = 64
 DEFAULT_SESSION_CALL_CAP = 6
 DEFAULT_PROVIDER_CALL_CAP = 4
@@ -190,6 +193,24 @@ def _read(path, default=None):
     if not isinstance(value, dict):
         raise DelegationError("Malformed delegation state; expected an object")
     return value
+
+
+
+def reported_view(job):
+    """Modelo reportado e sua proveniência, validados para exibição.
+
+    Registros antigos não têm `model_reported_source`, e resultado malformado
+    não derruba a leitura: ausente fica None, nunca um valor inferido."""
+    result = job.get("result") if isinstance(job, dict) else None
+    if not isinstance(result, dict):
+        return None, None
+    model = result.get("model_reported")
+    if not isinstance(model, str) or not model.strip() or len(model) > 128:
+        model = None
+    source = result.get("model_reported_source")
+    if source not in REPORTED_SOURCES:
+        source = None
+    return model, source
 
 
 class DelegationStore:
@@ -1331,6 +1352,8 @@ def _work_owned(store, identifier, directory):
         normalized = {"text": result["text"], "model_reported": result.get("model_reported"),
                       "usage": result.get("usage"), "session_id": result.get("session_id"),
                       "limitations": result.get("limitations", [])}
+        if result.get("model_reported_source") in REPORTED_SOURCES:
+            normalized["model_reported_source"] = result["model_reported_source"]
         cost = result.get("cost_estimate_usd")
         if type(cost) in (int, float) and 0 <= cost < 100000:
             normalized["cost_estimate_usd"] = cost

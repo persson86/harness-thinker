@@ -587,6 +587,33 @@ def parse_result(profile, stdout, stderr, returncode):
         path.write_text(json.dumps(value))
         self.assertNotIn("Esquema do stream", self.store.history("host-a"))
 
+    def test_reported_source_survives_normalization_only_when_known(self):
+        adapter = self.root / "fake-runtime/adapters.py"
+        adapter.write_text(FAKE_ADAPTER + '''
+def parse_result(profile, stdout, stderr, returncode):
+    result = json.loads(stdout)
+    result["model_reported"] = None
+    result["model_reported_source"] = profile.get("source_value")
+    return result
+''')
+        self.enable()
+        self.profile = {**self.profile, "source_value": "not_emitted_ephemeral"}
+        job = self.wait(self.submit()["id"])
+        self.assertEqual("not_emitted_ephemeral", job["result"]["model_reported_source"])
+        self.profile = {**self.profile, "source_value": "invented-by-provider"}
+        job = self.wait(self.submit()["id"])
+        self.assertNotIn("model_reported_source", job["result"])
+
+    def test_reported_view_tolerates_old_and_malformed_records(self):
+        view = self.runtime.reported_view
+        self.assertEqual((None, None), view({}))
+        self.assertEqual((None, None), view({"result": "not-a-dict"}))
+        self.assertEqual(("gpt-x", None), view({"result": {"model_reported": "gpt-x"}}))
+        self.assertEqual((None, None), view({"result": {"model_reported": 7, "model_reported_source": "made-up"}}))
+        self.assertEqual((None, None), view({"result": {"model_reported": "x" * 129}}))
+        self.assertEqual((None, "not_emitted_ephemeral"),
+                         view({"result": {"model_reported": None, "model_reported_source": "not_emitted_ephemeral"}}))
+
     def test_malformed_config_fails_closed_but_status_is_readable(self):
         self.enable()
         (self.state / "config.json").write_text("broken")
