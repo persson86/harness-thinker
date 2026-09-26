@@ -114,6 +114,22 @@ class PresentationTests(unittest.TestCase):
         text = board.render(board.payload(FakeStore([job()]), "host-a"), width=100)
         self.assertIn("Esforço exibido é o solicitado", text)
 
+    def test_native_rows_show_declared_effort_and_time_since_first_report(self):
+        reports = [{"id": "n1", "session": "host-a", "model": "fable", "task": "review",
+                    "state": "running", "effort": "high", "created_at": moment(minutes=3),
+                    "updated_at": moment(seconds=10)},
+                   {"id": "n2", "session": "host-a", "model": "opus", "task": "old",
+                    "state": "completed", "effort": "unknown", "created_at": None,
+                    "updated_at": moment(seconds=20)}]
+        lines = board.render_native(reports, board.Style(False), 100, False)
+        self.assertIn("DESDE 1º", lines[2])
+        self.assertIn("fable · high", lines[3])
+        self.assertIn("3m0", lines[3])
+        self.assertNotIn("·", lines[4].split("  ")[0])
+        self.assertTrue(lines[4].rstrip().endswith("?"))
+        for line in lines:
+            self.assertLessEqual(board.visible_len(line), 100)
+
     def test_chain_and_retry_are_marked(self):
         self.assertEqual("review·s2/rev ↻",
                          board.task_of(job(run_id="r1", stage=2, role="reviewer", retry_of="x")))

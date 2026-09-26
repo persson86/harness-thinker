@@ -11,6 +11,9 @@ import re
 from .runtime import DelegationError, _atomic, _identifier, _read
 
 STATES = {"running", "completed", "failed", "cancelled"}
+# Esforço declarado pelo host; `unknown` quando ele não informa. É declaração,
+# não confirmação de que o provedor aplicou esse esforço.
+EFFORTS = {"low", "medium", "high", "xhigh", "max", "ultra", "unknown"}
 MAX_AGE_SECONDS = 15 * 60
 
 
@@ -36,20 +39,33 @@ def _load(store):
     return value
 
 
-def report(store, session, identifier, model, state, task):
+def report(store, session, identifier, model, state, task, effort=None):
     """Registra um estado declarado pelo host; nenhum processo e tocado."""
     session, identifier = _identifier(session), _id(identifier)
     model, task = _text(model, "model", 128), _text(task, "task", 256)
     if state not in STATES:
         raise DelegationError("Native state must be running, completed, failed, or cancelled")
+    effort = "unknown" if effort is None else effort
+    if effort not in EFFORTS:
+        raise DelegationError("Native effort must be one of: " + ", ".join(sorted(EFFORTS)))
     with store._lock():
         value = _load(store)
         key = session + "\u0000" + identifier
         previous = value["reports"].get(key, {})
         now = dt.datetime.now(dt.timezone.utc).isoformat()
+        created, updated = previous.get("created_at", now), now
+        if previous.get("state") in STATES - {"running"}:
+            if state == "running":
+                # Mesmo ID de novo em execução depois de terminal: reabre o
+                # registro no lugar. A chave é sessão+id; um registro novo
+                # exigiria outro schema do native.json.
+                created = now
+            elif state == previous.get("state"):
+                # Terminal repetido não reescreve quando terminou.
+                updated = previous.get("updated_at", now)
         value["reports"][key] = {"id": identifier, "session": session, "model": model,
-                                 "task": task, "state": state, "reported": True,
-                                 "created_at": previous.get("created_at", now), "updated_at": now}
+                                 "task": task, "state": state, "effort": effort, "reported": True,
+                                 "created_at": created, "updated_at": updated}
         _atomic(store.state / "native.json", value)
     return value["reports"][key]
 
@@ -84,6 +100,11 @@ def snapshot(store, session=None, all_sessions=False, stale_after=MAX_AGE_SECOND
                 raise DelegationError("Malformed native delegation report") from None
             if not isinstance(record["state"], str) or record["state"] not in STATES or record["reported"] is not True:
                 raise DelegationError("Malformed native delegation report")
+            # Campos opcionais: registros anteriores à 7.22.0 não os têm.
+            record["effort"] = item.get("effort", "unknown")
+            if record["effort"] not in EFFORTS:
+                raise DelegationError("Malformed native delegation report")
+            record["created_at"] = item.get("created_at") if _when(item.get("created_at")) else None
             if not all_sessions and record["session"] != session:
                 continue
             observed = _when(record["updated_at"])

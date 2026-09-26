@@ -390,23 +390,32 @@ def render_native(reports, style, width, show_session):
     # +8 reserva o piso da própria TAREFA: sem isso a coluna SESSÃO podia
     # "ganhar" espaço que o floor de TAREFA reivindica depois, estourando a
     # linha (visto no teste com largura 80).
-    session_w = _session_width(width, 26 + 19 + 10 + 8) if show_session else 0
-    task_width = max(8, width - 26 - 19 - 10 - session_w)
-    header = pad("MODELO NATIVO", 26) + pad("TAREFA", task_width)
+    fixed = 19 + 12 + 8  # ESTADO, REPORTE HÁ, DESDE 1º
+    session_w = _session_width(width, 26 + fixed + 8) if show_session else 0
+    # MODELO encolhe antes de TAREFA cair abaixo do piso de 8; a linha não pode estourar.
+    model_w = max(16, min(26, width - fixed - session_w - 8))
+    task_width = max(8, width - model_w - fixed - session_w)
+    header = pad("MODELO NATIVO", model_w) + pad("TAREFA", task_width)
     if show_session:
         header += pad("SESSÃO", session_w)
+    # "DESDE 1º" é o tempo desde o primeiro reporte, não a duração do trabalho:
+    # nativos são metadado declarado, sem telemetria de processo.
     lines = ["", style("NATIVOS · estado reportado pelo host", "bold"),
-             style(header + pad("ESTADO", 19) + "REPORTE HÁ", "dim")]
+             style(header + pad("ESTADO", 19) + pad("REPORTE HÁ", 12) + "DESDE 1º", "dim")]
     now = dt.datetime.now(dt.timezone.utc)
     for report in reports:
         state = report["state"]
         symbol, label, tint = EXECUTION.get(state, ("?", "desconhecido", "yellow"))
         observed = _parse(report.get("updated_at"))
         age = max(0, (now - observed).total_seconds()) if observed else None
-        row = pad(clip(report.get("model"), 25), 26) + pad(clip(report.get("task"), task_width - 1), task_width)
+        first = _parse(report.get("created_at"))
+        since = max(0, (now - first).total_seconds()) if first else None
+        effort = report.get("effort")
+        model = report.get("model") if effort in (None, "unknown") else "%s · %s" % (report.get("model"), effort)
+        row = pad(clip(model, model_w - 1), model_w) + pad(clip(report.get("task"), task_width - 1), task_width)
         if show_session:
             row += pad(clip(report.get("session"), session_w - 1), session_w)
-        row += pad(style(symbol + " " + label, tint), 19) + clock(age)
+        row += pad(style(symbol + " " + label, tint), 19) + pad(clock(age), 12) + (clock(since) if first else "?")
         lines.append(row)
     return lines
 

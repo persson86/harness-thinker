@@ -36,6 +36,8 @@ def parser():
     natives.add_argument("--model", required=True)
     natives.add_argument("--state", choices=sorted(native.STATES), required=True)
     natives.add_argument("--task", required=True)
+    natives.add_argument("--effort", choices=sorted(native.EFFORTS),
+                         help="Esforço declarado pelo host; ausente vira unknown")
     context = sub.add_parser("session-context", help="Declarar o principal atual, sem inferir identidade")
     context.add_argument("--provider", choices=["codex", "claude", "grok"], required=True)
     context.add_argument("--model", required=True)
@@ -376,7 +378,8 @@ def dispatch(store, args):
         result["jobs"] = [public_job(j) for j in store.list_jobs(args.session)] if store.state.exists() else []
         return result
     if command == "native":
-        return native.report(store, enabled(store, args), args.id, args.model, args.state, args.task)
+        return native.report(store, enabled(store, args), args.id, args.model, args.state, args.task,
+                             effort=args.effort)
     if command == "session-context":
         sid = enabled(store, args)
         host = routing.principal(args.provider, args.model, args.effort)
