@@ -130,6 +130,14 @@ the link, the index or the log, and the turn closes.
 
 Triggered in natural language or via `/command` (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **REVIEW**, **AGENDA** (Gmail pessoal + Calendar do Mac profissional), **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MODEL-EVAL**, **MEMORY** (Claude-only; Grok Build recusa), **DREAM**, **REVERIE**.
 
+## 7.22.0 — Trustworthy delegation data and hub-page shape
+
+The board and history now say where a model identity came from — reported in the stream, not emitted, or not emitted because the Codex run is ephemeral — instead of leaving it blank, and they label effort as requested, never applied. Native reports accept a declared effort and show time since the first report. `board --compact` fits a narrow side pane without cutting the model or the effort. Unrated deliveries are counted and the feedback command is suggested; silence still means unknown.
+
+Delegation accepts validated `.json` context, keeps refusing hidden files with an actionable message, prints a capturable run id with `run start --print-id`, and adds a Haiku profile with no recommended route yet.
+
+`contract.md` defines hub pages and their shape; TRANSCRIPT follows the same rule as INGEST. `thresholds` warns — without blocking — about large current hubs, long summaries and log entries out of order.
+
 ## 7.21.0 — Quieter agenda gate and listen-first transcript review
 
 The agenda gate no longer treats a subagent report, hand-back or task notification as a user prompt: those neither mark nor reset the turn, so a real agenda question still in progress keeps its requirement. "Next meeting" only triggers as a question or request; bare `calendar` and `disponibilidade` gave way to personal forms (`meu calendário`, `my calendar`, `minha disponibilidade`).

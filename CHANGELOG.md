@@ -1,5 +1,26 @@
 # Changes
 
+## 7.22.0 - 2026-09-26
+
+Trustworthy delegation data before the October 3 decision gate, less friction, and the playbook gap that let hub pages grow.
+
+- **Reported-model provenance.** Job results carry `model_reported_source` (`stream`, `not_emitted`, `not_emitted_ephemeral`), validated by `reported_view()`; old or malformed records read as absent, never as an inferred value. The name avoids colliding with `model_source`, which is the origin of the *choice* of model. Codex jobs record `not_emitted_ephemeral`: the command runs with `--ephemeral`, so no session file exists to consult, and configuration would not prove the served model.
+- **Board and history.** The board projection adds `model_reported` and its provenance without exposing `result`; a note appears only when the reported model differs from the requested one, and a footer states that the shown effort is requested, not confirmed. `history` labels effort as requested, names the provenance and adds a per-provider "total input" (Claude: input + both cache fields; Codex: `input_tokens`), shown as unknown when a field is missing and never compared across providers. `run show` keeps its `usage_note`.
+- **Native reports.** `native report --effort` (`low`…`ultra`, `unknown` by default). `snapshot()` exposes `effort` and `created_at`, tolerating records written before 7.22.0. Reusing an id in `running` after a terminal state reopens the record in place; a repeated terminal report keeps its original time. The board shows the declared effort and a "DESDE 1º" column — time since the first report, not work duration.
+- **`board --compact`.** Several lines per agent for a narrow side pane: the full model and effort wrap instead of being cut; the reason is the only field abbreviated. Lines are built as plain text, wrapped at spaces when possible and colored last, so no escape fragments leak. Works with `--watch`, `--all-sessions` and `--ascii`.
+- **Unrated deliveries.** The board counts completed, valid deliveries without feedback across the full scope and suggests the `feedback` command; `ack` prints the same hint without recording an evaluation.
+- **`.json` context.** Accepted after `json.loads` on the same bounded bytes already read (no reopen), with a depth limit of 64 checked iteratively. Hidden, secret/config (`vault.config.json` stays refused), symlink and traversal refusals are unchanged. The hidden-file refusal is kept and now names the suffix too and points to copying only the needed excerpt into `drafts/` as `.txt`.
+- **`run start --print-id`** prints only the full run UUID for scripts; it is mutually exclusive with `--json`.
+- **Haiku profile** (`claude`, `low`), with no recommended route while access and effort remain unverified.
+- **Hub pages.** `contract.md` defines a hub page, its shape and frozen `*-historico-*` snapshots; a "recent movement" line leaves only when it no longer changes a current decision, never by age alone. TRANSCRIPT step 5 now applies the shape rule that INGEST already had.
+- **Form warnings in `thresholds`.** A separate section, which does not change the exit code, lists current hub pages above 40 KB, `summary` values above 600 characters and `log.md` entries out of descending date order (listed, never reordered). LINT cites them.
+
+- **Board fixes found in review.** `clock()` switches to days above 24 hours; native columns were narrowed so the pasteable session id fits whole at 100 columns again; `--compact --ascii` converts before measuring; `wrap()` always advances.
+
+**Rollback to 7.21.0** reads 7.22.0 state: extra job and native fields are ignored. One visible effect: 7.21.0 refuses `.json` context, so a job submitted with a `.json` file shows as stale there, and `accept` records `accepted_stale`. State is not corrupted.
+
+Deferred to 7.23.0 with their own design: parallel run stages, early Grok refusal without spawning the CLI, and tag publication through the Git helper.
+
 ## 7.20.1 - 2026-09-19
 
 - `board --all-sessions` shows the full session id instead of an 8-char prefix, so it can be copied straight into `--session`. The SESSÃO column now competes for width on equal footing with the progress bar and other columns — it degrades from the full id down to a shortened, ellipsis-clipped one only when the terminal is too narrow, and always fits without breaking row alignment.
