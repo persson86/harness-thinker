@@ -316,6 +316,18 @@ run python3 -B -m unittest discover -s "$REPO/tests" -p 'test_knowledge_*.py'
 assert_rc "revisão de conhecimento e busca" 0
 [ "$RC" -ne 0 ] || printf '%s\n' "$OUT" | tail -4
 
+# ------------------------------------------------- páginas-hub (7.22.0, C1)
+# Teste de documentação, não de comportamento do modelo: confere que a regra
+# de forma está ligada do playbook de transcrição ao contrato.
+run grep -q 'Movimento recente' "$REPO/payload/harness/operations/transcript.md"
+assert_rc "transcript.md aplica a forma de página-hub" 0
+run grep -q '^## Paginas-hub' "$REPO/payload/harness/contract.md"
+assert_rc "contract.md define página-hub" 0
+run grep -q 'congelado' "$REPO/payload/harness/contract.md"
+assert_rc "contract.md declara snapshot histórico congelado" 0
+run grep -q 'Nunca sai apenas por ter completado um prazo' "$REPO/payload/harness/contract.md"
+assert_rc "contract.md não arquiva pendência por idade" 0
+
 # ----------------------------------------------------------------
 echo
 echo "resultado: $PASS ok, $FAIL falha(s)"

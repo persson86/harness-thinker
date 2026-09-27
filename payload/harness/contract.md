@@ -69,6 +69,17 @@ superseded_by: slug-existente
 
 Quando houver correcao do usuario, nova evidencia ou mudanca de decisao, seguir `harness/operations/review.md`: localizar registros e dependencias candidatas, revisar corpo e resumo sob a mesma autorizacao aplicavel a escrita e preservar a cronologia. Nao apagar fontes originais nem reescrever entradas antigas do log.
 
+## Paginas-hub
+
+Pagina-hub e uma pagina `entity` ou `concept` que concentra o estado vivo de uma pessoa, projeto ou papel e recebe deltas recorrentes de sources (transcricoes, ingestoes). A forma dela serve a leitura do estado atual:
+
+- abertura curta com estado vigente datado, decisoes, pendencias e limites, como pede `ingest.md` (passo 7);
+- "Movimento recente" com uma linha datada por delta, com ponteiro para a source; o detalhe fica na source;
+- uma linha so sai do "Movimento recente" quando nao altera mais decisao, restricao ou interpretacao atual. Nunca sai apenas por ter completado um prazo, e pendencia vigente permanece;
+- nenhuma secao datada nova empilhada no topo.
+
+Snapshot `<slug>-historico-<periodo>` com `knowledge_status: historical` e **congelado**: preserva o recorte e nao recebe novos deltas. Se for preciso um arquivo historico que continue recebendo registros, e outra pagina, declarada como tal no proprio texto.
+
 ## Conversa e conhecimento duravel
 
 Identificar pelo pedido se o momento e explorar, confrontar, decidir ou executar; nao exigir que o usuario escolha um modo a cada turno. Explorar admite hipoteses, humor e conexoes inesperadas. A critica acompanha a maturidade da ideia e o risco da decisao. Nao fabricar objecoes para parecer independente, nem tratar provocacao como insatisfacao sem fundamento.
