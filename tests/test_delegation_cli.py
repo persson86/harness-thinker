@@ -277,6 +277,21 @@ class CLITests(unittest.TestCase):
         self.assertIn("unknown", history)
         self.assertNotIn("CLI-brief-marker", history)
 
+    def test_run_start_print_id_emits_only_the_full_uuid_and_excludes_json(self):
+        self.enable()
+        result = self.command("run", "start", "--kind", "chain", "--objective", "Capture id",
+                              "--print-id", json_output=False)
+        self.assertEqual(0, result.returncode, result.stderr)
+        lines = result.stdout.splitlines()
+        self.assertEqual(1, len(lines))
+        self.assertRegex(lines[0], r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+        refused = self.command("run", "start", "--kind", "chain", "--objective", "Both", "--print-id")
+        self.assertEqual(2, refused.returncode)
+        self.assertIn("exclusivos", refused.stderr)
+        self.assertEqual("", refused.stdout)
+        plain = self.cli("run", "start", "--kind", "chain", "--objective", "Json only")
+        self.assertIn("id", plain)
+
     def test_ack_removes_inbox_item_without_implying_usefulness(self):
         self.enable()
         job = self.completed(self.submit())

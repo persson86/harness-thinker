@@ -130,6 +130,8 @@ def parser():
     start.add_argument("--principal-provider", choices=["codex", "claude", "grok"])
     start.add_argument("--principal-model")
     start.add_argument("--principal-effort", choices=sorted(adapters.EFFORTS))
+    start.add_argument("--print-id", action="store_true",
+                       help="Imprime só o UUID completo do run, para capturar em script; exclusivo com --json")
     show = run_commands.add_parser("show", help="Mostrar estado consolidado do run")
     show.add_argument("run")
     quota = run_commands.add_parser("quota", help="Registrar snapshot manual da quota da conta")
@@ -493,6 +495,8 @@ def dispatch(store, args):
     if command == "run":
         sid = session(args)
         if args.run_command == "start":
+            if args.print_id and args.json:
+                raise DelegationError("--print-id e --json são exclusivos: escolha um formato de saída.")
             enabled(store, args)
             supplied = [args.principal_provider, args.principal_model, args.principal_effort]
             if any(value is not None for value in supplied) and not all(value is not None for value in supplied):
@@ -659,6 +663,9 @@ def main(argv=None):
                                recent_seconds=args.recent_seconds, history=args.history,
                                compact=args.compact)
         value = dispatch(store, args)
+        if getattr(args, "print_id", False):
+            print(value["id"])
+            return 0
         print(json.dumps(value, ensure_ascii=False, indent=2) if args.json else render(value))
         return 0
     except (DelegationError, adapters.AdapterError, PublicationError, OSError, ValueError) as error:
