@@ -208,8 +208,11 @@ class CLITests(unittest.TestCase):
         self.assertEqual(("claude", "fable", "high"),
                          (route["provider"], route["model"], route["effort"]))
         report = self.cli("doctor", "--all-profiles", session=None)
-        self.assertEqual({"astra", "fable", "grok", "luna", "opus", "sol", "sonnet", "terra"},
+        self.assertEqual({"astra", "fable", "grok", "haiku", "luna", "opus", "sol", "sonnet", "terra"},
                          {item["profile"] for item in report["providers"]})
+        haiku = self.cli("route", "--model", "haiku")
+        self.assertEqual(("claude", "haiku", "low"), (haiku["provider"], haiku["model"], haiku["effort"]))
+        self.assertNotIn("haiku", self.cli("status")["defaults"].values())
         for item in report["providers"]:
             if item["ready"]:
                 self.assertEqual("not_tested", item["model_access"])

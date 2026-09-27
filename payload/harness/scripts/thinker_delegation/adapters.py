@@ -21,6 +21,9 @@ PROFILES = {
     "astra": ("codex", "gpt-6-astra", "high"),
     "sonnet": ("claude", "sonnet", "medium"),
     "fable": ("claude", "fable", "high"),
+    # Haiku: perfil disponível, sem rota recomendada enquanto acesso e esforço
+    # não forem verificados; o probe declara model_access: not_tested.
+    "haiku": ("claude", "haiku", "low"),
     "opus": ("claude", "opus", "high"),
     "grok": ("grok", "grok-4.6", "high"),
 }
