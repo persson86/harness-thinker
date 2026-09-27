@@ -469,14 +469,49 @@ def parse_result(profile, stdout, stderr, returncode):
     def test_rejects_traversal_symlinks_secret_paths_binary_and_oversize(self):
         self.enable()
         (self.vault / "secret.md").write_text("credential")
-        (self.vault / "data.json").write_text("{}")
+        # data.json deixou de ser recusa na 7.22.0; .yaml e JSON inválido seguem recusados.
+        (self.vault / "data.yaml").write_text("a: 1")
+        (self.vault / "broken.json").write_text("{not json")
         (self.vault / "large.md").write_bytes(b"x" * (self.runtime.MAX_INPUT + 1))
         (self.vault / "binary.md").write_bytes(b"abc\x00")
         (self.vault / "link.md").symlink_to(self.vault / "drafts/live.md")
-        for path in ("../outside.md", "secret.md", "data.json", "large.md", "binary.md", "link.md"):
+        for path in ("../outside.md", "secret.md", "data.yaml", "broken.json", "large.md", "binary.md", "link.md"):
             with self.subTest(path=path), self.assertRaises(self.runtime.DelegationError):
                 self.store.submit("host-a", self.profile, "review", [path])
         self.assertEqual([], self.store.list_jobs())
+
+    def test_json_context_is_accepted_only_when_valid_bounded_and_not_secret(self):
+        self.enable()
+        (self.vault / "drafts/input.json").write_text(json.dumps({"items": [1, 2, {"a": "b"}]}))
+        (self.vault / "drafts/deep.json").write_text("[" * 70 + "]" * 70)
+        (self.vault / "drafts/very-deep.json").write_text("[" * 100000 + "]" * 100000)
+        (self.vault / "drafts/latin.json").write_bytes(b'{"a": "\xe9"}')
+        (self.vault / "drafts/token.json").write_text("{}")
+        (self.vault / "vault.config.json").write_text("{}")
+        (self.vault / "drafts/big.json").write_text('"' + "x" * self.runtime.MAX_INPUT + '"')
+        (self.vault / "real").mkdir()
+        (self.vault / "real/ok.json").write_text("{}")
+        (self.vault / "alias").symlink_to(self.vault / "real")
+        self.assertEqual("drafts/input.json", self.store._source("drafts/input.json")["path"])
+        for path in ("drafts/deep.json", "drafts/very-deep.json", "drafts/latin.json", "drafts/token.json",
+                     "vault.config.json", "drafts/big.json", "alias/ok.json"):
+            with self.subTest(path=path), self.assertRaises(self.runtime.DelegationError):
+                self.store._source(path)
+
+    def test_hidden_refusal_is_kept_and_explains_both_reasons(self):
+        self.enable()
+        (self.vault / ".claude").mkdir()
+        (self.vault / ".claude/build-index.py").write_text("print(1)")
+        (self.vault / ".notes.md").write_text("x")
+        with self.assertRaises(self.runtime.DelegationError) as caught:
+            self.store._source(".claude/build-index.py")
+        message = str(caught.exception)
+        self.assertIn("Hidden files cannot be delegated", message)
+        self.assertIn(".md, .txt or .json", message)
+        self.assertIn("drafts/", message)
+        with self.assertRaises(self.runtime.DelegationError) as caught:
+            self.store._source(".notes.md")
+        self.assertNotIn(".md, .txt or .json", str(caught.exception))
 
     def test_history_keeps_feedback_unknown_and_omits_task_and_raw_content(self):
         self.enable()

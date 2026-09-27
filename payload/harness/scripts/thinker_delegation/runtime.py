@@ -28,6 +28,10 @@ ACTIVE = {"queued", "running"}
 MAX_INPUT = 256 * 1024
 MAX_OUTPUT = 2 * 1024 * 1024
 MAX_FILES = 24
+CONTEXT_SUFFIXES = {".md", ".txt", ".json"}
+MAX_JSON_DEPTH = 64
+COPY_HINT = (" Copie para drafts/ só o trecho necessário, como .txt, "
+             "conferindo antes que não há segredo.")
 FEEDBACK = {"useful", "not_useful", "unknown"}
 RUN_FEEDBACK = {"accepted", "needs_changes", "rejected", "unknown"}
 RUN_KINDS = {"chain", "principal-eval"}
@@ -194,6 +198,19 @@ def _read(path, default=None):
         raise DelegationError("Malformed delegation state; expected an object")
     return value
 
+
+
+def _json_depth(value):
+    """Profundidade iterativa; acima do limite vira ValueError, nunca recursão."""
+    stack = [(value, 1)]
+    while stack:
+        item, depth = stack.pop()
+        if depth > MAX_JSON_DEPTH:
+            raise ValueError("JSON too deep")
+        if isinstance(item, dict):
+            stack.extend((child, depth + 1) for child in item.values())
+        elif isinstance(item, list):
+            stack.extend((child, depth + 1) for child in item)
 
 
 def reported_view(job):
@@ -447,10 +464,15 @@ class DelegationStore:
             relative = path.relative_to(self.vault)
         except ValueError:
             raise DelegationError("Context must be inside the vault") from None
+        suffix_ok = path.suffix.lower() in CONTEXT_SUFFIXES
         if not relative.parts or any(part.startswith(".") for part in relative.parts):
-            raise DelegationError("Hidden files cannot be delegated")
-        if path.suffix.lower() not in {".md", ".txt"}:
-            raise DelegationError("Context must be UTF-8 Markdown or text")
+            # A recusa de oculto protege .env, .git e .claude/settings*; não relaxa.
+            # A mensagem cobre também o sufixo, para a cópia não ser recusada de novo.
+            raise DelegationError("Hidden files cannot be delegated"
+                                  + ("" if suffix_ok else "; only .md, .txt or .json are accepted")
+                                  + "." + COPY_HINT)
+        if not suffix_ok:
+            raise DelegationError("Context must be UTF-8 Markdown, text or JSON." + COPY_HINT)
         if any(re.search(r"(?i)(secret|credential|password|token|api[-_]?key|config)", part) for part in relative.parts):
             raise DelegationError("Secret or configuration paths cannot be delegated")
         probe = self.vault
@@ -482,6 +504,13 @@ class DelegationStore:
                 os.close(directory_fd)
         if "\x00" in content:
             raise DelegationError("Binary context is forbidden")
+        if path.suffix.lower() == ".json":
+            # Valida os mesmos bytes já lidos e limitados, sem reabrir o caminho.
+            # JSON válido não certifica ausência de segredo.
+            try:
+                _json_depth(json.loads(content))
+            except (ValueError, RecursionError):
+                raise DelegationError("JSON context must be valid and at most %d levels deep" % MAX_JSON_DEPTH) from None
         return {"path": relative.as_posix(), "sha256": _digest(data), "text": content}
 
     def _snapshot(self, context_paths):
