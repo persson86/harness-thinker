@@ -199,10 +199,12 @@ class PresentationTests(unittest.TestCase):
         long = "claude-" + "x" * 60
         data = board.payload(FakeStore([job(model_reported=long, model_reported_source="stream")]), "host-a")
         # O título da tabela normal já passava de 60 colunas na 7.21.0; aqui só a nota importa.
-        for width in (60, 80):
-            notes = [line for line in board.render(data, width=width).splitlines() if "modelo reportado" in line]
-            self.assertEqual(1, len(notes))
-            self.assertLessEqual(board.visible_len(notes[0]), width, (width, notes[0]))
+        for width in (60, 80, 100):
+            for ascii_only in (False, True):
+                notes = [line for line in board.render(data, width=width, ascii_only=ascii_only).splitlines()
+                         if "modelo reportado" in line]
+                self.assertEqual(1, len(notes))
+                self.assertLessEqual(board.visible_len(notes[0]), width, (width, ascii_only, notes[0]))
 
     def test_chain_and_retry_are_marked(self):
         self.assertEqual("review·s2/rev ↻",

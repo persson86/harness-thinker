@@ -625,7 +625,9 @@ def render(data, color=False, ascii_only=False, width=None, compact=False):
             notes.append("modelo reportado: %s (solicitado: %s)" % (clean(reported), clean(job.get("model_requested") or "?")))
         if job["delivery"] == "stale":
             notes.append("a entrada mudou depois; a proposta é de versão antiga")
-        lines += [style("%s↳ %s" % (" " * 8, clip(item, max(8, width - 10))), "dim") for item in notes]
+        # 8 de recuo + "↳ " + texto; em --ascii, "↳ " e "…" crescem 2 colunas cada
+        # depois de medir, então o texto fica em width-14.
+        lines += [style("%s↳ %s" % (" " * 8, clip(item, max(8, width - 14))), "dim") for item in notes]
 
     lines += render_native(native_visible, style, width, show_session)
     lines += _footer(head, native, jobs, style)
