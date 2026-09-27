@@ -229,6 +229,8 @@ def parse_result(profile, stdout, stderr, returncode):
         result["session_id"] = data.get("session_id") or data.get("sessionId")
         result["model_reported"] = data.get("model")
         result["usage"] = data.get("usage")
+    if not isinstance(result["model_reported"], str) or not result["model_reported"].strip():
+        result["model_reported"] = None
     if result["model_reported"]:
         result["model_reported_source"] = "stream"
     elif provider == "codex":

@@ -688,6 +688,7 @@ def parse_result(profile, stdout, stderr, returncode):
         self.assertEqual(("gpt-x", None), view({"result": {"model_reported": "gpt-x"}}))
         self.assertEqual((None, None), view({"result": {"model_reported": 7, "model_reported_source": "made-up"}}))
         self.assertEqual((None, None), view({"result": {"model_reported": "x" * 129}}))
+        self.assertEqual((None, None), view({"result": {"model_reported": {"id": 1}, "model_reported_source": "stream"}}))
         self.assertEqual((None, "not_emitted_ephemeral"),
                          view({"result": {"model_reported": None, "model_reported_source": "not_emitted_ephemeral"}}))
 

@@ -160,6 +160,10 @@ class PresentationTests(unittest.TestCase):
 
     def test_compact_ascii_and_default_render_are_unchanged(self):
         data = self.compact_data()
+        for width in (40, 60, 80):
+            text = board.render(data, ascii_only=True, width=width, compact=True)
+            for line in text.splitlines():
+                self.assertLessEqual(board.visible_len(line), width, (width, line))
         ascii_text = board.render(data, ascii_only=True, width=40, compact=True)
         self.assertTrue(all(ord(c) < 128 or c.isalpha() for c in ascii_text),
                         [c for c in ascii_text if ord(c) >= 128 and not c.isalpha()])
@@ -174,6 +178,31 @@ class PresentationTests(unittest.TestCase):
         self.assertEqual(4, data["board"]["unrated"])
         self.assertLess(data["board"]["shown"], 4)
         self.assertIn("4 entrega(s) sem avaliação", board.render(data, width=120))
+
+    def test_wrap_always_advances_even_when_a_wide_glyph_does_not_fit(self):
+        self.assertEqual(["日", "本"], board.wrap("日本", 1))
+        self.assertEqual(["  a", "  b"], board.wrap("a b", 3, "  "))
+
+    def test_clock_switches_to_days_so_old_native_reports_fit(self):
+        self.assertEqual("7d00h", board.clock(7 * 86400))
+        self.assertEqual("1439m59s", board.clock(86399))
+        reports = [{"id": "n1", "session": "5f346382-c9ea-4fbd-b1cb-dcb083d050e1", "model": "fable",
+                    "task": "review", "state": "running", "effort": "high",
+                    "created_at": moment(days=8), "updated_at": moment(seconds=5)}]
+        for width in (80, 100, 120):
+            for line in board.render_native(reports, board.Style(False), width, True):
+                self.assertLessEqual(board.visible_len(line), width, (width, line))
+        wide = board.render_native(reports, board.Style(False), 100, True)
+        self.assertIn("5f346382-c9ea-4fbd-b1cb-dcb083d050e1", wide[3])
+
+    def test_reported_model_note_is_clipped_to_the_width(self):
+        long = "claude-" + "x" * 60
+        data = board.payload(FakeStore([job(model_reported=long, model_reported_source="stream")]), "host-a")
+        # O título da tabela normal já passava de 60 colunas na 7.21.0; aqui só a nota importa.
+        for width in (60, 80):
+            notes = [line for line in board.render(data, width=width).splitlines() if "modelo reportado" in line]
+            self.assertEqual(1, len(notes))
+            self.assertLessEqual(board.visible_len(notes[0]), width, (width, notes[0]))
 
     def test_chain_and_retry_are_marked(self):
         self.assertEqual("review·s2/rev ↻",

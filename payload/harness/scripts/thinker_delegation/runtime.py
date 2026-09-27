@@ -225,7 +225,8 @@ def reported_view(job):
     if not isinstance(model, str) or not model.strip() or len(model) > 128:
         model = None
     source = result.get("model_reported_source")
-    if source not in REPORTED_SOURCES:
+    if source not in REPORTED_SOURCES or (source == "stream" and model is None):
+        # "stream" sem modelo válido seria proveniência de um valor que não existe.
         source = None
     return model, source
 

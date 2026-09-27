@@ -143,6 +143,9 @@ def clock(seconds):
         return "—"
     if seconds < 60:
         return "%ds" % int(seconds)
+    if seconds >= 86400:
+        # Acima de um dia, minutos viram ruído e estouram a coluna ("10080m00s").
+        return "%dd%02dh" % (int(seconds) // 86400, int(seconds) % 86400 // 3600)
     return "%dm%02ds" % (int(seconds) // 60, int(seconds) % 60)
 
 
@@ -395,8 +398,10 @@ def render_native(reports, style, width, show_session):
     # +8 reserva o piso da própria TAREFA: sem isso a coluna SESSÃO podia
     # "ganhar" espaço que o floor de TAREFA reivindica depois, estourando a
     # linha (visto no teste com largura 80).
-    fixed = 19 + 12 + 8  # ESTADO, REPORTE HÁ, DESDE 1º
-    session_w = _session_width(width, 26 + fixed + 8) if show_session else 0
+    fixed = 17 + 11 + 10  # ESTADO, REPORTE HÁ, DESDE 1º
+    # O custo da sessão usa o piso do MODELO (16), que encolhe antes dela: o UUID
+    # colável volta a caber inteiro em 100 colunas.
+    session_w = _session_width(width, 16 + fixed + 8) if show_session else 0
     # MODELO encolhe antes de TAREFA cair abaixo do piso de 8; a linha não pode estourar.
     model_w = max(16, min(26, width - fixed - session_w - 8))
     task_width = max(8, width - model_w - fixed - session_w)
@@ -406,7 +411,7 @@ def render_native(reports, style, width, show_session):
     # "DESDE 1º" é o tempo desde o primeiro reporte, não a duração do trabalho:
     # nativos são metadado declarado, sem telemetria de processo.
     lines = ["", style("NATIVOS · estado reportado pelo host", "bold"),
-             style(header + pad("ESTADO", 19) + pad("REPORTE HÁ", 12) + "DESDE 1º", "dim")]
+             style(header + pad("ESTADO", 17) + pad("REPORTE HÁ", 11) + "DESDE 1º", "dim")]
     now = dt.datetime.now(dt.timezone.utc)
     for report in reports:
         state = report["state"]
@@ -420,7 +425,7 @@ def render_native(reports, style, width, show_session):
         row = pad(clip(model, model_w - 1), model_w) + pad(clip(report.get("task"), task_width - 1), task_width)
         if show_session:
             row += pad(clip(report.get("session"), session_w - 1), session_w)
-        row += pad(style(symbol + " " + label, tint), 19) + pad(clock(age), 12) + (clock(since) if first else "?")
+        row += pad(style(symbol + " " + label, tint), 17) + pad(clock(age), 11) + (clock(since) if first else "?")
         lines.append(row)
     return lines
 
@@ -438,9 +443,13 @@ def wrap(text, width, indent=""):
         space = text.rfind(" ", 0, end + 1)
         if space > 0:
             end = space
+        # Glifo largo numa largura mínima não cabe nem sozinho: corta um caractere
+        # mesmo assim, para o laço sempre avançar (senão o --watch trava).
+        end = max(end, 1)
         lines.append(indent + text[:end].rstrip())
         text = text[end:].lstrip()
-    lines.append(indent + text)
+    if text or not lines:
+        lines.append(indent + text)
     return lines
 
 
@@ -449,7 +458,15 @@ def _full_model(job):
     return "%s · %s" % (requested, job["effort"]) if job.get("effort") else requested
 
 
-def render_compact(data, style, width):
+def _clip_ascii(text, width):
+    """clip() em ASCII: reticências de três pontos contadas na largura."""
+    text = clean(text)
+    if visible_len(text) <= width:
+        return text
+    return text[: max(0, width - 3)].rstrip() + "..."
+
+
+def render_compact(data, style, width, ascii_only=False):
     """Pane lateral estreito: várias linhas por agente, nunca colunas cortadas.
 
     Cada linha é montada em texto puro, quebrada na largura e só então colorida:
@@ -460,8 +477,15 @@ def render_compact(data, style, width):
     show_session = head["scope"] == "all"
     lines = []
 
+    # Em --ascii, converte antes de medir: "…" vira "..." e "↳" vira "`->",
+    # e medir depois deixaria a linha mais larga que o pane.
+    fix = to_ascii if ascii_only else (lambda value: value)
+
     def add(text, color=None, indent=""):
-        lines.extend(style(line, color) for line in wrap(text, width, indent))
+        lines.extend(style(line, color) for line in wrap(fix(text), width, indent))
+
+    def cut(text, room):
+        return _clip_ascii(fix(text), room) if ascii_only else clip(text, room)
 
     for job in jobs:
         symbol, label, color_name, note = execution_of(job)
@@ -474,7 +498,7 @@ def render_compact(data, style, width):
         reported = job.get("model_reported")
         if reported and reported != job.get("model_requested"):
             add("reportado: " + reported, "dim", "  ")
-        lines.append(style("  " + clip(task_of(job) + " · " + (job["reason"] or "—"), width - 2), "dim"))
+        lines.append(style("  " + cut(task_of(job) + " · " + (job["reason"] or "—"), width - 2), "dim"))
         if show_session:
             add("sessão " + (job["session"] or "—"), "dim", "  ")
         for item in ([note] if note else []) + (["entrada mudou depois"] if job["delivery"] == "stale" else []):
@@ -493,7 +517,7 @@ def render_compact(data, style, width):
             effort = report.get("effort")
             add(report.get("model") if effort in (None, "unknown") else "%s · %s" % (report.get("model"), effort), "bold")
             add("%s %s · reporte há %s · desde 1º %s" % (symbol, label, age, since), tint, "  ")
-            lines.append(style("  " + clip(report.get("task") or "", width - 2), "dim"))
+            lines.append(style("  " + cut(report.get("task") or "", width - 2), "dim"))
     return lines
 
 
@@ -540,15 +564,16 @@ def render(data, color=False, ascii_only=False, width=None, compact=False):
         plain = Style(False)
         scope = ("todos os terminais" if head["scope"] == "all" else "sessão " + (head["session"] or "—"))
         state = "" if head["scope"] == "all" else (" · ligada" if head["enabled"] else " · desligada")
+        fix = to_ascii if ascii_only else (lambda value: value)
         out_lines = [style(line, "bold") for line in wrap("DELEGAÇÃO", width)]
-        out_lines += [style(line, "dim") for line in wrap(scope + state, width)]
+        out_lines += [style(line, "dim") for line in wrap(fix(scope + state), width)]
         out_lines += [style(line, "dim") for line in wrap("%d/%d slots externos" % (head["running"], head["concurrency"]), width)]
         out_lines.append("")
         if not jobs:
             out_lines += [style(line, "dim") for line in wrap("Nenhum job externo ativo ou recente.", width)]
-        out_lines += render_compact(data, style, width)
+        out_lines += render_compact(data, style, width, ascii_only)
         for line in _footer(head, native, jobs, plain):
-            out_lines += [style(item, "dim") for item in wrap(line, width)] if line else [""]
+            out_lines += [style(item, "dim") for item in wrap(fix(line), width)] if line else [""]
         out = "\n".join(out_lines)
         return to_ascii(out) if ascii_only else out
 
@@ -600,7 +625,7 @@ def render(data, color=False, ascii_only=False, width=None, compact=False):
             notes.append("modelo reportado: %s (solicitado: %s)" % (clean(reported), clean(job.get("model_requested") or "?")))
         if job["delivery"] == "stale":
             notes.append("a entrada mudou depois; a proposta é de versão antiga")
-        lines += [style("%s↳ %s" % (" " * 8, item), "dim") for item in notes]
+        lines += [style("%s↳ %s" % (" " * 8, clip(item, max(8, width - 10))), "dim") for item in notes]
 
     lines += render_native(native_visible, style, width, show_session)
     lines += _footer(head, native, jobs, style)

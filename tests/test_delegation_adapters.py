@@ -134,6 +134,12 @@ class AdapterTests(unittest.TestCase):
         result = a.parse_result({"provider": "claude"}, json.dumps(claude), "", 0)
         self.assertEqual(("claude-x", "stream"), (result["model_reported"], result["model_reported_source"]))
 
+    def test_non_string_model_never_claims_stream_provenance(self):
+        codex = [{"type": "item.completed", "item": {"type": "agent_message", "text": "Proposta"}},
+                 {"type": "turn.completed", "usage": {}, "model": {"id": 1}}]
+        result = a.parse_result({"provider": "codex"}, "\n".join(map(json.dumps, codex)), "", 0)
+        self.assertEqual((None, "not_emitted_ephemeral"), (result["model_reported"], result["model_reported_source"]))
+
     def test_codex_command_keeps_ephemeral_so_no_rollout_is_read(self):
         workspace = Path(tempfile.mkdtemp())
         command = a.build_command({"provider": "codex", "model": "gpt-5.6-luna", "effort": "low"},

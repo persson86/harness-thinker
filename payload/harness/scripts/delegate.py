@@ -599,7 +599,8 @@ def dispatch(store, args):
         return public_job(store.retry(identifier, reason=args.reason, routing=decision))
     method = {"accept": store.accept, "cancel": store.cancel, "retry": store.retry, "ack": store.acknowledge}[command]
     value = public_job(method(identifier))
-    if command == "ack" and value.get("feedback") in (None, "unknown") and value.get("state") == "completed":
+    if (command == "ack" and value.get("feedback") in (None, "unknown") and value.get("state") == "completed"
+            and value.get("validation") == "valid"):
         # Só a dica: ack reconhece a leitura e não registra avaliação.
         value["feedback_hint"] = "Sem avaliação: feedback %s --value useful|not_useful" % value["id"][:8]
     return value
