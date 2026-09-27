@@ -12,7 +12,7 @@ Use para health-check completo do vault.
    - arquivos criticos existem;
    - hooks existem e sao executaveis;
    - `python3 .claude/scripts/build-index.py check`;
-   - `python3 .claude/scripts/build-index.py thresholds`;
+   - `python3 .claude/scripts/build-index.py thresholds`, incluindo os avisos de forma, que nao bloqueiam: pagina-hub acima de 40 KB (separar vigente e historico, ver `contract.md`, "Paginas-hub"), `summary` acima de 600 caracteres (revisao editorial, nunca truncar) e entradas do `log.md` fora da ordem descendente (anotar, nunca reordenar);
    - `bash harness/scripts/verify.sh`;
    - `queue/` tem pendencias?;
    - `git status --porcelain` mostra conhecimento nao commitado?

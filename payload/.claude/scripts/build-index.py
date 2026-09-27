@@ -108,6 +108,9 @@ TYPE_LABEL = {"concept": "Conceitos", "entity": "Entidades", "source": "Fontes",
 # Gatilhos adiados na Fase 3 (ver reestruturacao-index-spec) — vigiados por `thresholds`.
 SHARD_LINE_LIMIT = 150   # shard maior que isto → sub-shard da categoria por tipo
 TOTAL_PAGE_LIMIT = 800   # vault maior que isto → avaliar camada FTS5
+# Avisos de forma (7.22.0): não bloqueiam e não mudam o código de saída.
+HUB_BYTES_LIMIT = 40 * 1024     # página-hub vigente maior que isto → revisar vigente × histórico
+SUMMARY_CHARS_LIMIT = 600       # summary maior que isto → revisão editorial, nunca truncar
 
 # Esferas onde conhecimento envelhece rápido — vigiadas por `stale` (insumo do DREAM).
 FAST_SPHERES = set(_CFG["fast_spheres"])
@@ -477,6 +480,61 @@ def cmd_quality(rel_paths):
 
 
 # ---------- thresholds (gatilhos adiados da Fase 3 se denunciam sozinhos) ----------
+LOG_DATE_RE = re.compile(r"^## (\d{4}-\d{2}-\d{2})\b")
+
+
+def form_warnings(pages=None):
+    """Avisos de forma: hub grande, summary longo, log fora de ordem.
+
+    Hub é `entity`/`concept` fora do inbox e sem `knowledge_status: historical`
+    (snapshots históricos são congelados e grandes por definição). O log é
+    append-only com entradas novas no topo: lista, nunca reordena."""
+    if pages is None:
+        pages = load_pages()
+    hubs, summaries = [], []
+    for p, text in pages:
+        if is_inbox(p):
+            continue
+        res = split_fm(text)
+        if res is None:
+            continue
+        fm = res[0]
+        rel = os.path.relpath(p, VAULT)
+        size = len(text.encode("utf-8"))
+        if (fm_get(fm, "type") in ("entity", "concept") and fm_get(fm, "knowledge_status") != "historical"
+                and size > HUB_BYTES_LIMIT):
+            hubs.append((size, rel))
+        summ = fm_get(fm, "summary")
+        if summ is not None and len(summ) > SUMMARY_CHARS_LIMIT:
+            summaries.append((len(summ), rel))
+    disorder = []
+    log_path = os.path.join(VAULT, "log.md")
+    if os.path.exists(log_path):
+        previous = None
+        for number, line in enumerate(read_file(log_path).split("\n"), 1):
+            match = LOG_DATE_RE.match(line)
+            if not match:
+                continue
+            if previous and match.group(1) > previous[1]:
+                disorder.append((number, match.group(1), previous[1]))
+            previous = (number, match.group(1))
+    return sorted(hubs, reverse=True), sorted(summaries, reverse=True), disorder
+
+
+def print_form_warnings(pages=None):
+    hubs, summaries, disorder = form_warnings(pages)
+    if not (hubs or summaries or disorder):
+        print("  avisos de forma: nenhum")
+        return
+    print("  avisos de forma (não bloqueiam; tratar no lint):")
+    for size, rel in hubs:
+        print("      - hub %s: %.0f KB (> %d KB) → revisar vigente × histórico" % (rel, size / 1024, HUB_BYTES_LIMIT // 1024))
+    for n, rel in summaries:
+        print("      - summary %s: %d caracteres (> %d) → revisão editorial" % (rel, n, SUMMARY_CHARS_LIMIT))
+    for number, date, before in disorder:
+        print("      - log.md linha %d: entrada %s depois de %s (fora da ordem descendente; não reordenar)" % (number, date, before))
+
+
 def cmd_thresholds():
     by_cat, _skipped, _inbox, _unknown = collect()
     total = sum(len(v) for v in by_cat.values())
@@ -506,9 +564,11 @@ def cmd_thresholds():
         print("  ⚠ GATILHO(S) DISPARADO(S):")
         for t in tripped:
             print("      - %s" % t)
-        return 1
-    print("  => nenhum gatilho disparado (folga ok)")
-    return 0
+    else:
+        print("  => nenhum gatilho disparado (folga ok)")
+    # Avisos em seção separada: o código de saída continua medindo só os gatilhos.
+    print_form_warnings()
+    return 1 if tripped else 0
 
 
 # ---------- migrate (one-shot Fase 1; inerte após cutover) ----------

@@ -110,6 +110,28 @@ assert_out "gate marca INDICE DESSINCRONIZADO" "INDICE DESSINCRONIZADO"
 rm "$V1/wiki/reference/fora-do-indice.md"
 run BI generate
 
+# ------------------------------------------------- build-index: avisos de forma (7.22.0, C2)
+run BI thresholds
+RC0=$RC
+assert_out "thresholds sem violação não emite aviso de forma" "avisos de forma: nenhum"
+big="$(python3 -c 'print("x" * 42000)')"
+page "$V1/wiki/reference/hub-grande.md" "hub grande" "$big"
+mkdir -p "$V1/wiki/reference"
+printf -- '---\ntitle: t\nsummary: "histórico"\ntype: entity\nknowledge_status: historical\ncreated: 2026-01-01\nupdated: 2026-01-01\n---\n\n%s\n' "$big" > "$V1/wiki/reference/hub-historico-2026.md"
+page "$V1/wiki/reference/resumo-longo.md" "$(python3 -c 'print("r" * 610)')"
+cp "$V1/wiki/log.md" "$S/log.bak"
+printf '## 2026-01-01 teste | antigo\n\n## 2026-02-01 teste | fora de ordem\n' >> "$V1/wiki/log.md"
+run BI generate
+run BI thresholds
+assert_rc "avisos de forma não mudam o código de saída" "$RC0"
+assert_out "aviso de hub grande" "hub reference/hub-grande.md"
+assert_out "aviso de summary longo" "summary reference/resumo-longo.md: 610 caracteres"
+assert_out "aviso de log fora de ordem" "entrada 2026-02-01 depois de 2026-01-01"
+echo "$OUT" | grep -q "hub-historico-2026" && bad "histórico congelado não deveria ser listado como hub" "$OUT" || ok "histórico congelado não é listado como hub"
+rm "$V1/wiki/reference/hub-grande.md" "$V1/wiki/reference/hub-historico-2026.md" "$V1/wiki/reference/resumo-longo.md"
+cp "$S/log.bak" "$V1/wiki/log.md"
+run BI generate
+
 # ------------------------------------------------- hook: protect-raw
 PR="$V1/.claude/hooks/protect-raw.sh"
 hook() { echo "$1" | CLAUDE_PROJECT_DIR="$V1" bash "$2"; }
