@@ -166,6 +166,15 @@ class PresentationTests(unittest.TestCase):
         self.assertNotIn("DESDE 1º", board.render(data, width=100, compact=True))
         self.assertIn("MODELO", board.render(data, width=100))
 
+    def test_unrated_deliveries_count_the_full_scope_not_the_visible_window(self):
+        jobs = [job(id="%08d" % n, finished_at=moment(hours=2)) for n in range(4)]
+        jobs.append(job(id="rated000", feedback="useful"))
+        jobs.append(job(id="broken00", state="failed", validation="invalid"))
+        data = board.payload(FakeStore(jobs), "host-a", limit=1)
+        self.assertEqual(4, data["board"]["unrated"])
+        self.assertLess(data["board"]["shown"], 4)
+        self.assertIn("4 entrega(s) sem avaliação", board.render(data, width=120))
+
     def test_chain_and_retry_are_marked(self):
         self.assertEqual("review·s2/rev ↻",
                          board.task_of(job(run_id="r1", stage=2, role="reviewer", retry_of="x")))

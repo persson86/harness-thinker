@@ -594,7 +594,11 @@ def dispatch(store, args):
             raise DelegationError("Retry bloqueado pela política atual: " + decision["reason"])
         return public_job(store.retry(identifier, reason=args.reason, routing=decision))
     method = {"accept": store.accept, "cancel": store.cancel, "retry": store.retry, "ack": store.acknowledge}[command]
-    return public_job(method(identifier))
+    value = public_job(method(identifier))
+    if command == "ack" and value.get("feedback") in (None, "unknown") and value.get("state") == "completed":
+        # Só a dica: ack reconhece a leitura e não registra avaliação.
+        value["feedback_hint"] = "Sem avaliação: feedback %s --value useful|not_useful" % value["id"][:8]
+    return value
 
 
 def render(value):
@@ -634,6 +638,8 @@ def render(value):
             text += "\nRascunho: " + value["accepted_path"]
         if value.get("error"):
             text += "\nA execução não produziu uma entrega utilizável; consulte --json result JOB para diagnóstico."
+        if value.get("feedback_hint"):
+            text += "\n" + value["feedback_hint"]
         return text
     return json.dumps(value, ensure_ascii=False, indent=2)
 

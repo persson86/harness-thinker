@@ -283,7 +283,11 @@ class CLITests(unittest.TestCase):
         self.assertEqual([job["id"]], [j["id"] for j in self.cli("inbox")["jobs"]])
         result = self.cli("ack", job["id"][:8])
         self.assertEqual("unknown", result["feedback"])
+        self.assertIn("feedback " + job["id"][:8] + " --value", result["feedback_hint"])
         self.assertEqual([], self.cli("inbox")["jobs"])
+        self.assertEqual("unknown", self.cli("result", job["id"][:8])["feedback"])
+        self.cli("feedback", job["id"][:8], "--value", "useful")
+        self.assertNotIn("feedback_hint", self.cli("ack", job["id"][:8]))
 
     def test_off_prevents_retry_accept_and_history_incorporation(self):
         self.enable()

@@ -285,6 +285,11 @@ def payload(store, session, all_sessions=False, limit=10, native_reports=None,
                       "needs_attention": sum(1 for j in scoped if j.get("state") in BROKEN and not j.get("acknowledged")),
                       "hidden_pending": sum(1 for j in scoped if j not in shown and delivery_of(j) == "inbox"),
                       "hidden_failures": sum(1 for j in scoped if j not in shown and j.get("state") in BROKEN and not j.get("acknowledged")),
+                      # Entregas lidas ou não, mas sem avaliação humana: no escopo completo,
+                      # não só na janela visível. Silêncio continua sendo `unknown`.
+                      "unrated": sum(1 for j in scoped if j.get("state") == "completed"
+                                     and j.get("validation") == "valid"
+                                     and j.get("feedback") in (None, "unknown")),
                       "sessions": len({j.get("session") for j in shown + native_visible}),
                       "shown": len(shown), "hidden": len(scoped) - len(shown)},
             "jobs": rows, "native": native_view}
@@ -627,6 +632,9 @@ def _footer(head, native, jobs, style):
         lines.append(style("Esforço exibido é o solicitado, não confirmado pelo provedor.", "dim"))
     if head["waiting"]:
         lines.append(style("Leia com `result JOB`; `ack JOB` tira da inbox.", "dim"))
+    if head.get("unrated"):
+        lines.append(style("%d entrega(s) sem avaliação: `feedback JOB --value useful|not_useful`."
+                           % head["unrated"], "dim"))
     return lines
 
 
