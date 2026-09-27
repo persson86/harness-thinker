@@ -9,15 +9,59 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "payload/harness/scripts"))
 from thinker_delegation import adapters as a
 
+_CODEX_HOME = patch.dict(os.environ, {"CODEX_HOME": tempfile.mkdtemp()})
+
+
+def setUpModule():
+    # Sem catálogo da CLI: os perfis resolvem para o ID mínimo embutido, não para o da máquina.
+    _CODEX_HOME.start()
+
+
+def tearDownModule():
+    _CODEX_HOME.stop()
+
+
+class CodexCatalogTests(unittest.TestCase):
+    def catalog(self, models):
+        home = Path(tempfile.mkdtemp())
+        (home / "models_cache.json").write_text(json.dumps({"models": models}), encoding="utf-8")
+        return patch.dict(os.environ, {"CODEX_HOME": str(home)})
+
+    def test_alias_follows_newest_listed_version_of_its_family(self):
+        models = [{"slug": "gpt-5.6-sol", "visibility": "list"},
+                  {"slug": "gpt-7-sol", "visibility": "hide"},
+                  {"slug": "gpt-6.1-sol", "visibility": "list"},
+                  {"slug": "gpt-9-luna", "visibility": "list"},
+                  {"slug": "gpt-6.1-sol-mini", "visibility": "list"}]
+        with self.catalog(models):
+            self.assertEqual("gpt-6.1-sol", a.resolve_profile(explicit="sol")["model"])
+            self.assertEqual("gpt-9-luna", a.resolve_profile("git")["model"])
+            self.assertEqual("gpt-5.6-terra", a.resolve_profile(explicit="terra")["model"])
+
+    def test_exact_id_stays_literal_and_claude_aliases_ignore_catalog(self):
+        with self.catalog([{"slug": "gpt-6-sol", "visibility": "list"}]):
+            self.assertEqual("gpt-5.6-sol",
+                             a.resolve_profile(explicit="gpt-5.6-sol", provider="codex")["model"])
+            self.assertEqual("opus", a.resolve_profile("review")["model"])
+
+    def test_unreadable_catalog_falls_back_to_embedded_minimum(self):
+        home = Path(tempfile.mkdtemp())
+        with patch.dict(os.environ, {"CODEX_HOME": str(home)}):
+            self.assertIsNone(a.latest_codex_model("sol"))
+            (home / "models_cache.json").write_text("{not json", encoding="utf-8")
+            self.assertEqual("gpt-6-sol", a.resolve_profile(explicit="sol")["model"])
+            (home / "models_cache.json").write_text(json.dumps([{"slug": "gpt-7-sol"}]), encoding="utf-8")
+            self.assertIsNone(a.latest_codex_model("sol"))
+
 
 class AdapterTests(unittest.TestCase):
     def test_git_default_and_explicit_override_are_independent(self):
         default = a.resolve_profile("git")
         self.assertEqual((default["provider"], default["model"], default["effort"]),
-                         ("codex", "gpt-5.6-luna", "low"))
+                         ("codex", "gpt-6-luna", "low"))
         explicit = a.resolve_profile("git", explicit="sonnet", session_profile="opus")
         self.assertEqual((explicit["provider"], explicit["model_source"]), ("claude", "explicit"))
-        self.assertEqual(a.resolve_profile("git")["model"], "gpt-5.6-luna")
+        self.assertEqual(a.resolve_profile("git")["model"], "gpt-6-luna")
 
     def test_approved_anthropic_heuristics_preserve_explicit_override(self):
         transcript = a.resolve_profile("transcript")
@@ -26,7 +70,7 @@ class AdapterTests(unittest.TestCase):
                          ("claude", "sonnet", "medium"))
         self.assertEqual((review["provider"], review["model"], review["effort"]),
                          ("claude", "opus", "high"))
-        self.assertEqual(a.resolve_profile("review", explicit="luna")["model"], "gpt-5.6-luna")
+        self.assertEqual(a.resolve_profile("review", explicit="luna")["model"], "gpt-6-luna")
 
     def test_astra_and_fable_profiles_are_explicit_subscription_routes(self):
         astra = a.resolve_profile(explicit="astra")
@@ -142,7 +186,7 @@ class AdapterTests(unittest.TestCase):
 
     def test_codex_command_keeps_ephemeral_so_no_rollout_is_read(self):
         workspace = Path(tempfile.mkdtemp())
-        command = a.build_command({"provider": "codex", "model": "gpt-5.6-luna", "effort": "low"},
+        command = a.build_command({"provider": "codex", "model": "gpt-6-luna", "effort": "low"},
                                   workspace, workspace / "prompt.txt")
         self.assertIn("--ephemeral", command)
 

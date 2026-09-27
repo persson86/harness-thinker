@@ -1,5 +1,10 @@
 # Changes
 
+## 7.22.1 - 2026-09-27
+
+- **Codex aliases follow the newest generation.** `luna`, `terra`, `sol` and `astra` resolve to the highest `gpt-<version>-<family>` listed in the Codex CLI's local catalog (`$CODEX_HOME/models_cache.json`, default `~/.codex`); hidden entries and other families never count. The embedded IDs (`gpt-6-luna`, `gpt-5.6-terra`, `gpt-6-sol`, `gpt-6-astra`) are only the minimum used when the catalog is missing, unreadable or lacks the family. An exact ID passed with `--provider` stays literal, and Claude aliases are unaffected.
+- The delegation test suite runs with an empty `CODEX_HOME`, so results do not depend on the machine's catalog.
+
 ## 7.22.0 - 2026-09-26
 
 Trustworthy delegation data before the October 3 decision gate, less friction, and the playbook gap that let hub pages grow.

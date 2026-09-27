@@ -14,10 +14,13 @@ class AdapterError(ValueError):
     pass
 
 
+# Aliases Codex significam "o mais atual da família": resolve_profile troca o ID
+# daqui pela maior versão visível no catálogo local da CLI. O ID abaixo é o mínimo
+# embutido, usado só sem catálogo legível ou sem a família nele.
 PROFILES = {
-    "luna": ("codex", "gpt-5.6-luna", "low"),
+    "luna": ("codex", "gpt-6-luna", "low"),
     "terra": ("codex", "gpt-5.6-terra", "medium"),
-    "sol": ("codex", "gpt-5.6-sol", "high"),
+    "sol": ("codex", "gpt-6-sol", "high"),
     "astra": ("codex", "gpt-6-astra", "high"),
     "sonnet": ("claude", "sonnet", "medium"),
     "fable": ("claude", "fable", "high"),
@@ -36,6 +39,32 @@ SYSTEM = ("Você é um colaborador de análise sem ferramentas. Responda em port
           "publicado ou validado arquivos. Entregue a contribuição solicitada.")
 
 
+def codex_catalog_path():
+    return Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex") / "models_cache.json"
+
+
+def latest_codex_model(family, path=None):
+    """Maior gpt-<versão>-<família> visível no catálogo, ou None. Nunca cruza família."""
+    try:
+        data = json.loads(Path(path or codex_catalog_path()).read_text(encoding="utf-8"))
+        models = data["models"] if isinstance(data, dict) else None
+        if not isinstance(models, list):
+            return None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    pattern = re.compile(r"gpt-(\d+(?:\.\d+)*)-" + re.escape(family))
+    best = None
+    for item in models:
+        if not isinstance(item, dict) or item.get("visibility") != "list":
+            continue
+        match = pattern.fullmatch(str(item.get("slug", "")))
+        if match:
+            version = tuple(int(part) for part in match.group(1).split("."))
+            if best is None or version > best[0]:
+                best = (version, match.group(0))
+    return best[1] if best else None
+
+
 def resolve_profile(task="review", *, explicit=None, effort=None, provider=None,
                     session_profile=None, defaults=None, auth="subscription"):
     """An explicit choice is never silently replaced, even if unavailable."""
@@ -47,6 +76,9 @@ def resolve_profile(task="review", *, explicit=None, effort=None, provider=None,
     source = "explicit" if explicit else "session" if session_profile else "default"
     if name in PROFILES:
         selected_provider, model, default_effort = PROFILES[name]
+        if selected_provider == "codex":
+            # Alias Codex acompanha a versão mais nova; ID exato explícito não passa aqui.
+            model = latest_codex_model(name) or model
         if provider and provider != selected_provider:
             raise AdapterError("Modelo e provedor explícitos não correspondem.")
         provider = selected_provider

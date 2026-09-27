@@ -331,7 +331,9 @@ assert_out "shim Stop bloqueia agenda incompleta" '"decision": "block"'
 assert_out "shim Stop pede Calendar do Mac" "Calendar do Mac"
 
 # Delegation suite: fake providers, isolated Git repositories, no paid calls.
-run python3 -B -m unittest discover -s "$REPO/tests" -p 'test_delegation_*.py'
+# CODEX_HOME vazio: aliases Codex resolvem para o ID embutido, não para o catálogo da máquina.
+mkdir -p "$TMP/codex-home"
+run env CODEX_HOME="$TMP/codex-home" python3 -B -m unittest discover -s "$REPO/tests" -p 'test_delegation_*.py'
 assert_rc "delegação: ciclo, adaptadores, CLI, hook e Git isolados" 0
 [ "$RC" -ne 0 ] || printf '%s\n' "$OUT" | tail -4
 run python3 -B -m unittest discover -s "$REPO/tests" -p 'test_knowledge_*.py'
