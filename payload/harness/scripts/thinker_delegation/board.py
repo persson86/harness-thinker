@@ -420,7 +420,79 @@ def render_native(reports, style, width, show_session):
     return lines
 
 
-def render(data, color=False, ascii_only=False, width=None):
+def wrap(text, width, indent=""):
+    """Quebra sem cortar: modelo e esforço nunca perdem caracteres no modo compacto."""
+    text, lines = clean(text), []
+    room = max(1, width - visible_len(indent))
+    while visible_len(text) > room:
+        end = 0
+        while end < len(text) and visible_len(text[:end + 1]) <= room:
+            end += 1
+        # Quebra no último espaço que cabe; só corta dentro de uma palavra
+        # quando ela sozinha não cabe (ids de sessão, nomes de modelo longos).
+        space = text.rfind(" ", 0, end + 1)
+        if space > 0:
+            end = space
+        lines.append(indent + text[:end].rstrip())
+        text = text[end:].lstrip()
+    lines.append(indent + text)
+    return lines
+
+
+def _full_model(job):
+    requested = job.get("model_requested") or job.get("model") or "?"
+    return "%s · %s" % (requested, job["effort"]) if job.get("effort") else requested
+
+
+def render_compact(data, style, width):
+    """Pane lateral estreito: várias linhas por agente, nunca colunas cortadas.
+
+    Cada linha é montada em texto puro, quebrada na largura e só então colorida:
+    cortar uma linha já colorida deixaria fragmentos de escape na tela. O motivo
+    é o único campo abreviado; modelo e esforço quebram linha em vez de perder
+    caracteres."""
+    head, jobs = data["board"], data["jobs"]
+    show_session = head["scope"] == "all"
+    lines = []
+
+    def add(text, color=None, indent=""):
+        lines.extend(style(line, color) for line in wrap(text, width, indent))
+
+    for job in jobs:
+        symbol, label, color_name, note = execution_of(job)
+        dsymbol, dlabel, _ = DELIVERY[job["delivery"]]
+        add(clean(job["agent"]), "bold")
+        add("%s %s · %s" % (symbol, label, clock(job["seconds"])), color_name, "  ")
+        if dlabel:
+            add("%s %s" % (dsymbol, dlabel), "yellow" if job["delivery"] == "inbox" else "dim", "  ")
+        add(_full_model(job), "dim", "  ")
+        reported = job.get("model_reported")
+        if reported and reported != job.get("model_requested"):
+            add("reportado: " + reported, "dim", "  ")
+        lines.append(style("  " + clip(task_of(job) + " · " + (job["reason"] or "—"), width - 2), "dim"))
+        if show_session:
+            add("sessão " + (job["session"] or "—"), "dim", "  ")
+        for item in ([note] if note else []) + (["entrada mudou depois"] if job["delivery"] == "stale" else []):
+            add("↳ " + item, "dim", "  ")
+    native = data.get("native", {})
+    reports = native.get("visible_reports", native.get("reports", []))
+    if reports:
+        lines.append("")
+        add("NATIVOS · declarado pelo host", "bold")
+        now = dt.datetime.now(dt.timezone.utc)
+        for report in reports:
+            symbol, label, tint = EXECUTION.get(report["state"], ("?", "desconhecido", "yellow"))
+            observed, first_seen = _parse(report.get("updated_at")), _parse(report.get("created_at"))
+            age = clock(max(0, (now - observed).total_seconds())) if observed else "?"
+            since = clock(max(0, (now - first_seen).total_seconds())) if first_seen else "?"
+            effort = report.get("effort")
+            add(report.get("model") if effort in (None, "unknown") else "%s · %s" % (report.get("model"), effort), "bold")
+            add("%s %s · reporte há %s · desde 1º %s" % (symbol, label, age, since), tint, "  ")
+            lines.append(style("  " + clip(report.get("task") or "", width - 2), "dim"))
+    return lines
+
+
+def render(data, color=False, ascii_only=False, width=None, compact=False):
     style = Style(color)
     head, jobs = data["board"], data["jobs"]
     width = width or shutil.get_terminal_size((100, 24)).columns
@@ -457,6 +529,23 @@ def render(data, color=False, ascii_only=False, width=None):
     if not jobs:
         lines.append(style("Nenhum job externo ativo ou recente." if not head.get("history")
                            else "Nenhum job externo neste escopo.", "dim"))
+
+    if compact:
+        # Título e rodapé em texto puro, quebrados na largura, depois esmaecidos.
+        plain = Style(False)
+        scope = ("todos os terminais" if head["scope"] == "all" else "sessão " + (head["session"] or "—"))
+        state = "" if head["scope"] == "all" else (" · ligada" if head["enabled"] else " · desligada")
+        out_lines = [style(line, "bold") for line in wrap("DELEGAÇÃO", width)]
+        out_lines += [style(line, "dim") for line in wrap(scope + state, width)]
+        out_lines += [style(line, "dim") for line in wrap("%d/%d slots externos" % (head["running"], head["concurrency"]), width)]
+        out_lines.append("")
+        if not jobs:
+            out_lines += [style(line, "dim") for line in wrap("Nenhum job externo ativo ou recente.", width)]
+        out_lines += render_compact(data, style, width)
+        for line in _footer(head, native, jobs, plain):
+            out_lines += [style(item, "dim") for item in wrap(line, width)] if line else [""]
+        out = "\n".join(out_lines)
+        return to_ascii(out) if ascii_only else out
 
     show_session = head["scope"] == "all"
     widths, show_bar, show_quality, reason_width, session_width = _layout(
@@ -509,7 +598,13 @@ def render(data, color=False, ascii_only=False, width=None):
         lines += [style("%s↳ %s" % (" " * 8, item), "dim") for item in notes]
 
     lines += render_native(native_visible, style, width, show_session)
+    lines += _footer(head, native, jobs, style)
+    out = "\n".join(lines)
+    return to_ascii(out) if ascii_only else out
 
+
+def _footer(head, native, jobs, style):
+    lines = []
     tally = []
     if head["running"]:
         tally.append(style("%d rodando" % head["running"], "cyan"))
@@ -532,13 +627,11 @@ def render(data, color=False, ascii_only=False, width=None):
         lines.append(style("Esforço exibido é o solicitado, não confirmado pelo provedor.", "dim"))
     if head["waiting"]:
         lines.append(style("Leia com `result JOB`; `ack JOB` tira da inbox.", "dim"))
-
-    out = "\n".join(lines)
-    return to_ascii(out) if ascii_only else out
+    return lines
 
 
 def watch(store, session, all_sessions, limit, seconds, color, ascii_only, stream=None,
-          recent_seconds=RECENT_SECONDS, history=False):
+          recent_seconds=RECENT_SECONDS, history=False, compact=False):
     """Laço determinístico: atualiza sem custar um turno do principal, que é o
     ponto de o board não ser desenhado pelo modelo."""
     stream = stream or sys.stdout
@@ -555,7 +648,7 @@ def watch(store, session, all_sessions, limit, seconds, color, ascii_only, strea
                 # expected operational failures. Do not expose their text or
                 # filesystem paths, and do not reuse old jobs as if live.
                 data = unavailable(session, all_sessions, last_success_at)
-            frame = render(data, color, ascii_only)
+            frame = render(data, color, ascii_only, compact=compact)
             stamp = dt.datetime.now().strftime("%H:%M:%S")
             interactive = bool(getattr(stream, "isatty", lambda: False)()) and os.environ.get("TERM") != "dumb"
             stream.write("\033[H\033[J" if interactive else "\n" + "=" * 60 + "\n")

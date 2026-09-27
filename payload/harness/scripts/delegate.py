@@ -106,6 +106,8 @@ def parser():
     quadro.add_argument("--watch", nargs="?", type=float, const=5.0, metavar="SEG",
                         help="Redesenha a cada SEG segundos, sem custar turno do principal")
     quadro.add_argument("--ascii", action="store_true", help="Sem símbolos Unicode")
+    quadro.add_argument("--compact", action="store_true",
+                        help="Pane lateral: várias linhas por agente; modelo e esforço nunca cortados")
     quadro.add_argument("--no-color", action="store_true")
     history = sub.add_parser("history", help="Histórico de uso, escolhas e avaliações")
     history.add_argument("--export", action="store_true", help="Criar novo MD em drafts/delegation")
@@ -413,7 +415,7 @@ def dispatch(store, args):
                              native_reports=native.snapshot(store, sid, args.all_sessions, locked=True))
         if not args.json:
             data["text"] = board.render(data, color=board.wants_color(args.no_color),
-                                        ascii_only=args.ascii)
+                                        ascii_only=args.ascii, compact=args.compact)
         return data
     if command == "on":
         sid = session(args)
@@ -648,7 +650,8 @@ def main(argv=None):
             sid = args.session if args.all_sessions else session(args)
             return board.watch(store, sid, args.all_sessions, args.limit, args.watch,
                                board.wants_color(args.no_color), args.ascii,
-                               recent_seconds=args.recent_seconds, history=args.history)
+                               recent_seconds=args.recent_seconds, history=args.history,
+                               compact=args.compact)
         value = dispatch(store, args)
         print(json.dumps(value, ensure_ascii=False, indent=2) if args.json else render(value))
         return 0

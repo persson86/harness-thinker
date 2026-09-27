@@ -130,6 +130,42 @@ class PresentationTests(unittest.TestCase):
         for line in lines:
             self.assertLessEqual(board.visible_len(line), 100)
 
+    def compact_data(self):
+        jobs = [job(profile={"provider": "codex", "model": "gpt-6-astra", "effort": "high",
+                             "requested_profile": "astra"}, state="running", finished_at=None,
+                    reason="Revisão arquitetural longa do plano da release 7.22.0 com anexos"),
+                job(id="1" * 8, profile={"provider": "codex", "model": "gpt-5.6-sol-experimental-long-name",
+                                         "effort": "xhigh", "requested_profile": "sol"},
+                    model_reported="gpt-5.6-sol-experimental-long-name-2026-09-26")]
+        reports = {"reported": 1, "running": 1, "completed": 0, "failed": 0, "cancelled": 0, "unknown": 0,
+                   "reports": [{"id": "n1", "session": "host-a", "model": "fable", "task": "Conferência",
+                                "state": "running", "effort": "high", "created_at": moment(minutes=2),
+                                "updated_at": moment(seconds=5)}]}
+        return board.payload(FakeStore(jobs), "host-a", native_reports=reports)
+
+    def test_compact_never_overflows_and_never_cuts_model_or_effort(self):
+        for width in (40, 80):
+            for color in (False, True):
+                text = board.render(self.compact_data(), color=color, width=width, compact=True)
+                for line in text.splitlines():
+                    self.assertLessEqual(board.visible_len(line), width, (width, line))
+                plain = re.sub(r"\x1b\[[0-9;]*m", "", text)
+                self.assertNotIn("[2m", plain)
+                # Sem espaços em branco: a quebra pode cair num espaço ou dentro de um
+                # nome longo, mas nenhum caractere do modelo ou do esforço pode sumir.
+                joined = re.sub(r"\s+", "", plain)
+                for needle in ("gpt-6-astra · high", "gpt-5.6-sol-experimental-long-name · xhigh",
+                               "reportado: gpt-5.6-sol-experimental-long-name-2026-09-26", "fable · high"):
+                    self.assertIn(re.sub(r"\s+", "", needle), joined)
+
+    def test_compact_ascii_and_default_render_are_unchanged(self):
+        data = self.compact_data()
+        ascii_text = board.render(data, ascii_only=True, width=40, compact=True)
+        self.assertTrue(all(ord(c) < 128 or c.isalpha() for c in ascii_text),
+                        [c for c in ascii_text if ord(c) >= 128 and not c.isalpha()])
+        self.assertNotIn("DESDE 1º", board.render(data, width=100, compact=True))
+        self.assertIn("MODELO", board.render(data, width=100))
+
     def test_chain_and_retry_are_marked(self):
         self.assertEqual("review·s2/rev ↻",
                          board.task_of(job(run_id="r1", stage=2, role="reviewer", retry_of="x")))
