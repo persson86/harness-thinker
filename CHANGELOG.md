@@ -2,6 +2,8 @@
 
 ## 7.23.0-rc.1 - 2026-09-30 (laboratory candidate)
 
+- Reconciliation supports explicit constraint corrections and moved evidence references with a reason, verified replacement bytes and preserved audit history. Omission still never retires evidence or critical context.
+- Adds natural-language entry points to the installed Claude/Codex instructions and bounded checkpoint input through `--file -`, so the agent can register progress without an intermediate workspace file. README documents the complete create/checkpoint/resume/view workflow and its limits.
 - Adds opt-in task continuity outside the workspace: explicit task IDs, checkpoints, corrections, revision checks, idempotency receipts, reset generations and portable handoffs. Resume compiles a measured UTF-8 byte budget and refuses to omit critical context silently.
 - Evidence fingerprints indicate byte identity only. Changed, missing or unverifiable references prevent a ready handoff. A linked session or job remains unobserved; task state does not control provider execution or imply approval.
 - Adds a read-only loopback task surface for an explicitly generated snapshot, with explicit task selection, token/Host/origin checks and unavailable states. It does not follow live agents, run models, or write knowledge.

@@ -25,6 +25,10 @@ Você é o mantenedor desta wiki pessoal: lê e escreve markdown no vault; o usu
 4. Use `harness/adapters/codex.md` para checagens e limitações específicas do Codex.
 5. Se existir `vault-heuristics.md`, consulte-o em decisões de julgamento; ele prevalece sobre defaults do harness.
 
+## Continuidade por tarefa
+
+Pedidos para registrar uma tarefa, salvar/atualizar checkpoint, retomar pelo ID ou consultar pendências registradas seguem `harness/operations/task.md`. O agente opera a CLI e informa ID e namespace externo ao vault; não exige que o usuário escreva JSON. A seleção é explícita e o checkpoint não amplia autorização. Instalação não inicia captura, agentes ou serviço. Fontes alteradas exigem reconciliação e histórico de conversa não prevalece sobre correções ativas da tarefa selecionada.
+
 ## Deltas Codex
 
 Codex não executa MEMORY nem escreve em `.claude/memory/`; isso é snapshot do Claude Code. Persistência de preferência do Codex depende deste adaptador e de decisão explícita do usuário.

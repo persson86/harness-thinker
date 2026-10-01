@@ -8,7 +8,7 @@
 | E1 | Testes determinísticos e simulações | Contratos e invariantes passaram nos casos testados |
 | E2 | Agentes reais em casos sintéticos | Comportamento observado da configuração naquele workload |
 | E3 | Uso humano de tarefas representativas no laboratório | Esforço, compreensão e qualidade observados no piloto |
-| E4 | Uso cotidiano sustentado | Valor recorrente observado; fora do escopo atual de não escrita no vault |
+| E4 | Uso cotidiano sustentado | Valor recorrente observado; não é comprovado pela reinstalação técnica solicitada |
 
 Não chamar E1 de teste com agentes ou E2 de economia humana. Não prometer certeza universal de valor. A decisão deve declarar amostra, falhas, dados ausentes e limites de generalização.
 

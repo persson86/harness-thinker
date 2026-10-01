@@ -12,7 +12,7 @@ Construir incrementos que possam ser avaliados e revertidos separadamente. O pri
 | M3 | Projeção de atenção e UI local de consulta | M1, M2 | R4, R6, avaliação visual e cenários de indisponibilidade verdes |
 | M4 | Release candidata e rollback completo | M1 a M3 | Suíte completa, install/update/downgrade no laboratório, tag candidata |
 | M5 | Ensaios com agentes e uso humano no laboratório | M4 | Resultados brutos, adjudicação e relatório de valor sem lacunas ocultas |
-| M6 | Decidir manter, simplificar ou promover | M5 | Gate de qualidade e valor aplicado; instalação real continua fora do escopo |
+| M6 | Decidir manter, simplificar ou promover | M5 | Gate de qualidade e valor aplicado; reinstalação autorizada é separada de promoção estável |
 
 M1 e M2 devem ser utilizáveis pela CLI mesmo sem UI. Não abrir frentes de busca híbrida ou chat próprio antes de chegar a M4. Revisar o escopo se M1 a M3 exigirem duplicar o supervisor.
 

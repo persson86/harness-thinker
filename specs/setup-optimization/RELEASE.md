@@ -2,7 +2,7 @@
 
 ## Versões e autorização
 
-A documentação tem versão `1.0.0`. O primeiro runtime terá `VERSION=7.23.0-rc.1` e tag anotada `v7.23.0-rc.1`, depois dos gates técnicos e do ensaio de rollback. O usuário autorizou implementação e testes em laboratório, além de versão/tag. A instalação no vault real está proibida nesta iniciativa. Push não é consequência automática da criação da tag: manter local até autorização de publicação.
+A documentação tem versão `1.0.0`. O primeiro runtime terá `VERSION=7.23.0-rc.1` e tag anotada `v7.23.0-rc.1`, depois dos gates técnicos e do ensaio de rollback. O usuário autorizou implementação e testes em laboratório, além de versão/tag. O escopo inicial restringiu execução ao laboratório. O pedido posterior de reinstalação autoriza atualizar somente o harness instalado, após validação e integração na fonte; conteúdo do vault permanece fora do escopo. Push não é consequência automática da criação da tag: manter local até autorização de publicação.
 
 A baseline é o commit apontado pela tag `v7.22.1`, conferido antes do teste. Registrar o SHA real; nunca mover uma tag publicada para ajustar resultado. Uma correção posterior cria `rc.2`. `7.23.0` só será candidata à estabilidade após avaliação comportamental e de uso, sem converter ausência de dados em aceite.
 
@@ -42,4 +42,4 @@ Uma reversão que apenas altera `VERSION` não passa. Recuperar código sem recu
 
 Falha de isolamento, perda de correção, corrupção ou duplicação de efeito interrompe o candidato. Não consertar automaticamente o vault real. Recuperar o laboratório pela baseline e registrar a falha no relatório.
 
-Promoção técnica significa que o candidato pode participar de um piloto. Promoção funcional exige critérios de [VALIDATION.md](VALIDATION.md). Publicação remota e instalação real são ações distintas. A última continua bloqueada pelo escopo atual, mesmo com autorização de push futura.
+Promoção técnica significa que o candidato pode participar de um piloto. Promoção funcional exige critérios de [VALIDATION.md](VALIDATION.md). Publicação remota e instalação real são ações distintas. A instalação exige pedido explícito, agora recebido, e os gates técnicos; autorização de push, isoladamente, não a autoriza.

@@ -17,6 +17,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import stat
+import sys
 import time
 import uuid
 
@@ -30,6 +31,8 @@ LOCK_TIMEOUT_SECONDS = 2.0
 # an observed origin. File checks generate local_verification internally.
 ORIGINS = {"principal_reported", "unknown"}
 ROLES = {"canonical", "dialogue", "artifact", "test", "instructions"}
+REPLACEMENT_FIELDS = ("replaces", "replacement_reason", "replaced_source", "replacement_at",
+                      "replacement_sha256", "replacement_origin")
 TASK_STATES = {"open", "paused", "closed"}
 ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}\Z")
 
@@ -264,22 +267,25 @@ def _atomic_at(directory, name, value):
 
 
 def read_checkpoint_file(path):
-    path = _absolute(path)
-    directory = _directory(path.parent)
-    try:
-        fd = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
-        with os.fdopen(fd, "rb") as stream:
-            if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
-                raise TaskError("unsafe_path", "Checkpoint input must be a regular file.")
-            data = stream.read(MAX_INPUT_BYTES + 1)
-        if len(data) > MAX_INPUT_BYTES:
-            raise TaskError("invalid_input", "Checkpoint input is too large.")
+    if path == "-":
+        data = sys.stdin.buffer.read(MAX_INPUT_BYTES + 1)
+    else:
+        path = _absolute(path)
+        directory = _directory(path.parent)
         try:
-            return json.loads(data)
-        except (ValueError, UnicodeError, RecursionError):
-            raise TaskError("invalid_input", "Checkpoint input is not valid JSON.") from None
-    finally:
-        os.close(directory)
+            fd = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+            with os.fdopen(fd, "rb") as stream:
+                if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                    raise TaskError("unsafe_path", "Checkpoint input must be a regular file.")
+                data = stream.read(MAX_INPUT_BYTES + 1)
+        finally:
+            os.close(directory)
+    if len(data) > MAX_INPUT_BYTES:
+        raise TaskError("invalid_input", "Checkpoint input is too large.")
+    try:
+        return json.loads(data)
+    except (ValueError, UnicodeError, RecursionError):
+        raise TaskError("invalid_input", "Checkpoint input is not valid JSON.") from None
 
 
 def normalize_checkpoint(value):
@@ -336,13 +342,21 @@ def normalize_checkpoint(value):
     result["evidence"] = []
     paths = set()
     for item in evidence:
-        if not isinstance(item, dict) or set(item) - {"path", "role", "critical"}:
-            raise TaskError("invalid_input", "Evidence accepts path, role and critical only.")
+        if not isinstance(item, dict) or set(item) - {"path", "role", "critical", "replaces", "replacement_reason"}:
+            raise TaskError("invalid_input", "Evidence accepts path, role, critical, replaces and replacement_reason only.")
         path, role = _relative(item.get("path")), item.get("role", "artifact")
         if role not in ROLES or path in paths or type(item.get("critical", False)) is not bool:
             raise TaskError("invalid_input", "Invalid or duplicate evidence reference.")
         paths.add(path)
-        result["evidence"].append({"path": path, "role": role, "critical": item.get("critical", False)})
+        source = {"path": path, "role": role, "critical": item.get("critical", False)}
+        if "replaces" in item or "replacement_reason" in item:
+            if not {"replaces", "replacement_reason"} <= set(item):
+                raise TaskError("invalid_replacement", "Evidence replacement requires both replaces and replacement_reason.")
+            source["replaces"] = _relative(item["replaces"])
+            source["replacement_reason"] = _text(item["replacement_reason"], "replacement_reason", 4096)
+            if source["replaces"] == path:
+                raise TaskError("invalid_replacement", "Replacement must have a different path.")
+        result["evidence"].append(source)
     return result
 
 
@@ -445,7 +459,8 @@ class TaskStore:
                         raise ValueError()
                 editable = {key: checkpoint[key] for key in
                             ("schema", "state", "origin", "author", "decisions", "corrections", "constraints", "pending")}
-                editable["evidence"] = [{key: source[key] for key in ("path", "role", "critical")}
+                editable["evidence"] = [{key: source[key] for key in
+                                         ("path", "role", "critical", "replaces", "replacement_reason") if key in source}
                                         for source in checkpoint["evidence"]]
                 if normalize_checkpoint(editable) != editable:
                     raise ValueError()
@@ -453,7 +468,7 @@ class TaskStore:
                 _integer(checkpoint.get("base_revision"), "base_revision")
                 if checkpoint["base_revision"] >= value["revision"]:
                     raise ValueError()
-                known = {item["id"] for item in checkpoint["decisions"]}
+                known = {item["id"] for group in ("decisions", "constraints") for item in checkpoint[group]}
                 superseded = set()
                 for correction in checkpoint["corrections"]:
                     if correction["supersedes"] not in known or correction["supersedes"] in superseded:
@@ -466,6 +481,23 @@ class TaskStore:
                         raise ValueError()
                     digest = source.get("sha256")
                     if digest is not None and (not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)):
+                        raise ValueError()
+                    if "replaces" in source:
+                        retired = source.get("replaced_source")
+                        if (not isinstance(retired, dict) or retired.get("path") != source["replaces"]
+                                or retired.get("role") not in ROLES or type(retired.get("critical")) is not bool
+                                or (retired["critical"] and not source["critical"])
+                                or source.get("replacement_origin") not in ORIGINS):
+                            raise ValueError()
+                        retired_hash = retired.get("sha256")
+                        if retired_hash is not None and (not isinstance(retired_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", retired_hash)):
+                            raise ValueError()
+                        verified_hash = source.get("replacement_sha256")
+                        if not isinstance(verified_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", verified_hash):
+                            raise ValueError()
+                        _text(source.get("replacement_at"), "replacement_at", 128)
+                        _text(retired.get("recorded_at"), "recorded_at", 128)
+                    elif any(field in source for field in REPLACEMENT_FIELDS):
                         raise ValueError()
             for link in value["links"]:
                 if (not isinstance(link, dict) or link.get("kind") not in {"session", "run", "job", "artifact"}
@@ -637,12 +669,12 @@ class TaskStore:
                     if identifier in all_ids:
                         raise TaskError("invalid_input", "Item IDs cannot change groups within a generation.")
                     all_ids[identifier] = group
-            targets = {item["id"] for item in checkpoint["decisions"]}
+            targets = {item["id"] for group in ("decisions", "constraints") for item in checkpoint[group]}
             replaced = set()
             for correction in checkpoint["corrections"]:
                 target = correction["supersedes"]
                 if target not in targets or target in replaced:
-                    raise TaskError("invalid_input", "Correction must supersede one existing, not-yet-superseded decision or correction.")
+                    raise TaskError("invalid_input", "Correction must supersede one existing, not-yet-superseded decision, constraint or correction.")
                 targets.add(correction["id"])
                 replaced.add(target)
             timestamp = now()
@@ -650,12 +682,39 @@ class TaskStore:
             # decisions/corrections keep their captured hashes. Only explicitly
             # resubmitted references are recaptured in this checkpoint.
             captured = {source["path"]: copy.deepcopy(source) for source in previous.get("evidence", [])}
+            prior = copy.deepcopy(captured)
+            incoming_paths = {source["path"] for source in incoming["evidence"]}
+            replacement_targets = set()
+            for source in incoming["evidence"]:
+                target = source.get("replaces")
+                if target is None:
+                    continue
+                if (target not in prior or target in replacement_targets or target in incoming_paths
+                        or source["path"] in prior):
+                    raise TaskError("invalid_replacement", "Replacement must map one active prior path to one new path; duplicate targets, collisions and chains in one checkpoint are forbidden.")
+                replacement_targets.add(target)
             for source in incoming["evidence"]:
                 result = self._source(source["path"], strict=True)
-                captured[source["path"]] = {**source, "sha256": result["sha256"], "recorded_at": timestamp,
-                                            "verification_scope": "byte_identity_only",
-                                            "capture_status": result["status"],
-                                            "knowledge_metadata": result.get("knowledge_metadata", {})}
+                existing = prior.get(source["path"], {})
+                record = {**{field: copy.deepcopy(existing[field]) for field in REPLACEMENT_FIELDS if field in existing},
+                          **source, "sha256": result["sha256"], "recorded_at": timestamp,
+                          "verification_scope": "byte_identity_only", "capture_status": result["status"],
+                          "knowledge_metadata": result.get("knowledge_metadata", {})}
+                if "replaces" in source:
+                    if result["status"] != "verified" or result["sha256"] is None:
+                        raise TaskError("invalid_replacement", "Replacement evidence must be a readable regular file with verified bytes.")
+                    retired = prior[source["replaces"]]
+                    record.update(critical=source["critical"] or retired["critical"],
+                                  replaced_source={key: copy.deepcopy(retired[key]) for key in
+                                                   ("path", "sha256", "role", "critical", "recorded_at")},
+                                  replacement_at=timestamp, replacement_sha256=result["sha256"],
+                                  replacement_origin=checkpoint["origin"])
+                    del captured[source["replaces"]]
+                elif "replaces" in existing:
+                    # Refreshing bytes cannot erase the recorded substitution
+                    # or demote the retired source's critical context.
+                    record["critical"] = source["critical"] or existing["critical"]
+                captured[source["path"]] = record
             if len(captured) > 64:
                 raise TaskError("state_limit_exceeded", "A generation supports at most 64 evidence references; export/reset explicitly.")
             checkpoint.update(id=str(uuid.uuid4()), generation=task["generation"],
@@ -787,6 +846,9 @@ class TaskStore:
                 source["role"], source["status"], source["path"], source.get("sha256") or "unknown")
             if source.get("knowledge_metadata"):
                 line += " metadata=" + json.dumps(source["knowledge_metadata"], ensure_ascii=False, sort_keys=True)
+            if source.get("replaces"):
+                line += " substituição declarada [%s]: %s; motivo=%s; sha256_na_substituição=%s" % (
+                    source["replacement_origin"], source["replaces"], source["replacement_reason"], source["replacement_sha256"])
             if source.get("critical") or source["status"] != "unchanged":
                 critical.append(line)
             else:

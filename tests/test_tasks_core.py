@@ -87,7 +87,7 @@ class TaskCLIBoundaryTests(unittest.TestCase):
         finally:
             self.temporary.cleanup()
 
-    def command(self, *args, workspace=None, state=None, extra_env=None, process_umask=-1):
+    def command(self, *args, workspace=None, state=None, extra_env=None, process_umask=-1, stdin=None):
         environment = dict(self.env)
         if extra_env:
             environment.update(extra_env)
@@ -95,7 +95,7 @@ class TaskCLIBoundaryTests(unittest.TestCase):
             [sys.executable, "-B", str(CLI), "--workspace", str(workspace or self.workspace),
              "--state-dir", str(state or self.state), *map(str, args)],
             cwd=self.workspace, env=environment, capture_output=True, text=True,
-            encoding="utf-8", timeout=15, umask=process_umask)
+            encoding="utf-8", timeout=15, umask=process_umask, input=stdin)
 
     def decode(self, completed):
         self.assertNotIn("Traceback", completed.stderr, completed.stderr)
@@ -169,6 +169,26 @@ class TaskCLIBoundaryTests(unittest.TestCase):
                          (task["revision"], task["generation"], task["state"], task["checkpoint"]))
         self.assertEqual(1, len(self.cli("snapshot")["tasks"]))
         self.assert_sources_preserved()
+
+    def test_stdin_checkpoint_preserves_correction_and_retry_without_input_file(self):
+        task = self.checkpoint(self.create(), "task-a.initial.json", "initial")
+        before_inputs = file_manifest(self.inputs)
+        payload = (FIXTURES / "task-a.corrected.json").read_text()
+        args = ("checkpoint", task["task_id"], "--expected-revision", task["revision"],
+                "--request-id", "stdin-correction", "--file", "-")
+        result = self.cli(*args, stdin=payload)
+        self.assertEqual(result, self.cli(*args, stdin=payload))
+        self.assertIn("A_REFUSAL_CURRENT", self.resume(result)["text"])
+        self.assertEqual(before_inputs, file_manifest(self.inputs))
+        self.assert_sources_preserved()
+
+    def test_bad_or_oversized_stdin_checkpoint_has_no_state_effect(self):
+        task = self.create()
+        before = file_manifest(self.state)
+        for payload in ("", "{", "x" * (1024 * 1024 + 1)):
+            self.refused("checkpoint", task["task_id"], "--expected-revision", task["revision"],
+                         "--request-id", "bad-stdin", "--file", "-", stdin=payload, code="invalid_input")
+            self.assertEqual(before, file_manifest(self.state))
 
     def test_two_interleaved_tasks_resume_explicit_id_not_most_recent(self):
         task_a = self.corrected_task()

@@ -86,6 +86,8 @@ O pacote preserva todas as correções e limites marcados como críticos. Se nã
 
 Fontes alteradas exigem reconciliação antes de um pacote marcado pronto. Ausência de hash significa não verificado. Hash igual prova identidade de bytes, não atualidade ou verdade. O papel da evidência é declarado no checkpoint. A candidata preserva valores escalares simples de `knowledge_status`, `as_of` e `superseded_by` no frontmatter, sem interpretá-los como verdade, autorização ou vigência. Não é um parser YAML geral nem um recuperador semântico; conteúdo integral da fonte não entra automaticamente no pacote.
 
+Uma referência movida pode ser substituída explicitamente com `replaces` e `replacement_reason`: o alvo deve estar ativo, o novo arquivo deve ser verificável e a criticidade anterior é preservada. A auditoria guarda a referência anterior. Correções podem substituir decisões, correções e restrições, sempre críticas e declaradas; só uma decisão humana real altera autorização.
+
 O arquivo exportado é um handoff fora do vault. A UI permite inspecionar e copiar o pacote. A primeira versão não o injeta numa sessão nativa sem ação explícita.
 
 ## Inbox confiável
@@ -108,4 +110,4 @@ Instalação não inicia servidor, observador ou modelo. Só o comando explícit
 
 Os requisitos são rastreados como `R1` identidade e seleção; `R2` contexto e correções; `R3` integridade e escopo; `R4` inbox e estados; `R5` concorrência e recuperação; `R6` isolamento e segurança local; `R7` rollback; `R8` evidência de valor. Os cenários correspondentes estão em [VALIDATION.md](VALIDATION.md).
 
-Uma release candidata pode estar tecnicamente apta e ainda não ter valor demonstrado. A promoção funcional exige os testes de uso. Uma futura instalação no vault real permanece fora do escopo, mesmo após todos os gates.
+Uma release candidata pode estar tecnicamente apta e ainda não ter valor demonstrado. A promoção funcional exige os testes de uso. A instalação real exige pedido explícito e gates técnicos. O pedido posterior de reinstalação permite atualizar o harness, preservando conteúdo, configuração local e memória do vault.

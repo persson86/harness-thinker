@@ -65,6 +65,7 @@ Use `harness/operations/<op>.md` como playbook canônico:
 - `model-eval` — comparação controlada de rotas por casos cegos, delegação e checks determinísticos.
 - `dream` — manutenção propositiva em digest; só propõe.
 - `reverie` — associação livre; material bruto, sem ações.
+- `task` — continuidade explícita por tarefa: registrar/atualizar checkpoint, retomar pelo ID e consultar pendências; agente opera a CLI e mantém estado fora do vault. Não captura conversas automaticamente nem inicia agentes.
 - `handoff` — compacta o estado de uma tarefa longa em bloco copiável para retomar em nova sessão ou outro agente; não gera página nem log.
 - `memory` — Claude-only, memória viva em `~/.claude/projects/<este-vault>/memory/`.
 

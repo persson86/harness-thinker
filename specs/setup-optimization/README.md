@@ -16,13 +16,13 @@ Esta especificação define uma evolução do Thinker centrada em tarefas: retom
 
 ## Limites desta mudança
 
-Durante implementação e testes, o vault de trabalho real é protegido integralmente contra escrita. Isso inclui conteúdo, arquivos ocultos, configuração, índices, memória extraída, drafts, estado Git e harness instalado. Não executar comandos de startup que sincronizem conversas naquele diretório. O laboratório usa conteúdo sintético e estado independente; nenhuma instalação será feita no vault real como parte desta iniciativa.
+Durante implementação e testes, o vault de trabalho real é protegido integralmente contra escrita. Isso inclui conteúdo, arquivos ocultos, configuração, índices, memória extraída, drafts, estado Git e harness instalado. Não executar comandos de startup que sincronizem conversas naquele diretório. O laboratório usa conteúdo sintético e estado independente; a fase inicial não autorizou instalação real. O pedido posterior de reinstalação permite atualizar somente os arquivos gerenciados do harness, após validação.
 
-Uma futura promoção ao ambiente real exige uma decisão separada que altere explicitamente esse limite. Concluir testes ou criar uma tag não fornece essa autorização.
+A reinstalação solicitada não autoriza editar conhecimento, índices, logs editoriais ou memória do vault. Concluir testes ou criar uma tag também não autoriza publicação remota.
 
 ## Decisão de produto
 
-Implementar primeiro continuidade por tarefa e uma superfície própria de atenção. A interface reutiliza o supervisor existente e não cria outro motor de agentes. Busca híbrida, chat multiprovedor completo e execução remota ficam condicionados a falhas e ganhos observados, com contratos de extensão previstos, sem implementação especulativa.
+Implementar primeiro continuidade por tarefa e uma superfície própria de atenção. O supervisor existente permanece responsável por execução. A primeira interface registra vínculos com jobs, sem importar eventos ou criar outro motor de agentes. Busca híbrida, chat multiprovedor completo e execução remota ficam condicionados a falhas e ganhos observados, com contratos de extensão previstos, sem implementação especulativa.
 
 A medição separa funcionamento técnico, qualidade das respostas e valor para a pessoa. Testes sintéticos podem habilitar um piloto, mas não demonstram redução de esforço humano. Um resultado sem dados suficientes continua inconclusivo.
 

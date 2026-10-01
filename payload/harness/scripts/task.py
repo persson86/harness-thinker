@@ -30,7 +30,7 @@ def parser():
         command.add_argument("--expected-revision", required=True, type=int)
         command.add_argument("--request-id", required=True)
         if name == "checkpoint":
-            command.add_argument("--file", required=True)
+            command.add_argument("--file", required=True, help="JSON checkpoint path, or - for bounded standard input")
         elif name == "link":
             command.add_argument("--kind", required=True, choices=("session", "run", "job", "artifact"))
             command.add_argument("--external-id", required=True)

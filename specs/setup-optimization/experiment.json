@@ -4,7 +4,11 @@
   "baseline_version": "7.22.1",
   "candidate_version": "7.23.0-rc.1",
   "status": "protocol_not_results",
-  "conditions": ["baseline", "task_resume", "task_resume_surface"],
+  "conditions": [
+    "baseline",
+    "task_resume",
+    "task_resume_surface"
+  ],
   "critical_failure_budget": 0,
   "proposed_live_model_budget": {
     "max_calls": 24,
@@ -26,6 +30,7 @@
     "human_feedback": "not_observed"
   },
   "protected_workspace_writes": false,
-  "live_install_authorized": false,
-  "remote_publication_authorized": false
+  "live_install_authorized": true,
+  "remote_publication_authorized": false,
+  "live_install_scope": "harness_managed_files_only_after_validation"
 }

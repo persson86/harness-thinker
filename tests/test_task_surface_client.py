@@ -100,8 +100,9 @@ function harness() {
       {id:"d2",text:"DECISION_CURRENT",status:"proposed"}
     ],corrections:[
       {id:"c1",text:"CORRECTION_OLD",supersedes:"d1"},
-      {id:"c2",text:"CORRECTION_CURRENT",supersedes:"c1"}
-    ]};
+      {id:"c2",text:"CORRECTION_CURRENT",supersedes:"c1"},
+      {id:"scope-correction",text:"SCOPE_CURRENT",supersedes:"scope"}
+    ],constraints:[{id:"scope",text:"SCOPE_OLD",critical:true}],evidence:[{path:"source-new.md",replaces:"source-old.md",replacement_reason:"Moved by owner",status:"unchanged"}]};
     h.requests[0].resolve({ok:true,json:async()=>value});
     await flush();
     h.get("#items").children[0].onclick();
@@ -154,7 +155,9 @@ class ClientTests(unittest.TestCase):
         state = self.results["correction_chain"]
         self.assertIn("CORRECTION_CURRENT", state["currentDetail"])
         self.assertIn("DECISION_CURRENT", state["currentDetail"])
-        for old in ("DECISION_OLD", "CORRECTION_OLD"):
+        self.assertIn("SCOPE_CURRENT", state["currentDetail"])
+        self.assertIn("Substitui source-old.md: Moved by owner", state["currentDetail"])
+        for old in ("DECISION_OLD", "CORRECTION_OLD", "SCOPE_OLD"):
             self.assertNotIn(old, state["currentDetail"])
             self.assertIn(old, state["history"])
 

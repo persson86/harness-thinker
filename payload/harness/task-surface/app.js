@@ -40,13 +40,13 @@ function renderDetail(t) {
   for(const c of corrections){const box=el("div",undefined,"correction");box.append(el("strong","CORREÇÃO A PRESERVAR"),el("span",textOf(c)));root.append(box);}
   listSection(root,"Decisões",currentItems(cp,"decisions"));
   listSection(root,"Próximos passos",cp.pending);
-  listSection(root,"Limites registrados",cp.constraints || cp.authorization);
+  listSection(root,"Limites registrados",currentItems(cp,"constraints"));
   listSection(root,"Precisa de atenção",attention);
   listSection(root,"Artefatos vinculados",deliveries(t).map(l=>({text:l.external_id || l.path,status:"Referência registrada; utilidade não avaliada"})));
   const sources=t.sources || t.evidence_status || cp.evidence || [];
-  if(sources.length){root.append(el("h3","Fontes para conferir"));const ul=el("ul");for(const s of sources){const li=el("li",s.path || textOf(s));li.append(el("small",s.status || "Referência registrada; confira a fonte"));ul.append(li);}root.append(ul);}
+  if(sources.length){root.append(el("h3","Fontes para conferir"));const ul=el("ul");for(const s of sources){const li=el("li",s.path || textOf(s));li.append(el("small",s.status || "Referência registrada; confira a fonte"));if(s.replaces)li.append(el("small",`Substitui ${s.replaces}: ${s.replacement_reason || "motivo não informado"} (relato registrado)`));ul.append(li);}root.append(ul);}
   if(!Object.keys(cp).length) root.append(el("p","Esta tarefa ainda não tem um checkpoint. Registre o estado antes da próxima troca de sessão.","notice"));
-  const detail=el("details");detail.append(el("summary","Identidade, proveniência e histórico"));const record={task_id:taskId(t),revision:t.revision,generation:t.generation,updated_at:t.updated_at,links:links(t),checkpoint_history:{decisions:cp.decisions || [],corrections:cp.corrections || []}};detail.append(el("pre",JSON.stringify(record,null,2)));root.append(detail);
+  const detail=el("details");detail.append(el("summary","Identidade, proveniência e histórico"));const record={task_id:taskId(t),revision:t.revision,generation:t.generation,updated_at:t.updated_at,links:links(t),checkpoint_history:{decisions:cp.decisions || [],corrections:cp.corrections || [],constraints:cp.constraints || [],evidence:cp.evidence || []}};detail.append(el("pre",JSON.stringify(record,null,2)));root.append(detail);
   const footer=el("footer");const copy=el("button","Copiar ID da tarefa","secondary");copy.onclick=async()=>{try{await navigator.clipboard.writeText(taskId(t));toast("ID copiado");}catch{toast("Selecione o ID em Identidade e proveniência");}};footer.append(copy);
   if(t.resume?.ready && t.resume?.text){const button=el("button","Copiar contexto de retomada","primary");button.onclick=async()=>{try{await navigator.clipboard.writeText(t.resume.text);toast("Contexto copiado. Confira as fontes ao retomar.");}catch{toast("Não foi possível copiar o contexto");}};footer.prepend(button);}
   root.append(footer);

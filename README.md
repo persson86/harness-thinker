@@ -128,15 +128,64 @@ the link, the index or the log, and the turn closes.
 
 ## Operations
 
-Triggered in natural language or via `/command` (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **REVIEW**, **AGENDA** (Gmail pessoal + Calendar do Mac profissional), **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MODEL-EVAL**, **MEMORY** (Claude-only; Grok Build recusa), **DREAM**, **REVERIE**.
+Triggered in natural language or via `/command` (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **REVIEW**, **AGENDA** (Gmail pessoal + Calendar do Mac profissional), **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **TASK**, **MODEL-EVAL**, **MEMORY** (Claude-only; Grok Build recusa), **DREAM**, **REVERIE**.
 
-## Experimental task continuity (7.23.0-rc.1)
+## Task continuity in daily work (7.23.0-rc.1)
 
-The candidate adds explicit tasks and portable resume packets while keeping state outside the workspace. It is opt-in and intended for a synthetic laboratory first. A task is distinct from a conversation, provider execution and durable knowledge. A job link alone reports no execution progress.
+Use tasks when work spans sessions or providers. A checkpoint preserves the current objective, corrections, constraints and next steps. Resume checks source fingerprints and refuses a ready export when evidence changed or critical context exceeds the byte budget. Hashes prove byte identity, not truth or current authorization.
 
-See the [specification and validation plan](specs/setup-optimization/README.md) and the [task operation](payload/harness/operations/task.md). The local surface displays an explicitly generated snapshot and cannot run agents or mutate tasks. It does not automatically inject context into a provider session.
+### Ask the agent
 
-The release rehearsal exercises baseline installation, candidate update, removal of unchanged candidate-only managed files and baseline reinstallation. Export the corrected handoff before rollback; preserve task state for inspection. Human attention savings and sustained usefulness require the paired pilot, not a green technical suite.
+The installed Claude and Codex instructions route these requests to `harness/operations/task.md`:
+
+- “Registre esta tarefa e um checkpoint para eu continuar em outra sessão.”
+- “Atualize o checkpoint desta tarefa com a correção que acabei de fazer.”
+- “Retome a tarefa <task_id> e confira as fontes antes de continuar.”
+- “Mostre as pendências registradas e o que precisa de mim.”
+
+The agent operates the CLI and returns the task ID and external state location. Keep those together when changing hosts. Creating a task does not authorize editorial writes or start collaborators. The feature is opt-in; it does not automatically capture conversations or pick the latest task.
+
+### Run the CLI directly
+
+From an installed target, choose a persistent, private state directory **outside** that target. Use the same canonical workspace and state paths across sessions; a different workspace cannot reuse that namespace.
+
+```sh
+TASK_WORKSPACE="$(pwd -P)"
+TASK_STATE="$HOME/.local/state/second-brain/tasks/my-vault"
+python3 harness/scripts/task.py --workspace "$TASK_WORKSPACE" --state-dir "$TASK_STATE" \
+  create --title "Review proposal" --objective "Confirm the current decision and next step"
+```
+
+Set `TASK_ID` to the full returned ID. For the first checkpoint, use revision `1`; subsequent mutations require the current revision. A repeated request ID is idempotent only when the input is identical. Standard input avoids creating a temporary checkpoint file:
+
+```sh
+python3 harness/scripts/task.py --workspace "$TASK_WORKSPACE" --state-dir "$TASK_STATE" \
+  checkpoint "$TASK_ID" --expected-revision 1 --request-id first-checkpoint --file - <<'JSON'
+{"schema":1,"state":"Analysis complete; proposal awaits review.","constraints":[{"id":"scope","text":"Analysis only; publication is not authorized.","critical":true}],"pending":[{"id":"review","text":"Review the proposal with the user.","status":"open"}]}
+JSON
+python3 harness/scripts/task.py --workspace "$TASK_WORKSPACE" --state-dir "$TASK_STATE" \
+  resume "$TASK_ID" --budget-bytes 32768
+```
+
+Add evidence with workspace-relative paths and corrections with a new ID plus `supersedes`. Omitted existing evidence is preserved; explicitly resupplying a reference captures its current bytes as a declared reconciliation. Inspect that change before treating the checkpoint as current. To reconcile a moved source, supply `replaces` and `replacement_reason` on the new evidence reference; the new source must be verifiable and the old reference stays in the audit history. Corrections may explicitly supersede an earlier constraint when the user changes the authorized scope.
+
+### Inspect the local surface
+
+```sh
+python3 harness/scripts/task.py --workspace "$TASK_WORKSPACE" --state-dir "$TASK_STATE" \
+  snapshot > "$TASK_STATE/snapshot.json"
+python3 harness/scripts/task-surface.py --snapshot "$TASK_STATE/snapshot.json"
+```
+
+Open the complete loopback URL printed by the server, including its fragment token. Select a task explicitly, inspect active corrections and copy the ready resume context. Regenerate the snapshot after task changes: refreshing the page only rereads the file. A linked job has unknown execution state, and an artifact reference does not establish a reviewed delivery.
+
+The surface is read-only, starts no agents and is not live monitoring. No provider session receives context automatically. Shutdown affects only this viewer. Empty files or invalid snapshots appear unavailable, never as a successful empty list.
+
+### Validation and rollback
+
+See the [spec and validation plan](specs/setup-optimization/README.md), [lab quickstart](specs/setup-optimization/QUICKSTART.md) and [release procedure](specs/setup-optimization/RELEASE.md). This is an experimental candidate; human attention savings remain unmeasured. Installing the harness does not activate tracking or launch services.
+
+The release rehearsal installs baseline 7.22.1, updates to the candidate, exports a corrected handoff and reinstalls the baseline. Only unchanged candidate-only managed files are removed after manifest checks. Preserve external task state and the portable handoff. A real target update requires explicit authorization and content/configuration verification.
 
 ## 7.22.0 — Trustworthy delegation data and hub-page shape
 
