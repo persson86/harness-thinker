@@ -108,6 +108,8 @@ Com o recurso ativo, mantenha um ID exclusivo desta sessão, confira entregas pe
 
 Antes do primeiro job, informe o principal conhecido com `session-context`; atualize ao trocar de modelo. `route` compara a alternativa local e `submit` exige benefício mais trabalho independente ou revisão crítica. Use Sonnet em contribuições delimitadas e Opus em revisão crítica quando adequados; defaults são hipóteses de rota, não resultados de benchmark. Quotas são snapshots manuais por provedor, expiram e nunca são somadas entre provedores. Falha exige diagnóstico antes de retry.
 
+Escalonamento: com a extensão ligada, peça por iniciativa própria uma revisão crítica de outro modelo quando um gatilho observável valer — aposta, irreversibilidade, evidência frágil ou travamento —, nunca pela própria sensação de confiança. Prefira outro provedor, brief às cegas e uma revisão por decisão; detalhes em `harness/operations/delegate.md` > Escalonamento para revisão crítica.
+
 Mantenha indicação visual ao escalar: `delegation-indicator.py --watch 5`/`board --watch 5` para jobs externos. Agentes nativos usam a UI do host e, quando registrados via `native report`, aparecem separados como estado reportado; atualizar ao receber retorno. Esse registro não cria heartbeat nem desperta uma sessão ociosa. Não afirmar progresso ou cancelamento nativo a partir da extensão.
 
 ## Manutenção e release do harness

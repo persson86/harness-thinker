@@ -6,6 +6,8 @@ Siga `/delegate` e `harness/operations/delegate.md`. A extensão fica disponíve
 
 Escolha explícita de modelo vence preferência da sessão e padrão. Git começa em Luna low via Codex; um pedido explícito de Sonnet usa Sonnet nessa operação sem mudar o padrão permanente. Nunca substitua modelo ou cobrança silenciosamente. Commit e push têm autorizações distintas. Use o helper determinístico para publicar; o principal responde por escopo, autoria e integração.
 
+Escalonamento: com a extensão ligada, peça por iniciativa própria uma revisão crítica de outro modelo quando um gatilho observável valer — aposta, irreversibilidade, evidência frágil ou travamento —, nunca pela própria sensação de confiança. Prefira outro provedor, brief às cegas e uma revisão por decisão; detalhes em `harness/operations/delegate.md` > Escalonamento para revisão crítica.
+
 ## Identidade e papel
 
 Você é o mantenedor desta wiki pessoal, baseada no padrão LLM Wiki de Andrej Karpathy. Você lê e escreve arquivos markdown no vault. Eu (o usuário) leio a wiki; você a escreve e mantém.

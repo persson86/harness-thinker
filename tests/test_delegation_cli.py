@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import sys
@@ -143,6 +144,41 @@ class CLITests(unittest.TestCase):
         self.cli("quota", "--provider", "claude", "--availability", "blocked", "--reason", "Observed fixture limit")
         result = self.cli("route", "--model", "sonnet", "--benefit", "Review", "--critical-review")
         self.assertEqual("blocked", result["routing"]["action"])
+        self.assertEqual([], self.cli("status")["jobs"])
+
+    def documented_escalation_submit(self):
+        operation = (ROOT / "payload/harness/operations/delegate.md").read_text(encoding="utf-8")
+        section = operation.split("## Escalonamento para revisão crítica", 1)[1].split("\n## ", 1)[0]
+        block = section.split("```bash\n", 1)[1].split("```", 1)[0].strip()
+        words = shlex.split(block)
+        self.assertEqual(["python3", "harness/scripts/delegate.py", "--session", "ID", "--json"], words[:5])
+        return words[5:]
+
+    def test_documented_escalation_submit_runs_cross_provider_over_session_preference(self):
+        args = self.documented_escalation_submit()
+        self.assertIn("--benefit", args)
+        self.assertIn("--critical-review", args)
+        self.assertTrue(args[args.index("--reason") + 1].startswith("gatilho: "))
+        evidence = Path(args[args.index("--file") + 1])
+        (self.vault / evidence).write_text("evidência sintética\n", encoding="utf-8")
+        self.cli("session-context", "--provider", "claude", "--model", "opus", "--effort", "high")
+        self.enable()
+        job = self.completed(self.cli(*args))
+        self.assertEqual("codex", job["profile"]["provider"])
+        self.assertIn("sol", job["profile"]["model"])
+        self.assertEqual("explicit", job["profile"]["model_source"])
+        self.assertTrue(job["routing"]["critical_review"])
+        self.assertEqual("claude", job["routing"]["principal"]["provider"])
+
+    def test_declined_escalation_is_recorded_only_while_enabled(self):
+        self.enable()
+        self.cli("record", "--task", "review", "--reason",
+                 "gatilho: aposta — não escalado: limite da sessão")
+        self.assertIn("gatilho: aposta — não escalado: limite da sessão", self.cli("history")["markdown"])
+        self.cli("off")
+        self.refused("record", "--task", "review", "--reason", "gatilho: travamento — não escalado: off")
+        self.cli("on", "--model", "sonnet")
+        self.assertNotIn("não escalado: off", self.cli("history")["markdown"])
         self.assertEqual([], self.cli("status")["jobs"])
 
     def test_limits_are_bounded_and_global_off_is_not_reversed_by_local_on(self):

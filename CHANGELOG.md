@@ -1,5 +1,15 @@
 # Changes
 
+## 7.23.0-rc.2 - 2026-10-01 (laboratory candidate)
+
+- **Critical-review escalation.** `harness/operations/delegate.md` gains a section that lets any principal request a second reading from another model on its own initiative. Triggers are observable — stakes (a material user decision, or a wiki synthesis/contradiction/position change not directly recorded from a source), irreversibility, fragile evidence whose resolution would change the delivery, an error that returns after a fix — and never the principal's self-assessed confidence. Material consequence and irreversibility override size; otherwise quick questions, open reflection, deterministically checked mechanical work, helper-run Git and low-impact drafts under immediate user review are excluded.
+- Session mode governs initiative: `auto` submits within the existing limits and announces the trigger in one line, `request` proposes and waits, off or an unavailable CLI submits and records nothing and states that no external review happened. One review per delivery; related decisions are grouped.
+- Reviewer defaults to the frontier class of a different provider (Opus high under Codex/Grok, Sol high under Claude, passed with `--model` because the `review` route defaults to Opus); explicit user choice wins and unavailability is reported, not substituted. The first reading is blind to the principal's conclusion. Authorized material may be excerpted to `drafts/`, but refusals for secrets, credentials, protected configuration or circulation scope are never bypassed by copying. At most one reconciliation call follows an unresolved material divergence, inside a `run` opened beforehand when foreseeable. Agreement is not corroboration; a host-native advisor complements, not replaces, this review.
+- Escalations name the trigger in `--reason`, with a complete `submit` example; declined escalations use `record`, so `history`/`feedback` can evaluate the triggers before any policy change.
+- `CLAUDE.md`, `AGENTS.md` and `.grok/rules/thinker.md` carry a one-line pointer so the policy is loaded without `/delegate`. A conversation entry recognizes an explicit request for a second opinion.
+- Tests: `test_delegation_escalation_policy.py` guards the text contract and pointers; CLI tests execute the playbook's own `submit` example with fake providers (Codex/Sol resolved under a Claude principal, explicit model over the session preference) and check that `record` is refused while off. No runtime code changed. Trigger rate and usefulness are unmeasured; the task-continuity candidate from rc.1 remains unpiloted.
+- The policy was itself reviewed blind by Sol high before publication; seven findings (incomplete example, context-protection bypass, exclusion precedence, trigger breadth, `run` ordering, off-state recording, string-only tests) were verified against the source and applied.
+
 ## 7.23.0-rc.1 - 2026-09-30 (laboratory candidate)
 
 - Reconciliation supports explicit constraint corrections and moved evidence references with a reason, verified replacement bytes and preserved audit history. Omission still never retires evidence or critical context.

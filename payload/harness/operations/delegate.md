@@ -15,6 +15,7 @@ Reconheça pedidos naturais, sem exigir vocabulário técnico:
 - “Quero ver isso numa tabela”, “mostre o painel”: `board`, e `board --watch` quando quiser acompanhar ao vivo.
 - “Essa revisão ficou longa”: comentário de uso; não inferir descarte nem inventar avaliação quantitativa.
 - “Mostre o que aprendemos sobre os modelos”: histórico e padrões limitados aos casos observados.
+- “Peça uma segunda opinião de outro modelo”: revisão crítica agora, mesmo sem gatilho; ver Escalonamento.
 
 Use `python3 harness/scripts/delegate.py --help` somente quando precisar da interface completa. Opções globais (`--session`, `--json`, `--vault`, `--state-dir`) vêm antes do comando. O script encontra o vault pela instalação. Não use a cópia do repo-fonte para operar outro vault sem `--vault` explícito.
 
@@ -65,6 +66,35 @@ Para uma comparação ou cadeia com mais de um estágio, crie um `run`. Declare 
 `submit` requer uma instrução em `--prompt` **ou** um arquivo em `--brief`. Para um pedido curto, prefira `--prompt` com `--file`; não crie um MD de preparação só para acionar a ferramenta. Use `--brief` quando já houver um roteiro editável ou o contexto exigir um documento maior. Passe os argumentos com escape correto; conteúdo de usuário não é código de shell.
 
 Não use a extensão para ocultar exportação de material a um provedor fora do escopo do pedido. Se a tarefa estiver autorizada, não invente aprovações repetidas para passos rotineiros dentro desse escopo.
+
+## Escalonamento para revisão crítica
+
+Objetivo: o principal pede, por iniciativa própria, uma segunda leitura de outro modelo quando o custo de errar justifica contexto, tempo e uso. Vale para qualquer principal, provedor, modelo ou esforço.
+
+**Gatilhos observáveis.** A própria sensação de confiança não é gatilho: o erro mais caro costuma vir com segurança. Escale quando ao menos um destes valer para a entrega atual:
+
+1. **Aposta:** a saída orienta uma decisão material do usuário (recomendação, priorização, avaliação de pessoa, compromisso com terceiros) ou grava na wiki uma síntese, contradição ou mudança de posição que não é registro direto da fonte.
+2. **Irreversibilidade:** precede commit/push, release, mudança de invariante do harness ou mensagem para fora.
+3. **Evidência frágil:** a conclusão depende de inferência encadeada, fontes conflitantes ou afirmação central não conferida na fonte primária, e resolver essa incerteza mudaria a entrega.
+4. **Travamento:** o mesmo erro voltou depois de uma correção, ou um resultado não encaixa na explicação vigente. Trocar de tática porque apareceu evidência melhor é adaptação normal, não travamento.
+
+Consequência material e irreversibilidade prevalecem sobre tamanho e formato: uma recomendação curta ou um compromisso de duas linhas continua elegível. Fora disso, não escale pergunta rápida, reflexão aberta, tarefa mecânica com check determinístico, Git executado pelo helper determinístico nem rascunho de baixo impacto que o usuário vai revisar em seguida. Concordância com outro modelo não promove a conclusão a fato.
+
+**Modo da sessão.** Em `auto`, o modo herdado, submeta dentro dos limites sem pedir licença e diga em uma linha qual gatilho valeu e quem está revisando. Em `request`, proponha a revisão em uma linha e aguarde. Com a extensão desligada ou a CLI indisponível, não submeta nem registre; se um gatilho valeu, diga em uma linha que a conclusão não teve revisão externa. Um pedido explícito do usuário vale sem gatilho, salvo desligamento.
+
+**Momento e orçamento.** Uma revisão por entrega, enquanto ela ainda muda o rumo: antes de comprometer a abordagem (aposta, evidência), antes do ato irreversível ou ao reconhecer o travamento. Agrupe decisões relacionadas da mesma entrega numa só leitura; uma ingestão com várias páginas é uma entrega. Se a entrega já existe, torne-a durável antes. Os limites de chamadas valem para o escalonamento: reserve-os para os gatilhos de maior consequência.
+
+**Revisor.** Escolha explícita do usuário vence, inclusive a preferência declarada para a sessão. Sem ela, prefira a classe de fronteira de outro provedor que não o do principal: treinos diferentes reduzem erros correlacionados, sem que isso vire corroboração. Hipóteses iniciais: Opus high com principal Codex ou Grok; Sol high com principal Claude. O padrão de rota de `review` é Opus, então passe `--model` sempre que a escolha for outra. Mesmo provedor só com papel distinto declarado. Com quota blocked, limite atingido ou modelo indisponível, não substitua silenciosamente: trabalhe no principal e diga ao usuário que a revisão não ocorreu.
+
+**Brief às cegas.** A primeira leitura recebe pergunta, critérios, evidências e arquivos, inclusive as saídas de comando que sustentam a conclusão, mas não a conclusão do principal. Material autorizado que esteja fora do vault ou num formato recusado pode ir como trecho `.txt` em `drafts/`. Recusa por segredo, credencial, configuração protegida ou escopo de circulação não se contorna com cópia: deixe o material de fora e declare a limitação no brief. Peça uma resposta própria que separe verificado, inferência e não verificável, com objeções ancoradas em arquivo e linha. O principal compara as duas leituras e confere cada objeção na fonte antes de aplicá-la. Divergência material sem desempate pede no máximo uma chamada de reconciliação com a tese explícita (“encontrei X, você indica Y; que evidência desempata?”). Quando ela for previsível, crie o `run` antes da primeira leitura; senão, a reconciliação é um job avulso que cita o job anterior em `--reason`.
+
+**Registro.** Somente com a extensão ligada e a CLI disponível. A submissão completa nomeia o gatilho:
+
+```bash
+python3 harness/scripts/delegate.py --session ID --json submit --task review --model sol --critical-review --benefit "Leitura crítica independente de outro provedor" --reason "gatilho: irreversibilidade — publicar a política" --prompt "Revise às cegas: pergunta, critérios e evidências anexas." --file drafts/evidencia.txt
+```
+
+Quando um gatilho valer e o principal não escalar, `record --task review --reason "gatilho: <nome> — não escalado: <motivo>"`. Depois do uso, `feedback` registra se a revisão mudou alguma decisão; silêncio continua desconhecido. Esse histórico é a base para ajustar os gatilhos; proponha mudanças com exemplos, sem alterar a política autonomamente.
 
 ## Agentes nativos e supervisão longa
 
