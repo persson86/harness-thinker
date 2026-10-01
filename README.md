@@ -130,6 +130,14 @@ the link, the index or the log, and the turn closes.
 
 Triggered in natural language or via `/command` (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **REVIEW**, **AGENDA** (Gmail pessoal + Calendar do Mac profissional), **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **MODEL-EVAL**, **MEMORY** (Claude-only; Grok Build recusa), **DREAM**, **REVERIE**.
 
+## Experimental task continuity (7.23.0-rc.1)
+
+The candidate adds explicit tasks and portable resume packets while keeping state outside the workspace. It is opt-in and intended for a synthetic laboratory first. A task is distinct from a conversation, provider execution and durable knowledge. A job link alone reports no execution progress.
+
+See the [specification and validation plan](specs/setup-optimization/README.md) and the [task operation](payload/harness/operations/task.md). The local surface displays an explicitly generated snapshot and cannot run agents or mutate tasks. It does not automatically inject context into a provider session.
+
+The release rehearsal exercises baseline installation, candidate update, removal of unchanged candidate-only managed files and baseline reinstallation. Export the corrected handoff before rollback; preserve task state for inspection. Human attention savings and sustained usefulness require the paired pilot, not a green technical suite.
+
 ## 7.22.0 — Trustworthy delegation data and hub-page shape
 
 The board and history now say where a model identity came from — reported in the stream, not emitted, or not emitted because the Codex run is ephemeral — instead of leaving it blank, and they label effort as requested, never applied. Native reports accept a declared effort and show time since the first report. `board --compact` fits a narrow side pane without cutting the model or the effort. Unrated deliveries are counted and the feedback command is suggested; silence still means unknown.

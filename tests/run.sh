@@ -339,6 +339,9 @@ assert_rc "delegação: ciclo, adaptadores, CLI, hook e Git isolados" 0
 run python3 -B -m unittest discover -s "$REPO/tests" -p 'test_knowledge_*.py'
 assert_rc "revisão de conhecimento e busca" 0
 [ "$RC" -ne 0 ] || printf '%s\n' "$OUT" | tail -4
+run python3 -B -m unittest discover -s "$REPO/tests" -p 'test_task*.py'
+assert_rc "tarefas, retomada e superfície local" 0
+[ "$RC" -ne 0 ] || printf '%s\n' "$OUT" | tail -4
 
 # ------------------------------------------------- páginas-hub (7.22.0, C1)
 # Teste de documentação, não de comportamento do modelo: confere que a regra

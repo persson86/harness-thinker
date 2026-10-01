@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "spec_version": "1.0.0",
+  "baseline_version": "7.22.1",
+  "candidate_version": "7.23.0-rc.1",
+  "status": "protocol_not_results",
+  "conditions": ["baseline", "task_resume", "task_resume_surface"],
+  "critical_failure_budget": 0,
+  "proposed_live_model_budget": {
+    "max_calls": 24,
+    "concurrency": 2,
+    "timeout_seconds": 1200,
+    "automatic_retries": 0,
+    "requested_effort": "max",
+    "profiles": "freeze_available_routes_before_execution"
+  },
+  "human_pilot": {
+    "minimum_paired_tasks": 8,
+    "minimum_sessions": 4,
+    "maximum_days": 14,
+    "median_attention_reduction_fraction": 0.2,
+    "median_absolute_savings_seconds": 60,
+    "minimum_pairs_nonworse": 6,
+    "include_preparation_and_review": true,
+    "maintenance_budget_hours": null,
+    "human_feedback": "not_observed"
+  },
+  "protected_workspace_writes": false,
+  "live_install_authorized": false,
+  "remote_publication_authorized": false
+}

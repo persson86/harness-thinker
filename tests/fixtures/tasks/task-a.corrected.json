@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "state": "A_CORRECTED_DECLARED: the current report records a refusal, not execution.",
+  "origin": "principal_reported",
+  "author": "synthetic-human-relay",
+  "corrections": [
+    {"id": "a-human-correction", "text": "A_REFUSAL_CURRENT: the synthetic human clarified that approval was refused; preserve the earlier report as history.", "supersedes": "a-approval", "origin": "principal_reported"}
+  ],
+  "pending": [
+    {"id": "a-reformulate", "text": "A_NOT_EXECUTED: reformulation remains to be done.", "status": "open"}
+  ],
+  "evidence": [
+    {"path": "source-a.md", "role": "canonical", "critical": true},
+    {"path": "historical.md", "role": "canonical"}
+  ]
+}

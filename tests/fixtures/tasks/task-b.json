@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "state": "B_MORE_RECENT: task B has its own independent state.",
+  "origin": "principal_reported",
+  "decisions": [
+    {"id": "b-decision", "text": "B_DECISION_ONLY: keep this in task B.", "status": "accepted"}
+  ],
+  "evidence": [
+    {"path": "source-b.md", "role": "test", "critical": true}
+  ]
+}

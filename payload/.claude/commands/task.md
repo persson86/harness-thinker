@@ -1,0 +1,1 @@
+Leia `harness/operations/task.md` e execute no escopo pedido. Tarefas e checkpoints ficam em estado privado externo ao vault. Não iniciar agentes ou escrita editorial por inferência. Use somente os comandos documentados pelo `task.py --help` instalado.

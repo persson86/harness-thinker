@@ -1,5 +1,13 @@
 # Changes
 
+## 7.23.0-rc.1 - 2026-09-30 (laboratory candidate)
+
+- Adds opt-in task continuity outside the workspace: explicit task IDs, checkpoints, corrections, revision checks, idempotency receipts, reset generations and portable handoffs. Resume compiles a measured UTF-8 byte budget and refuses to omit critical context silently.
+- Evidence fingerprints indicate byte identity only. Changed, missing or unverifiable references prevent a ready handoff. A linked session or job remains unobserved; task state does not control provider execution or imply approval.
+- Adds a read-only loopback task surface for an explicitly generated snapshot, with explicit task selection, token/Host/origin checks and unavailable states. It does not follow live agents, run models, or write knowledge.
+- Adds synthetic laboratory preparation, an instrumented paired human-pilot protocol, boundary tests and install/update/rollback rehearsal. The protocol keeps human value unobserved until actual use; simulations and model outputs never supply human feedback.
+- The candidate does not migrate delegation state, change model routes, import private conversations or install itself into an existing vault. Source-level installation remains explicit. See `specs/setup-optimization/` for scope, validation gates and experimental limitations.
+
 ## 7.22.1 - 2026-09-27
 
 - **Codex aliases follow the newest generation.** `luna`, `terra`, `sol` and `astra` resolve to the highest `gpt-<version>-<family>` listed in the Codex CLI's local catalog (`$CODEX_HOME/models_cache.json`, default `~/.codex`); hidden entries and other families never count. The embedded IDs (`gpt-6-luna`, `gpt-5.6-terra`, `gpt-6-sol`, `gpt-6-astra`) are only the minimum used when the catalog is missing, unreadable or lacks the family. An exact ID passed with `--provider` stays literal, and Claude aliases are unaffected.

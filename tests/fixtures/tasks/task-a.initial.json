@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "state": "A_INITIAL_DECLARED: source was examined; execution has not happened.",
+  "origin": "principal_reported",
+  "author": "synthetic-principal",
+  "decisions": [
+    {"id": "a-approval", "text": "A_APPROVAL_OLD: approval was pending in the earlier report.", "status": "accepted"},
+    {"id": "a-unaccepted", "text": "A_PROPOSAL_ONLY: a pilot was proposed, without human acceptance.", "status": "proposed"}
+  ],
+  "constraints": [
+    {"id": "a-analysis-only", "text": "A_ANALYSIS_ONLY: authorization is analysis only; do not ingest, commit, or push."}
+  ],
+  "pending": [
+    {"id": "a-open-question", "text": "A_PENDING: establish whether the proposal is feasible.", "status": "open"}
+  ],
+  "evidence": [
+    {"path": "source-a.md", "role": "canonical", "critical": true},
+    {"path": "historical.md", "role": "canonical"}
+  ]
+}

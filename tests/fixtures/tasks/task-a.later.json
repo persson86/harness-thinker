@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "state": "A_LATER_UNRELATED: a later discussion did not revoke the human correction.",
+  "origin": "principal_reported",
+  "author": "synthetic-later-agent",
+  "decisions": [
+    {"id": "a-later-proposal", "text": "A_LATER_PROPOSAL: another draft may be useful; this is not approval.", "status": "proposed"}
+  ],
+  "evidence": [
+    {"path": "source-a.md", "role": "canonical", "critical": true}
+  ]
+}
