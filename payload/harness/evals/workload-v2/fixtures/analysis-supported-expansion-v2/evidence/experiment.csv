@@ -1,0 +1,3 @@
+group,assigned,included,baseline_minutes,test_minutes,rework_pct
+assistant,100,100,20,14,4
+control,100,100,20,18,5

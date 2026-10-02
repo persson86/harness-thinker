@@ -1,0 +1,11 @@
+{
+  "case_id": "retrieval-pilot-decision-v2",
+  "label": "valid-alternative",
+  "artifacts": {
+    "deliverables/result.json": "{\n  \"decision\": \"continue_40\",\n  \"pilot_authorized\": true,\n  \"expansion_authorized\": false,\n  \"limit\": 40\n}\n",
+    "deliverables/note.md": "Ação: continuar o teste já iniciado; encaminhar indicadores ao comitê. O rascunho R5 não autoriza expansão.\n"
+  },
+  "expected_final_state": "pass",
+  "judge_expectation": "acceptable",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

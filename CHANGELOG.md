@@ -1,5 +1,21 @@
 # Changes
 
+## 7.23.0-rc.4 - 2026-10-02 (laboratory candidate)
+
+- Ships the persistent evaluator prototyped locally in rc.3, with a high-effort minimum, dynamic inventory, explicit unavailable profiles and immutable comparison policies. Historical rounds stay readable; execution cannot silently mix executor versions.
+- Adds a host-managed prepare/finish bridge with external temporary workspaces for complete fixture tasks. Explicit reconciliation can bind a verified job or abandon an interrupted attempt without replay. Final-state checks and artifact receipts are distinct from the agent response; arbitrary Python verification is explicitly gated on isolated Docker execution and remains unavailable without it. No provider supervisor is duplicated or granted broader permissions.
+- Adds per-criterion judgments, stable evaluator attribution, explicit superseding revisions, blind paired feedback, judge packets and reference-calibration reports. Disagreement and missing observations cannot silently become personal approval.
+- Reports separate capability from infrastructure failures, retain excluded candidates, compare matching observed subsets and expose practical margins, per-case variation and human effort. A case-count threshold no longer establishes general qualification.
+- Adds a second public development suite with positive-action controls, workspace outcomes and calibration examples. Public fixtures are not held-out confirmation; human preference and visual quality require actual observation.
+- Installation and automated checks do not invoke models. No routing defaults, private vault knowledge or provider credentials are published.
+
+## 7.23.0-rc.3 - 2026-10-02 (laboratory candidate)
+
+- Adds a persistent personal evaluation CLI with frozen case/rubric inputs, exact requested routes, bounded trials, resumable delegation and explicit unknown states. Model execution reuses the existing supervisor; installation and tests make no model calls.
+- Adds blind review packets, attributed quality grades, separate trajectory audits and explicit human feedback. Reports preserve planned denominators, critical failures, missing observations, ties and qualification limits; no automatic routing changes or universal intelligence score.
+- Adds twelve generic synthetic text cases across retrieval, ingestion, analysis, research, code and communication, with development/holdout separation. They screen bounded responses, not full workflows or rendered artifacts. Private runs remain in the target vault's ignored drafts directory.
+- Source tests cover integrity, path boundaries, execution budgets/resume and conservative recommendation behavior. This candidate requires real-use calibration and broader independent cases before durable model recommendations.
+
 ## 7.23.0-rc.2 - 2026-10-01 (laboratory candidate)
 
 - **Critical-review escalation.** `harness/operations/delegate.md` gains a section that lets any principal request a second reading from another model on its own initiative. Triggers are observable — stakes (a material user decision, or a wiki synthesis/contradiction/position change not directly recorded from a source), irreversibility, fragile evidence whose resolution would change the delivery, an error that returns after a fix — and never the principal's self-assessed confidence. Material consequence and irreversibility override size; otherwise quick questions, open reflection, deterministically checked mechanical work, helper-run Git and low-impact drafts under immediate user review are excluded.

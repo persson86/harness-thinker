@@ -1,0 +1,1 @@
+Implementar merge_scores(existing,incoming). Entradas listas de dicts com exatamente id/score. ID ASCII [a-z][a-z0-9-]*; score int/float finito 0..4, bool inválido. Duplicatas internas em cada entrada inválidas. Entre entradas incoming substitui mantendo posição, novos no fim. ValueError em inválidos; sem mutação ou aliases no retorno.

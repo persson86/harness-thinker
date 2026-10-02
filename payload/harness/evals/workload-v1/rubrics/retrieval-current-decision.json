@@ -1,0 +1,25 @@
+{
+  "criteria": [
+    {
+      "id": "decision",
+      "description": "Reconstrói a decisão vigente e o limite do teste, sem transformar proposta, capacidade operacional ou rascunho em autorização.",
+      "critical": true
+    },
+    {
+      "id": "correction",
+      "description": "Aplica a correção ativa ao número e ao alcance do treinamento, preservando a diferença entre entrega e preparação suficiente para iniciar.",
+      "critical": true
+    },
+    {
+      "id": "actions",
+      "description": "Identifica ações por papel: operações cuida do treinamento, produto fornece indicadores e comitê decide expansão; não inventa pessoas, prazos ou tarefas concluídas.",
+      "critical": false
+    },
+    {
+      "id": "uncertainty",
+      "description": "Explicita ausência de indicadores e de nova deliberação, com atribuição a fontes relevantes e sem usar recência como único critério.",
+      "critical": false
+    }
+  ],
+  "reference_notes": "Decisão vigente em R1: teste de 40 contas de 18/03 a 01/04, sem expansão autorizada. R4 corrige R3 e diz que indicadores ainda não chegaram; treinamento entregue é relato corrigido de cobertura para 40, não prova de qualidade, aceite ou início. R2 não votou. R5 é posterior, mas condicional e não aprovado. Respostas concisas com fontes são suficientes; não exigir formato literal nem concluir que o teste já começou."
+}

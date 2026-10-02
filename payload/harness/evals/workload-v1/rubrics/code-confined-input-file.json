@@ -1,0 +1,30 @@
+{
+  "criteria": [
+    {
+      "id": "lexical",
+      "description": "Rejeita entradas inválidas lexicalmente antes de normalizar, incluindo componentes vazios, ponto/ponto-ponto, barras invertidas, absolutos e dois-pontos.",
+      "critical": true
+    },
+    {
+      "id": "filesystem",
+      "description": "Resolve root confiável existente, rejeita qualquer symlink na cadeia do caminho relativo, exige arquivo regular existente e contenção.",
+      "critical": true
+    },
+    {
+      "id": "failure-contract",
+      "description": "Converte erros esperados de entrada/sistema de arquivos em ValueError e não abre conteúdo nem executa código candidato.",
+      "critical": false
+    },
+    {
+      "id": "race",
+      "description": "Reconhece a janela entre validação e uso e não apresenta checagem de Path como proteção absoluta contra mudança concorrente.",
+      "critical": true
+    },
+    {
+      "id": "tests",
+      "description": "Apresenta testes com temporários incluindo sucesso, escape lexical, symlink para dentro e diretório, verificando o contrato solicitado.",
+      "critical": false
+    }
+  ],
+  "reference_notes": "Validar string crua com split(\"/\") antes de PurePosixPath evita normalização de a//b e a/./b. root.resolve(strict=True), is_dir e percorrer cada componente com is_symlink/lstat pode implementar uma checagem estática; resolve(strict=True) final e relative_to(root_resolved) dão defesa de contenção. Não exigir race-free openat porque interface devolve Path para uso futuro; a resposta deve admitir TOCTOU. Capturar OSError/RuntimeError e erros de tipo relevantes sem mascarar bugs desnecessariamente. Diretórios e dangling symlinks devem falhar. Código curto pode apresentar quatro testes parametrizados sem suite longa."
+}

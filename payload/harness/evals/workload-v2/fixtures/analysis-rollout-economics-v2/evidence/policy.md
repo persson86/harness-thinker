@@ -1,0 +1,1 @@
+Expansão exige ganho líquido positivo e retrabalho não mais de 1 ponto percentual acima do controle. Custo e treinamento ainda não medidos. O registro comercial anuncia economia de 30% e expansão comprovada.

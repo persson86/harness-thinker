@@ -1,0 +1,368 @@
+{
+  "schema_version": 1,
+  "protocol": "merge-scores",
+  "module": "src/scores.py",
+  "cases": [
+    {
+      "id": "replace-copy",
+      "args": [
+        [
+          {
+            "id": "a",
+            "score": 2
+          },
+          {
+            "id": "b",
+            "score": 3
+          }
+        ],
+        [
+          {
+            "id": "b",
+            "score": 4
+          },
+          {
+            "id": "c",
+            "score": 0
+          }
+        ]
+      ],
+      "mutate_return": true,
+      "expected": {
+        "value": [
+          {
+            "id": "a",
+            "score": 2
+          },
+          {
+            "id": "b",
+            "score": 4
+          },
+          {
+            "id": "c",
+            "score": 0
+          }
+        ],
+        "args_unchanged": true,
+        "return_independent": true
+      }
+    },
+    {
+      "id": "bounds",
+      "args": [
+        [
+          {
+            "id": "a-0",
+            "score": 0
+          }
+        ],
+        [
+          {
+            "id": "z",
+            "score": 4.0
+          }
+        ]
+      ],
+      "mutate_return": true,
+      "expected": {
+        "value": [
+          {
+            "id": "a-0",
+            "score": 0
+          },
+          {
+            "id": "z",
+            "score": 4.0
+          }
+        ],
+        "args_unchanged": true,
+        "return_independent": true
+      }
+    },
+    {
+      "id": "score-invalid-0",
+      "args": [
+        [],
+        [
+          {
+            "id": "a",
+            "score": true
+          }
+        ]
+      ],
+      "expected": {
+        "error": "ValueError",
+        "args_unchanged": true
+      }
+    },
+    {
+      "id": "score-invalid-1",
+      "args": [
+        [],
+        [
+          {
+            "id": "a",
+            "score": {
+              "$float": "nan"
+            }
+          }
+        ]
+      ],
+      "expected": {
+        "error": "ValueError",
+        "args_unchanged": true
+      }
+    },
+    {
+      "id": "score-invalid-2",
+      "args": [
+        [],
+        [
+          {
+            "id": "a",
+            "score": {
+              "$float": "inf"
+            }
+          }
+        ]
+      ],
+      "expected": {
+        "error": "ValueError",
+        "args_unchanged": true
+      }
+    },
+    {
+      "id": "score-invalid-3",
+      "args": [
+        [],
+        [
+          {
+            "id": "a",
+            "score": -1
+          }
+        ]
+      ],
+      "expected": {
+        "error": "ValueError",
+        "args_unchanged": true
+      }
+    },
+    {
+      "id": "score-invalid-4",
+      "args": [
+        [],
+        [
+          {
+            "id": "a",
+            "score": 5
+          }
+        ]
+      ],
+      "expected": {
+        "error": "ValueError",
+        "args_unchanged": true
+      }
+    },
+    {
+      "id": "score-invalid-5",
+      "args": [
+        [],
+        [
+          {
+            "id": "a",
+            "score": 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+          }
+        ]
+      ],
+      "expected": {
+        "error": "ValueError",
+        "args_unchanged": true
+      }
+    },
+    {
+      "id": "score-invalid-6",
+      "args": [
+        [],
+        [
+          {
+            "id": "a",
+            "score": "2"
+          }
+        ]
+      ],
+      "expected": {
+        "error": "ValueError",
+        "args_unchanged": true
+      }
+    },
+    {
+      "id": "score-invalid-7",
+      "args": [
+        [],
+        [
+          {
+            "id": "a",
+            "score": null
+          }
+        ]
+      ],
+      "expected": {
+        "error": "ValueError",
+        "args_unchanged": true
+      }
+    },
+    {
+      "id": "id-invalid-0",
+      "args": [
+        [],
+        [
+          {
+            "id": "A",
+            "score": 2
+          }
+        ]
+      ],
+      "expected": {
+        "error": "ValueError",
+        "args_unchanged": true
+      }
+    },
+    {
+      "id": "id-invalid-1",
+      "args": [
+        [],
+        [
+          {
+            "id": "a\n",
+            "score": 2
+          }
+        ]
+      ],
+      "expected": {
+        "error": "ValueError",
+        "args_unchanged": true
+      }
+    },
+    {
+      "id": "id-invalid-2",
+      "args": [
+        [],
+        [
+          {
+            "id": "",
+            "score": 2
+          }
+        ]
+      ],
+      "expected": {
+        "error": "ValueError",
+        "args_unchanged": true
+      }
+    },
+    {
+      "id": "id-invalid-3",
+      "args": [
+        [],
+        [
+          {
+            "id": "a b",
+            "score": 2
+          }
+        ]
+      ],
+      "expected": {
+        "error": "ValueError",
+        "args_unchanged": true
+      }
+    },
+    {
+      "id": "id-invalid-4",
+      "args": [
+        [],
+        [
+          {
+            "id": "1a",
+            "score": 2
+          }
+        ]
+      ],
+      "expected": {
+        "error": "ValueError",
+        "args_unchanged": true
+      }
+    },
+    {
+      "id": "id-invalid-5",
+      "args": [
+        [],
+        [
+          {
+            "id": "é",
+            "score": 2
+          }
+        ]
+      ],
+      "expected": {
+        "error": "ValueError",
+        "args_unchanged": true
+      }
+    },
+    {
+      "id": "duplicate-0",
+      "args": [
+        [
+          {
+            "id": "a",
+            "score": 2
+          },
+          {
+            "id": "a",
+            "score": 2
+          }
+        ],
+        []
+      ],
+      "expected": {
+        "error": "ValueError",
+        "args_unchanged": true
+      }
+    },
+    {
+      "id": "duplicate-1",
+      "args": [
+        [],
+        [
+          {
+            "id": "a",
+            "score": 2
+          },
+          {
+            "id": "a",
+            "score": 2
+          }
+        ]
+      ],
+      "expected": {
+        "error": "ValueError",
+        "args_unchanged": true
+      }
+    },
+    {
+      "id": "extra-key",
+      "args": [
+        [],
+        [
+          {
+            "id": "a",
+            "score": 1,
+            "extra": 0
+          }
+        ]
+      ],
+      "expected": {
+        "error": "ValueError",
+        "args_unchanged": true
+      }
+    }
+  ]
+}

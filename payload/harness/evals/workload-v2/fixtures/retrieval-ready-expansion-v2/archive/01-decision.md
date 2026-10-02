@@ -1,0 +1,1 @@
+[R1] 12/03/2026, registro assinado: piloto autorizado de 40 contas em 18/03. A operação pode iniciar após checklist de treinamento. Expansão para 200 requer votação, indicador de tempo e retrabalho. Não depende desses indicadores para iniciar o piloto.

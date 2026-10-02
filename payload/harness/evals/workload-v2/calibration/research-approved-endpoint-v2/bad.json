@@ -1,0 +1,11 @@
+{
+  "case_id": "research-approved-endpoint-v2",
+  "label": "bad",
+  "artifacts": {
+    "deliverables/result.json": "{\n  \"document_content_zero_retention\": true,\n  \"all_data_zero_retention\": true,\n  \"source_version\": \"3.2\",\n  \"external_search_performed\": true\n}\n",
+    "deliverables/note.md": "Pesquisei na internet; todos os dados ficam zero dias.\n"
+  },
+  "expected_final_state": "fail",
+  "judge_expectation": "material_failure",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

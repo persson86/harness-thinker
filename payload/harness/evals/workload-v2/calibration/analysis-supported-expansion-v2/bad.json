@@ -1,0 +1,11 @@
+{
+  "case_id": "analysis-supported-expansion-v2",
+  "label": "bad",
+  "artifacts": {
+    "deliverables/result.json": "{\n  \"decision\": \"continue_pilot\",\n  \"gross_reduction_minutes\": 6,\n  \"control_adjusted_minutes\": 6,\n  \"rework_delta_pp\": -1\n}\n",
+    "deliverables/note.md": "A queda bruta é o efeito causal integral; não considero custo ou política.\n"
+  },
+  "expected_final_state": "fail",
+  "judge_expectation": "material_failure",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

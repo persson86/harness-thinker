@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "research-retention-policy-v2",
+  "workspace": [
+    {
+      "path": "resources/official-v32.md",
+      "source": "fixtures/research-retention-policy-v2/resources/official-v32.md"
+    },
+    {
+      "path": "resources/archive-v28.md",
+      "source": "fixtures/research-retention-policy-v2/resources/archive-v28.md"
+    },
+    {
+      "path": "resources/tutorial.md",
+      "source": "fixtures/research-retention-policy-v2/resources/tutorial.md"
+    },
+    {
+      "path": "resources/account.md",
+      "source": "fixtures/research-retention-policy-v2/resources/account.md"
+    }
+  ],
+  "writable": [
+    "deliverables"
+  ],
+  "artifacts": [
+    "deliverables/result.json",
+    "deliverables/note.md"
+  ],
+  "checks": [
+    {
+      "id": "structured-result",
+      "kind": "json",
+      "path": "deliverables/result.json",
+      "assertions": [
+        {
+          "pointer": "/document_content_zero_retention",
+          "equals": false
+        },
+        {
+          "pointer": "/all_data_zero_retention",
+          "equals": false
+        },
+        {
+          "pointer": "/source_version",
+          "equals": "3.2"
+        },
+        {
+          "pointer": "/external_search_performed",
+          "equals": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "id": "code-score-merge-v2",
+  "workspace": [
+    {
+      "path": "CONTRACT.md",
+      "source": "fixtures/code-score-merge-v2/CONTRACT.md"
+    },
+    {
+      "path": "src/scores.py",
+      "source": "fixtures/code-score-merge-v2/src/scores.py"
+    }
+  ],
+  "writable": [
+    "src/scores.py",
+    "candidate-tests",
+    "deliverables"
+  ],
+  "artifacts": [
+    "src/scores.py",
+    "deliverables/note.md"
+  ],
+  "checks": [
+    {
+      "id": "implementation",
+      "kind": "text",
+      "path": "src/scores.py"
+    },
+    {
+      "id": "behavior-tests",
+      "kind": "python-unittest",
+      "source": "trusted/code-score-merge-v2/checks.json"
+    }
+  ]
+}

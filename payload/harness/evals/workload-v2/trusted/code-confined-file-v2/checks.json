@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "protocol": "confined-file",
+  "module": "src/paths.py",
+  "cases": [
+    {
+      "id": "normal",
+      "scenario": "normal",
+      "expected": {
+        "value": "a/x.txt",
+        "is_path": true
+      }
+    },
+    {
+      "id": "root-alias",
+      "scenario": "root-alias",
+      "expected": {
+        "value": "a/x.txt",
+        "is_path": true
+      }
+    },
+    {
+      "id": "parent",
+      "scenario": "parent",
+      "expected": {
+        "error": "ValueError"
+      }
+    },
+    {
+      "id": "absolute",
+      "scenario": "absolute",
+      "expected": {
+        "error": "ValueError"
+      }
+    },
+    {
+      "id": "empty-component",
+      "scenario": "empty-component",
+      "expected": {
+        "error": "ValueError"
+      }
+    },
+    {
+      "id": "dot",
+      "scenario": "dot",
+      "expected": {
+        "error": "ValueError"
+      }
+    },
+    {
+      "id": "parent-inside",
+      "scenario": "parent-inside",
+      "expected": {
+        "error": "ValueError"
+      }
+    },
+    {
+      "id": "backslash",
+      "scenario": "backslash",
+      "expected": {
+        "error": "ValueError"
+      }
+    },
+    {
+      "id": "colon",
+      "scenario": "colon",
+      "expected": {
+        "error": "ValueError"
+      }
+    },
+    {
+      "id": "none",
+      "scenario": "none",
+      "expected": {
+        "error": "ValueError"
+      }
+    },
+    {
+      "id": "empty",
+      "scenario": "empty",
+      "expected": {
+        "error": "ValueError"
+      }
+    },
+    {
+      "id": "directory",
+      "scenario": "directory",
+      "expected": {
+        "error": "ValueError"
+      }
+    },
+    {
+      "id": "symlink-directory",
+      "scenario": "symlink-directory",
+      "expected": {
+        "error": "ValueError"
+      }
+    },
+    {
+      "id": "symlink-file",
+      "scenario": "symlink-file",
+      "expected": {
+        "error": "ValueError"
+      }
+    }
+  ]
+}

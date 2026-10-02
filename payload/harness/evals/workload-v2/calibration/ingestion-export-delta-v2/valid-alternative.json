@@ -1,0 +1,12 @@
+{
+  "case_id": "ingestion-export-delta-v2",
+  "label": "valid-alternative",
+  "artifacts": {
+    "deliverables/result.json": "{\n  \"accepted\": false,\n  \"passed_routes\": 2,\n  \"production_confirmed\": false,\n  \"speaker_identity_confirmed\": false,\n  \"sources\": [\n    \"T1\",\n    \"T2\",\n    \"C1\",\n    \"C2\"\n  ]\n}\n",
+    "deliverables/note.md": "Atualização seletiva com evidências C1/C2; ação sustentada pelo estado atual.\n",
+    "wiki/export.md": "---\ntitle: Exportação\nsummary: Homologação das rotas de exportação\nstatus: em-homologacao\n---\n\n# Exportação\nTrês rotas devem passar antes do aceite. Não há medição de uso.\n\n## Histórico\nO primeiro teste encontrou erro de formatação.\n\n## Estado confirmado\nCorreção entregue (T1); duas rotas passaram (T2). C1/C2 mantêm terceira rota e aceite pendentes. Não há medição de uso nem identidade confiável das vozes.\n"
+  },
+  "expected_final_state": "pass",
+  "judge_expectation": "acceptable",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

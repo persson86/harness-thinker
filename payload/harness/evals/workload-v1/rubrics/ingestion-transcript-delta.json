@@ -1,0 +1,25 @@
+{
+  "criteria": [
+    {
+      "id": "delta",
+      "description": "Propõe atualização seletiva que preserva homologação aberta, relata correção entregue e duas rotas passadas, sem registrar aceite geral.",
+      "critical": true
+    },
+    {
+      "id": "provenance",
+      "description": "Relaciona deltas a T1/T2 e à correção C1; não atribui vozes a papéis ou pessoas nem reconstrói a lacuna.",
+      "critical": true
+    },
+    {
+      "id": "correction",
+      "description": "Usa C1 para reconciliar ambiente de testes e terceira rota pendente, sem manter produção como fato confirmado.",
+      "critical": true
+    },
+    {
+      "id": "durability",
+      "description": "Mantém número incerto de usuários e compromisso de sexta como relato limitado ou pendência, sem convertê-los em adoção, prazo cumprido ou medição.",
+      "critical": false
+    }
+  ],
+  "reference_notes": "A proposta pode ser um trecho de página e notas de ingestão. Correção entregue e duas rotas passadas são relatos da reunião, não confirmação independente. C1 atualiza o estado: teste, homologação aberta, terceira rota ainda sem reteste. Não há identidade confiável nem evidência de uso em produção. Compromisso futuro pode entrar como pendência atribuída à fonte sem dono individual; não exigir que seja excluído em todos os formatos. Não copiar pergunta sobre aceite nem ruído numérico como conhecimento estabelecido."
+}

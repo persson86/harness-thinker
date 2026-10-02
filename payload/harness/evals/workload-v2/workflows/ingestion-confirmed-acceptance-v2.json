@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "id": "ingestion-confirmed-acceptance-v2",
+  "workspace": [
+    {
+      "path": "wiki/export.md",
+      "source": "fixtures/ingestion-confirmed-acceptance-v2/wiki/export.md"
+    },
+    {
+      "path": "sources/transcript.md",
+      "source": "fixtures/ingestion-confirmed-acceptance-v2/sources/transcript.md"
+    },
+    {
+      "path": "sources/correction.md",
+      "source": "fixtures/ingestion-confirmed-acceptance-v2/sources/correction.md"
+    },
+    {
+      "path": "sources/acceptance.md",
+      "source": "fixtures/ingestion-confirmed-acceptance-v2/sources/acceptance.md"
+    }
+  ],
+  "writable": [
+    "wiki/export.md",
+    "deliverables"
+  ],
+  "artifacts": [
+    "wiki/export.md",
+    "deliverables/result.json",
+    "deliverables/note.md"
+  ],
+  "checks": [
+    {
+      "id": "structured-result",
+      "kind": "json",
+      "path": "deliverables/result.json",
+      "assertions": [
+        {
+          "pointer": "/accepted",
+          "equals": true
+        },
+        {
+          "pointer": "/passed_routes",
+          "equals": 3
+        },
+        {
+          "pointer": "/production_confirmed",
+          "equals": false
+        },
+        {
+          "pointer": "/speaker_identity_confirmed",
+          "equals": false
+        },
+        {
+          "pointer": "/sources",
+          "contains": [
+            "T1",
+            "T2",
+            "C1",
+            "C2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wiki-delta",
+      "kind": "text",
+      "path": "wiki/export.md"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "criteria": [
+    {
+      "id": "calculation",
+      "description": "Distingue a queda bruta de 6 minutos/30% da comparação com controle: diferença de 4 minutos no teste ou de mudanças; explicita o denominador de eventual percentual.",
+      "critical": true
+    },
+    {
+      "id": "causality",
+      "description": "Reconhece sorteio e medição equivalente como evidência favorável, mas limita a inferência pelo tratamento incompleto e exclusão dos 10 agentes.",
+      "critical": true
+    },
+    {
+      "id": "tradeoff",
+      "description": "Considera retrabalho de 8% versus 5% como piora de 3 pontos percentuais, custos ausentes e política ainda sem limiar; não declara expansão comprovada.",
+      "critical": true
+    },
+    {
+      "id": "next-step",
+      "description": "Propõe decisão provisória e verificação concreta que lide com exclusões, qualidade, custos e critério de expansão, sem paralisar toda aprendizagem por ausência de certeza.",
+      "critical": false
+    }
+  ],
+  "reference_notes": "A redução bruta é (20-14)/20=30%; controle reduz 2 minutos/10%. Diferença entre grupos e entre mudanças é 4 minutos. Percentual de 20% usa baseline de 20; 22,2% usa controle contemporâneo de 18, ambos aceitáveis se denominador explícito. É uma estimativa descritiva da amostra publicada, não efeito causal limpo por intenção de tratar: 10 excluídos podem introduzir viés. Retrabalho aumenta 3 pontos percentuais, 60% relativo, sem prova de significância. Pode manter piloto ou expansão limitada condicionada a uma nova avaliação, sem aprovar expansão geral com base no pacote."
+}

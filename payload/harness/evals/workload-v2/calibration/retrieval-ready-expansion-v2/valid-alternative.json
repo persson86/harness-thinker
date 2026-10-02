@@ -1,0 +1,11 @@
+{
+  "case_id": "retrieval-ready-expansion-v2",
+  "label": "valid-alternative",
+  "artifacts": {
+    "deliverables/result.json": "{\n  \"decision\": \"expand_200\",\n  \"pilot_authorized\": true,\n  \"expansion_authorized\": true,\n  \"limit\": 200\n}\n",
+    "deliverables/note.md": "Ação: executar a ampliação aprovada em R6, com checagem de abertura.\n"
+  },
+  "expected_final_state": "pass",
+  "judge_expectation": "acceptable",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

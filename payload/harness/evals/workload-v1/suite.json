@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "id": "workload-v1",
+  "title": "Screening de texto sintético delimitado: seis famílias de trabalho",
+  "cases": [
+    {
+      "id": "retrieval-current-decision",
+      "family": "retrieval",
+      "prompt": "cases/retrieval-current-decision.md",
+      "rubric": "rubrics/retrieval-current-decision.json",
+      "max_words": 450,
+      "split": "development"
+    },
+    {
+      "id": "retrieval-conflicting-status",
+      "family": "retrieval",
+      "prompt": "cases/retrieval-conflicting-status.md",
+      "rubric": "rubrics/retrieval-conflicting-status.json",
+      "max_words": 450,
+      "split": "holdout"
+    },
+    {
+      "id": "ingestion-transcript-delta",
+      "family": "ingestion",
+      "prompt": "cases/ingestion-transcript-delta.md",
+      "rubric": "rubrics/ingestion-transcript-delta.json",
+      "max_words": 450,
+      "split": "development"
+    },
+    {
+      "id": "ingestion-article-triage",
+      "family": "ingestion",
+      "prompt": "cases/ingestion-article-triage.md",
+      "rubric": "rubrics/ingestion-article-triage.json",
+      "max_words": 450,
+      "split": "holdout"
+    },
+    {
+      "id": "analysis-intervention-result",
+      "family": "analysis",
+      "prompt": "cases/analysis-intervention-result.md",
+      "rubric": "rubrics/analysis-intervention-result.json",
+      "max_words": 450,
+      "split": "development"
+    },
+    {
+      "id": "analysis-total-effort",
+      "family": "analysis",
+      "prompt": "cases/analysis-total-effort.md",
+      "rubric": "rubrics/analysis-total-effort.json",
+      "max_words": 450,
+      "split": "holdout"
+    },
+    {
+      "id": "research-versioned-policy",
+      "family": "research",
+      "prompt": "cases/research-versioned-policy.md",
+      "rubric": "rubrics/research-versioned-policy.json",
+      "max_words": 450,
+      "split": "development"
+    },
+    {
+      "id": "research-study-conflict",
+      "family": "research",
+      "prompt": "cases/research-study-conflict.md",
+      "rubric": "rubrics/research-study-conflict.json",
+      "max_words": 450,
+      "split": "holdout"
+    },
+    {
+      "id": "code-safe-record-merge",
+      "family": "code",
+      "prompt": "cases/code-safe-record-merge.md",
+      "rubric": "rubrics/code-safe-record-merge.json",
+      "max_words": 700,
+      "split": "development"
+    },
+    {
+      "id": "code-confined-input-file",
+      "family": "code",
+      "prompt": "cases/code-confined-input-file.md",
+      "rubric": "rubrics/code-confined-input-file.json",
+      "max_words": 700,
+      "split": "holdout"
+    },
+    {
+      "id": "communication-accurate-update",
+      "family": "communication",
+      "prompt": "cases/communication-accurate-update.md",
+      "rubric": "rubrics/communication-accurate-update.json",
+      "max_words": 180,
+      "split": "development"
+    },
+    {
+      "id": "communication-sober-recommendation",
+      "family": "communication",
+      "prompt": "cases/communication-sober-recommendation.md",
+      "rubric": "rubrics/communication-sober-recommendation.json",
+      "max_words": 160,
+      "split": "holdout"
+    }
+  ]
+}

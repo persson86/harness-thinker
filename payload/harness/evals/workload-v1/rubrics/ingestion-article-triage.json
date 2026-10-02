@@ -1,0 +1,25 @@
+{
+  "criteria": [
+    {
+      "id": "bounded-observation",
+      "description": "Preserva a observação delimitada de rascunhos em 18 propostas e a natureza do baseline retrospectivo, sem tratá-la como experimento causal.",
+      "critical": false
+    },
+    {
+      "id": "scope",
+      "description": "Não converte redução do primeiro rascunho em 90% da função ou substituição integral, nem resposta de cliente em venda ou aceite.",
+      "critical": true
+    },
+    {
+      "id": "mechanism",
+      "description": "Separa explicação sobre exemplos e extrapolação do autor dos resultados efetivamente relatados; identifica o componente comercial.",
+      "critical": false
+    },
+    {
+      "id": "selectivity",
+      "description": "Propõe delta útil e pequeno em relação a W2, com proveniência e lacunas de revisão, integração, manutenção e seleção, evitando duplicar todo o artigo.",
+      "critical": false
+    }
+  ],
+  "reference_notes": "6 versus 60 equivale a redução relatada de 90% do tempo de primeiro rascunho, mas não do esforço total nem da função. A2 limita homogeneidade, seleção e estimativa do baseline. Pode registrar um exemplo de practitioner com alcance delimitado ou concluir que a página precisa apenas de uma fonte ilustrativa; ambos são aceitáveis se justificam a seletividade. Não há taxa de erro, entrega aceita, vendas nem causalidade medida. Oferta do curso não invalida por si só a observação, mas exige separar marketing e evidência."
+}

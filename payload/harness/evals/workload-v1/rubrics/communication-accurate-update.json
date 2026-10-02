@@ -1,0 +1,25 @@
+{
+  "criteria": [
+    {
+      "id": "status",
+      "description": "Distingue entrega em testes, funções passadas e aceite geral pendente, corrigindo a mensagem anterior sem declarar produção ou aprovação.",
+      "critical": true
+    },
+    {
+      "id": "timing",
+      "description": "Trata sexta como estimativa anterior sem reconfirmação, sem prometer data substituta ou reafirmar a abertura.",
+      "critical": true
+    },
+    {
+      "id": "action",
+      "description": "Comunica bloqueio de anexos, investigação e reteste, com decisão da coordenação e próxima atualização sobre resultado/estimativa.",
+      "critical": false
+    },
+    {
+      "id": "usable",
+      "description": "Entrega mensagem pronta para copiar em até 180 palavras, respeitosa, direta e compreensível, sem dramatização nem siglas inexplicadas.",
+      "critical": false
+    }
+  ],
+  "reference_notes": "A mensagem deve corrigir pronto/aprovado e sexta, não apenas narrar progresso de forma ambígua. Pode dizer \"corrigindo a atualização anterior\" ou formulação equivalente. Deve preservar progresso confirmado: envio e consulta passaram em teste. Próxima atualização útil é causa/correção ou reteste e revisão da estimativa antes da decisão de abertura, sem prometer quando haverá notícia. Não exigir lista, título ou expressão específica."
+}

@@ -29,6 +29,55 @@ commit the reviewed paths, create `v<VERSION>`, push branch and tag, then update
 target with `install.sh TARGET --update`. Verify target `harness/.version`, manifest,
 vault health and local/remote SHA parity. Publishing vault knowledge is a separate scope.
 
+## Personal model evaluation (7.23.0-rc.4)
+
+Evaluate the configurations you actually use for each action: requested model and effort,
+provider CLI, instructions, tools and limits. The evaluator separates correctness, operational
+failures, observable actions, human preference and the time needed to accept the delivery.
+It does not produce a universal intelligence score or silently change model routes.
+
+The installed `python3 harness/scripts/model-eval.py` supports:
+
+- **Broad coverage at high effort or above.** Discover configured profiles dynamically,
+  add exact models explicitly, freeze availability and retain unavailable candidates with
+  reasons. An unavailable model does not prevent comparing matching observed candidates.
+- **Reproducible text trials.** Freeze prompts, rubrics, environment and executor hashes;
+  use the existing delegation supervisor with a call budget, no silent retries or substitutions.
+- **Complete task workspaces.** `prepare` creates a fresh fixture workspace outside the vault and experiment tree for an agent of
+  the host; `finish` checks the resulting files and captures artifacts. This bridge does not
+  launch a provider, and a separate workspace is not an operating-system security sandbox.
+  Candidate Python execution requires the explicit Docker verification path, with no network;
+  missing Docker remains unavailable, not a passing test.
+- **Reviewable judging.** Criteria with literal evidence, attributed evaluators and rubric
+  versions, explicit revisions preserving history, blind judge packets and calibration against
+  attributed references. Synthetic calibration never supplies human preference.
+- **Personal fit.** Blind pair comparisons, explicit human feedback and preparation/review/
+  integration time. Missing human observations keep personal recommendations inconclusive.
+  Pairwise descriptive comparisons show their scope, exclusions and practical margins.
+
+Start in natural language: “avalie estes modelos em high”, “prepare uma tarefa real para
+comparar”, “registre minha preferência nesta comparação” or “retome a rodada pelo ID”.
+The agent operates the CLI and states the case matrix and budget before making calls.
+Installation, planning, reporting and automated repository tests never call models.
+
+```bash
+python3 harness/scripts/model-eval.py --help
+python3 harness/scripts/model-eval.py inventory
+python3 harness/scripts/model-eval.py inventory --doctor
+```
+
+[`workload-v1`](payload/harness/evals/workload-v1/README.md) retains twelve bounded text
+regression cases. [`workload-v2`](payload/harness/evals/workload-v2/README.md) adds workspace
+tasks and calibration examples across six families. Public fixtures are development material,
+not secret held-out evidence of competence. New private confirmation tasks and real human
+use are still needed before durable recommendations. Research fixtures do not establish live
+web research quality, and artifact file checks do not establish rendered visual quality.
+
+See the [operation and examples](payload/harness/operations/model-eval.md) and
+[v2 implementation contract](specs/model-eval-v2.md). Private experiments remain in the
+vault's ignored `drafts/model-eval/` directory. Older frozen runs remain readable; changing
+executor versions requires a new execution plan, not silently continuing old conditions.
+
 ## Install
 
 This repo is the **installer**, not the vault. You clone it once, then run `install.sh`

@@ -1,0 +1,25 @@
+{
+  "criteria": [
+    {
+      "id": "supported-effect",
+      "description": "Reconhece evidência positiva do contraste sorteado: 4 pontos com intervalo de 1 a 7, preservando unidade, período e amostra.",
+      "critical": true
+    },
+    {
+      "id": "subgroup",
+      "description": "Explica por que 16 versus 8 em usuários diários não sustenta efeito causal geral de dobrar: seleção após resultados e adesão não sorteada.",
+      "critical": true
+    },
+    {
+      "id": "conflict",
+      "description": "Rejeita generalização comercial e descarte automático por patrocínio, sem afirmar ausência de viés ou qualidade absoluta.",
+      "critical": false
+    },
+    {
+      "id": "local-test",
+      "description": "Sugere teste local que separe populações, meça retenção/qualidade e custo em oito semanas e defina previamente comparação e critérios, sem tratar crianças como já cobertas.",
+      "critical": false
+    }
+  ],
+  "reference_notes": "S1 é evidência de ganho médio adicional de 4 pontos em quatro semanas entre adultos voluntários; intervalo exclui zero sob o método reportado. É aceitável descrever 50% de ganho relativo a 8, mas 4 pontos deve ficar explícito e isso não equivale a 50% de aprendizagem total. S2 gera hipótese de adesão, não prova de dose/causalidade; S3 extrapola. Patrocínio de S4 merece examinar transparência/método, não invalida logicamente todos os resultados. Teste local pode começar com adultos e adiar crianças ou avaliar coortes separadas com cuidados adequados; não exigir desenho completo."
+}

@@ -1,0 +1,1 @@
+Corrigir informação se necessário, transmitir progresso com clareza, indicar ação e próximo update sem inventar prazo. Entregar mensagem interna em documento Markdown pronto para copiar. Não enviar. Preferir até 180 palavras; pequeno excesso é estilo, não erro grave automaticamente.

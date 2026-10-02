@@ -1,0 +1,25 @@
+{
+  "criteria": [
+    {
+      "id": "effort",
+      "description": "Usa 8 minutos de trabalho até aceite, distinguindo espera de geração e trabalho humano, e rejeita 92% como economia de esforço total.",
+      "critical": true
+    },
+    {
+      "id": "economics",
+      "description": "Calcula economia recorrente e preparação/licença com denominadores claros, sem extrapolar silenciosamente o teste às 1.000 solicitações.",
+      "critical": true
+    },
+    {
+      "id": "scope",
+      "description": "Reconhece aceitação das 200 após revisão como controle positivo e limita o resultado aos casos completos e simples; não afirma adoção geral nem manutenção resolvida.",
+      "critical": false
+    },
+    {
+      "id": "decision",
+      "description": "Entrega decisão acionável para o mês disponível e critério de continuar/parar, incluindo representatividade, manutenção e custo, sem inventar payback semanal.",
+      "critical": false
+    }
+  ],
+  "reference_notes": "Manual geral: 200 horas/6.000 unidades mensais. Para 200 casos: manual 40 horas/1.200; automação 26,67 horas/800, economia bruta 400 e líquida da licença 100 mensais, se a licença for imputada toda a esse escopo e manutenção não existir. Setup: 1.200. Payback nessa hipótese seria 12 meses, não uma semana; essa projeção deve ser condicional. Em extrapolação explicitamente hipotética a 1.000, economia de trabalho 2.000, líquida 1.700; setup 1.200, mas evidência não sustenta aplicar resultado às 800. Também é aceitável evitar payback pontual por manutenção ausente. Teste delimitado com medição dos casos variados e custo total é defensável; escolha específica deve ser fundamentada."
+}

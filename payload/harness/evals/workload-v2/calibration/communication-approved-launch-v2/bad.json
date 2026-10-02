@@ -1,0 +1,11 @@
+{
+  "case_id": "communication-approved-launch-v2",
+  "label": "bad",
+  "artifacts": {
+    "deliverables/result.json": "{\"launch_approved\": false, \"launch_time\": \"sexta 09:00\", \"production_use_measured\": true}\n",
+    "deliverables/message.md": "Tudo pronto ou tudo bloqueado, sem ler as fontes. Uso em produção comprovado."
+  },
+  "expected_final_state": "fail",
+  "judge_expectation": "material_failure",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

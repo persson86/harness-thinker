@@ -1,0 +1,25 @@
+{
+  "criteria": [
+    {
+      "id": "validation",
+      "description": "Valida estrutura/chaves exatas, ID ASCII ancorado e score numérico finito no intervalo, rejeitando bool e dados inválidos com ValueError.",
+      "critical": true
+    },
+    {
+      "id": "duplicates",
+      "description": "Rejeita duplicatas dentro de cada entrada e permite substituição entre entradas, sem sobrescrever silenciosamente uma duplicata interna.",
+      "critical": true
+    },
+    {
+      "id": "ordering-copy",
+      "description": "Preserva ordem de existing e acrescenta novos na ordem de incoming; copia lista e dicionários sem mutação ou alias dos argumentos.",
+      "critical": true
+    },
+    {
+      "id": "tests",
+      "description": "Inclui exemplos de testes significativos de merge, independência e limites, não apenas o exemplo feliz; código é plausivelmente executável sem bibliotecas externas.",
+      "critical": false
+    }
+  ],
+  "reference_notes": "Uma solução com validação de ambas as listas antes da construção e dict/list locais é apropriada. Rejeitar listas não-list e registros não-dict é aceitável e útil; não é necessário admitir Mapping nem tipos numéricos externos. Pattern fullmatch com [a-z][a-z0-9-]*. type(score) in (int,float) ou isinstance com bool excluído e math.isfinite. Números inteiros enormes precisam falhar como ValueError por intervalo sem OverflowError de conversão; aplicar faixa antes de isfinite é suficiente. Testes devem incluir True, NaN/infinito, duplicata, chaves extras, ID com newline/maiúscula ou extremos 0/4. Não pontuar estilo exato."
+}

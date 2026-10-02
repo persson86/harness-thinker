@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "id": "communication-approved-launch-v2",
+  "workspace": [
+    {
+      "path": "brief/facts.md",
+      "source": "fixtures/communication-approved-launch-v2/brief/facts.md"
+    },
+    {
+      "path": "brief/previous-message.md",
+      "source": "fixtures/communication-approved-launch-v2/brief/previous-message.md"
+    },
+    {
+      "path": "brief/request.md",
+      "source": "fixtures/communication-approved-launch-v2/brief/request.md"
+    }
+  ],
+  "writable": [
+    "deliverables"
+  ],
+  "artifacts": [
+    "deliverables/result.json",
+    "deliverables/message.md"
+  ],
+  "checks": [
+    {
+      "id": "structured-result",
+      "kind": "json",
+      "path": "deliverables/result.json",
+      "assertions": [
+        {
+          "pointer": "/launch_approved",
+          "equals": true
+        },
+        {
+          "pointer": "/launch_time",
+          "equals": "sexta 09:00"
+        },
+        {
+          "pointer": "/production_use_measured",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "message-artifact",
+      "kind": "text",
+      "path": "deliverables/message.md"
+    }
+  ]
+}

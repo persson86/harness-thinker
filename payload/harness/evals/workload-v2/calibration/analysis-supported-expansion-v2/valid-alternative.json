@@ -1,0 +1,11 @@
+{
+  "case_id": "analysis-supported-expansion-v2",
+  "label": "valid-alternative",
+  "artifacts": {
+    "deliverables/result.json": "{\n  \"decision\": \"expand_eligible\",\n  \"gross_reduction_minutes\": 6,\n  \"control_adjusted_minutes\": 4,\n  \"rework_delta_pp\": -1\n}\n",
+    "deliverables/note.md": "Decisão condicionada ao escopo testado, com gatilhos de parada. Queda bruta 6/20=30%; controle melhora 2, contraste 4 minutos. Expandir o escopo elegível: economia de 4.000 minutos=66,67h, 2.000 unidades; líquida 1.100 após custos. Retrabalho 4%-5%=-1pp. Monitorar custo, qualidade e novos tipos.\n\n"
+  },
+  "expected_final_state": "pass",
+  "judge_expectation": "acceptable",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

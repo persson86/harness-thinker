@@ -1,0 +1,11 @@
+{
+  "case_id": "communication-rollout-note-v2",
+  "label": "bad",
+  "artifacts": {
+    "deliverables/result.json": "{\"launch_approved\": true, \"launch_time\": \"nao-confirmada\", \"production_use_measured\": true}\n",
+    "deliverables/message.md": "Tudo pronto ou tudo bloqueado, sem ler as fontes. Uso em produção comprovado."
+  },
+  "expected_final_state": "fail",
+  "judge_expectation": "material_failure",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

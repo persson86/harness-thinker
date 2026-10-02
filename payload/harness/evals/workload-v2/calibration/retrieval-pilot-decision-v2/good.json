@@ -1,0 +1,11 @@
+{
+  "case_id": "retrieval-pilot-decision-v2",
+  "label": "good",
+  "artifacts": {
+    "deliverables/result.json": "{\n  \"decision\": \"continue_40\",\n  \"pilot_authorized\": true,\n  \"expansion_authorized\": false,\n  \"limit\": 40\n}\n",
+    "deliverables/note.md": "Registro vigente sustenta manter piloto de 40; início autorizado por R1 e checklist R3, confirmado em R6. Coletar indicadores antes de votar expansão.\n"
+  },
+  "expected_final_state": "pass",
+  "judge_expectation": "acceptable",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

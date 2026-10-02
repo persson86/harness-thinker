@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "analysis-supported-expansion-v2",
+  "workspace": [
+    {
+      "path": "evidence/experiment.csv",
+      "source": "fixtures/analysis-supported-expansion-v2/evidence/experiment.csv"
+    },
+    {
+      "path": "evidence/method.md",
+      "source": "fixtures/analysis-supported-expansion-v2/evidence/method.md"
+    },
+    {
+      "path": "evidence/policy.md",
+      "source": "fixtures/analysis-supported-expansion-v2/evidence/policy.md"
+    }
+  ],
+  "writable": [
+    "deliverables"
+  ],
+  "artifacts": [
+    "deliverables/result.json",
+    "deliverables/note.md"
+  ],
+  "checks": [
+    {
+      "id": "structured-result",
+      "kind": "json",
+      "path": "deliverables/result.json",
+      "assertions": [
+        {
+          "pointer": "/decision",
+          "equals": "expand_eligible"
+        },
+        {
+          "pointer": "/gross_reduction_minutes",
+          "equals": 6
+        },
+        {
+          "pointer": "/control_adjusted_minutes",
+          "equals": 4
+        },
+        {
+          "pointer": "/rework_delta_pp",
+          "equals": -1
+        }
+      ]
+    }
+  ]
+}

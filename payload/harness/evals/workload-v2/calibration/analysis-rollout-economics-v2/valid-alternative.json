@@ -1,0 +1,11 @@
+{
+  "case_id": "analysis-rollout-economics-v2",
+  "label": "valid-alternative",
+  "artifacts": {
+    "deliverables/result.json": "{\n  \"decision\": \"continue_pilot\",\n  \"gross_reduction_minutes\": 6,\n  \"control_adjusted_minutes\": 4,\n  \"rework_delta_pp\": 3\n}\n",
+    "deliverables/note.md": "Decisão condicionada ao escopo testado, com gatilhos de parada. Queda bruta 6/20=30%; controle melhora 2, contraste 4 minutos. Manter piloto: exclusão pode enviesar efeito, retrabalho piora 3pp e viola limite de 1pp. Medir custos e incluir todos antes de reconsiderar.\n\n"
+  },
+  "expected_final_state": "pass",
+  "judge_expectation": "acceptable",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

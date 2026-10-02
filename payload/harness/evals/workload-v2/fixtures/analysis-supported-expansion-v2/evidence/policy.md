@@ -1,0 +1,1 @@
+Expansão exige ganho líquido positivo e retrabalho não mais de 1 ponto percentual acima do controle. Custo mensal da ferramenta e treinamento amortizado: 900 unidades. Volume mensal projetado: 1.000 chamados elegíveis, custo de trabalho 30 por hora; operação confirmou prontidão.

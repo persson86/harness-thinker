@@ -1,0 +1,11 @@
+{
+  "case_id": "code-confined-file-v2",
+  "label": "good",
+  "artifacts": {
+    "src/paths.py": "from pathlib import Path\n\ndef validate_input_file(root, relative):\n    try:\n        if not isinstance(relative,str) or not relative or \"\\\\\" in relative or \":\" in relative or any(p in (\"\",\".\",\"..\") for p in relative.split(\"/\")): raise ValueError(\"invalid path\")\n        base=Path(root).resolve(strict=True)\n        if not base.is_dir(): raise ValueError(\"invalid root\")\n        current=base\n        for component in relative.split(\"/\"):\n            current=current/component\n            if current.is_symlink(): raise ValueError(\"symlink\")\n        resolved=current.resolve(strict=True)\n        resolved.relative_to(base)\n        if not resolved.is_file(): raise ValueError(\"regular file required\")\n        return resolved\n    except (OSError,RuntimeError,TypeError,ValueError) as error:\n        raise ValueError(str(error)) from None\n",
+    "deliverables/note.md": "Validação estática de arquivo; TOCTOU permanece entre checagem e uso."
+  },
+  "expected_final_state": "pass",
+  "judge_expectation": "acceptable",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

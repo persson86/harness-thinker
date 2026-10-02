@@ -1,0 +1,1 @@
+Agentes sorteados, tipos de chamados iguais, medição inclui revisão. Dez agentes sem acesso foram excluídos da média do assistente. Não há distribuição ou intervalo de confiança. Volume similar, satisfação não medida.

@@ -1,0 +1,1 @@
+[F1] Formulário entregue em testes. Seis pessoas testaram envio e consulta; ambos passaram. [F2] Anexos corrigidos, reteste completo passou e coordenação assinou aceite. Janela de abertura aprovada para sexta 09:00. Responsável operacional confirma suporte de plantão. Sem medição de uso em produção.

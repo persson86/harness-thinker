@@ -1,0 +1,11 @@
+{
+  "case_id": "retrieval-ready-expansion-v2",
+  "label": "bad",
+  "artifacts": {
+    "deliverables/result.json": "{\n  \"decision\": \"continue_40\",\n  \"pilot_authorized\": true,\n  \"expansion_authorized\": false,\n  \"limit\": 40\n}\n",
+    "deliverables/note.md": "O rascunho ou uma cautela genérica basta para decidir.\n"
+  },
+  "expected_final_state": "fail",
+  "judge_expectation": "material_failure",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

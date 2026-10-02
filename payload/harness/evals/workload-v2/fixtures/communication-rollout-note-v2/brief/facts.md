@@ -1,0 +1,1 @@
+[F1] Formulário entregue em testes. Seis pessoas testaram envio e consulta; ambos passaram. [F2] Anexos falharam em dois testes. Técnica investiga. Aceite completo pendente. Sexta era estimativa anterior, não reconfirmada. Sem medição de uso em produção.

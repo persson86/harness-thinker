@@ -1,0 +1,11 @@
+{
+  "case_id": "code-score-merge-v2",
+  "label": "valid-alternative",
+  "artifacts": {
+    "src/scores.py": "import math, re\n\ndef merge_scores(existing, incoming):\n    def validate(rows):\n        if not isinstance(rows, list): raise ValueError(\"list required\")\n        seen=set()\n        for row in rows:\n            if not isinstance(row,dict) or set(row)!={\"id\",\"score\"}: raise ValueError(\"record\")\n            key,score=row[\"id\"],row[\"score\"]\n            if not isinstance(key,str) or not re.fullmatch(r\"[a-z][a-z0-9-]*\",key) or key in seen: raise ValueError(\"id\")\n            if type(score) not in (int,float) or not 0<=score<=4 or not math.isfinite(score): raise ValueError(\"score\")\n            seen.add(key)\n    validate(existing); validate(incoming)\n    merged={row[\"id\"]:dict(row) for row in existing}\n    for row in incoming: merged[row[\"id\"]]=dict(row)\n    return list(merged.values())\n",
+    "deliverables/note.md": "Validação prévia e dicionário ordenado preservam posições; teste isolado pendente."
+  },
+  "expected_final_state": "pass",
+  "judge_expectation": "acceptable",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

@@ -1,0 +1,1 @@
+[C2] 08/05, registro assinado da coordenação: terceira rota retestada e passou; aceite das três rotas confirmado. Ambiente de testes. Abertura em produção requer janela operacional ainda não escolhida.

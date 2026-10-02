@@ -55,6 +55,10 @@ run test -f "$V1/harness/operations/model-eval.md"
 assert_rc "init instala operação model-eval" 0
 run test -x "$V1/harness/scripts/model_eval_validate.py"
 assert_rc "init deixa validador model-eval executável" 0
+run test -x "$V1/harness/scripts/model-eval.py"
+assert_rc "init deixa avaliador persistente executável" 0
+run python3 -B "$V1/harness/scripts/model-eval.py" --help
+assert_rc "avaliador instalado carrega CLI sem chamadas de modelo" 0
 run bash -c "cd '$V1' && CLAUDE_PROJECT_DIR='$V1' bash harness/scripts/verify.sh"
 assert_rc "verify.sh verde no vault novo" 0
 
@@ -338,6 +342,9 @@ assert_rc "delegação: ciclo, adaptadores, CLI, hook e Git isolados" 0
 [ "$RC" -ne 0 ] || printf '%s\n' "$OUT" | tail -4
 run python3 -B -m unittest discover -s "$REPO/tests" -p 'test_knowledge_*.py'
 assert_rc "revisão de conhecimento e busca" 0
+[ "$RC" -ne 0 ] || printf '%s\n' "$OUT" | tail -4
+run python3 -B -m unittest discover -s "$REPO/tests" -p 'test_model_eval_*.py'
+assert_rc "avaliador: entradas congeladas, execucao isolada, rubricas e relatorios" 0
 [ "$RC" -ne 0 ] || printf '%s\n' "$OUT" | tail -4
 run python3 -B -m unittest discover -s "$REPO/tests" -p 'test_task*.py'
 assert_rc "tarefas, retomada e superfície local" 0

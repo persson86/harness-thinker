@@ -1,0 +1,25 @@
+{
+  "criteria": [
+    {
+      "id": "observed-specificity",
+      "description": "Baseia o texto nas observações diretas de organização, registro de decisões e alinhamento de critérios, com alcance compatível com três meses/um projeto.",
+      "critical": false
+    },
+    {
+      "id": "claims",
+      "description": "Não transfere superlativos, transformação empresarial, eficiência dobrada ou gestão de equipes do rascunho para a recomendação.",
+      "critical": true
+    },
+    {
+      "id": "correction",
+      "description": "Respeita a correção do autor e recomenda por colaboração/organização, sem inferir liderança formal ou resultados de negócio.",
+      "critical": true
+    },
+    {
+      "id": "usable",
+      "description": "Entrega somente recomendação curta até 160 palavras, natural e sóbria, que distingue adoção do checklist de resultado não medido sem virar disclaimer genérico.",
+      "critical": false
+    }
+  ],
+  "reference_notes": "Texto pode usar primeira pessoa e afirmar que acompanhou o trabalho, com exemplos concretos. A adoção pelos dois grupos é observada e pode constar; não há causalidade quantificada ou sustentação para competência em outros projetos. Não precisa listar tudo que o autor não sabe nem depreciar a colega. Não inventar nome, empresa, cargo ou qualidades psicológicas gerais. Aceitar diferentes estilos desde que sejam específicos e fiéis."
+}

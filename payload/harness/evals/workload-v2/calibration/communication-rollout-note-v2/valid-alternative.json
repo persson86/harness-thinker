@@ -1,0 +1,11 @@
+{
+  "case_id": "communication-rollout-note-v2",
+  "label": "valid-alternative",
+  "artifacts": {
+    "deliverables/result.json": "{\"launch_approved\": false, \"launch_time\": \"nao-confirmada\", \"production_use_measured\": false}\n",
+    "deliverables/message.md": "Atualização do formulário\n\nCorrigindo a atualização anterior: o formulário foi entregue em testes; envio e consulta passaram. Anexos seguem em investigação, e o aceite completo está pendente. A abertura de sexta ainda não foi reconfirmada. Próxima atualização útil: correção e reteste de anexos para a coordenação decidir abertura.\n"
+  },
+  "expected_final_state": "pass",
+  "judge_expectation": "acceptable",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

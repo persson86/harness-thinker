@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "id": "code-confined-file-v2",
+  "workspace": [
+    {
+      "path": "CONTRACT.md",
+      "source": "fixtures/code-confined-file-v2/CONTRACT.md"
+    },
+    {
+      "path": "src/paths.py",
+      "source": "fixtures/code-confined-file-v2/src/paths.py"
+    }
+  ],
+  "writable": [
+    "src/paths.py",
+    "candidate-tests",
+    "deliverables"
+  ],
+  "artifacts": [
+    "src/paths.py",
+    "deliverables/note.md"
+  ],
+  "checks": [
+    {
+      "id": "implementation",
+      "kind": "text",
+      "path": "src/paths.py"
+    },
+    {
+      "id": "behavior-tests",
+      "kind": "python-unittest",
+      "source": "trusted/code-confined-file-v2/checks.json"
+    }
+  ]
+}

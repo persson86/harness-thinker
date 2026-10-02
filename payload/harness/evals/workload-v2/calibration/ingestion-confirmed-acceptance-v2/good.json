@@ -1,0 +1,12 @@
+{
+  "case_id": "ingestion-confirmed-acceptance-v2",
+  "label": "good",
+  "artifacts": {
+    "deliverables/result.json": "{\n  \"accepted\": true,\n  \"passed_routes\": 3,\n  \"production_confirmed\": false,\n  \"speaker_identity_confirmed\": false,\n  \"sources\": [\n    \"T1\",\n    \"T2\",\n    \"C1\",\n    \"C2\"\n  ]\n}\n",
+    "deliverables/note.md": "Lacuna e número incerto não viram conhecimento. C1 corrige ambiente, C2 define estado de aceite. Histórico preservado.\n",
+    "wiki/export.md": "---\ntitle: Exportação\nsummary: Homologação das rotas de exportação\nstatus: aceita-em-testes\n---\n\n# Exportação\nTrês rotas devem passar antes do aceite. Não há medição de uso.\n\n## Histórico\nO primeiro teste encontrou erro de formatação.\n\n## Atualização de 08/05\nAceite em testes confirmado por C2; três rotas passaram. Produção depende de janela. Não há medição de uso nem identidade confiável das vozes.\n"
+  },
+  "expected_final_state": "pass",
+  "judge_expectation": "acceptable",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

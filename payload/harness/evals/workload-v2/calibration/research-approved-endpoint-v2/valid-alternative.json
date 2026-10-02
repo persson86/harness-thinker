@@ -1,0 +1,11 @@
+{
+  "case_id": "research-approved-endpoint-v2",
+  "label": "valid-alternative",
+  "artifacts": {
+    "deliverables/result.json": "{\n  \"document_content_zero_retention\": true,\n  \"all_data_zero_retention\": false,\n  \"source_version\": \"3.2\",\n  \"external_search_performed\": false\n}\n",
+    "deliverables/note.md": "Resumo por fonte e recomendação com escopo delimitado. P1 é manual vigente, P2 histórico, P3 contradiz escopo oficial. P4/P5 aprovam retenção zero do conteúdo no endpoint de texto, sem uploads. Pode comunicar esse alcance; não retenção zero de todos os dados por logs de faturamento.\n\n"
+  },
+  "expected_final_state": "pass",
+  "judge_expectation": "acceptable",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

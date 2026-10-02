@@ -229,7 +229,7 @@ echo "  + ${#PAYLOAD_FILES[@]} arquivos do harness em $TARGET" >&2
 
 # hooks, scripts shell e entrypoints Python executáveis
 chmod +x "$TARGET"/.claude/hooks/*.sh "$TARGET"/harness/scripts/*.sh \
-  "$TARGET"/harness/scripts/model_eval_validate.py "$TARGET"/.grok/hooks/*.sh 2>/dev/null || true
+  "$TARGET"/harness/scripts/model_eval_validate.py "$TARGET"/harness/scripts/model-eval.py "$TARGET"/.grok/hooks/*.sh 2>/dev/null || true
 
 # --- manifest + version (insumo do drift check em verify.sh) -----------
 MANIFEST="$TARGET/harness/.manifest"

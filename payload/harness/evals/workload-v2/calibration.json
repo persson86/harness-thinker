@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "id": "workload-v2-calibration",
+  "scope": "Synthetic references for judge/check calibration, not candidate performance. Public holdouts are exposed; final confirmation needs new private frozen cases.",
+  "cases": [
+    {
+      "case_id": "retrieval-pilot-decision-v2",
+      "references": [
+        {
+          "label": "good",
+          "file": "calibration/retrieval-pilot-decision-v2/good.json",
+          "expected_final_state": "pass"
+        },
+        {
+          "label": "bad",
+          "file": "calibration/retrieval-pilot-decision-v2/bad.json",
+          "expected_final_state": "fail"
+        },
+        {
+          "label": "valid-alternative",
+          "file": "calibration/retrieval-pilot-decision-v2/valid-alternative.json",
+          "expected_final_state": "pass"
+        }
+      ]
+    },
+    {
+      "case_id": "retrieval-ready-expansion-v2",
+      "references": [
+        {
+          "label": "good",
+          "file": "calibration/retrieval-ready-expansion-v2/good.json",
+          "expected_final_state": "pass"
+        },
+        {
+          "label": "bad",
+          "file": "calibration/retrieval-ready-expansion-v2/bad.json",
+          "expected_final_state": "fail"
+        },
+        {
+          "label": "valid-alternative",
+          "file": "calibration/retrieval-ready-expansion-v2/valid-alternative.json",
+          "expected_final_state": "pass"
+        }
+      ]
+    },
+    {
+      "case_id": "ingestion-export-delta-v2",
+      "references": [
+        {
+          "label": "good",
+          "file": "calibration/ingestion-export-delta-v2/good.json",
+          "expected_final_state": "pass"
+        },
+        {
+          "label": "bad",
+          "file": "calibration/ingestion-export-delta-v2/bad.json",
+          "expected_final_state": "fail"
+        },
+        {
+          "label": "valid-alternative",
+          "file": "calibration/ingestion-export-delta-v2/valid-alternative.json",
+          "expected_final_state": "pass"
+        }
+      ]
+    },
+    {
+      "case_id": "ingestion-confirmed-acceptance-v2",
+      "references": [
+        {
+          "label": "good",
+          "file": "calibration/ingestion-confirmed-acceptance-v2/good.json",
+          "expected_final_state": "pass"
+        },
+        {
+          "label": "bad",
+          "file": "calibration/ingestion-confirmed-acceptance-v2/bad.json",
+          "expected_final_state": "fail"
+        },
+        {
+          "label": "valid-alternative",
+          "file": "calibration/ingestion-confirmed-acceptance-v2/valid-alternative.json",
+          "expected_final_state": "pass"
+        }
+      ]
+    },
+    {
+      "case_id": "analysis-rollout-economics-v2",
+      "references": [
+        {
+          "label": "good",
+          "file": "calibration/analysis-rollout-economics-v2/good.json",
+          "expected_final_state": "pass"
+        },
+        {
+          "label": "bad",
+          "file": "calibration/analysis-rollout-economics-v2/bad.json",
+          "expected_final_state": "fail"
+        },
+        {
+          "label": "valid-alternative",
+          "file": "calibration/analysis-rollout-economics-v2/valid-alternative.json",
+          "expected_final_state": "pass"
+        }
+      ]
+    },
+    {
+      "case_id": "analysis-supported-expansion-v2",
+      "references": [
+        {
+          "label": "good",
+          "file": "calibration/analysis-supported-expansion-v2/good.json",
+          "expected_final_state": "pass"
+        },
+        {
+          "label": "bad",
+          "file": "calibration/analysis-supported-expansion-v2/bad.json",
+          "expected_final_state": "fail"
+        },
+        {
+          "label": "valid-alternative",
+          "file": "calibration/analysis-supported-expansion-v2/valid-alternative.json",
+          "expected_final_state": "pass"
+        }
+      ]
+    },
+    {
+      "case_id": "research-retention-policy-v2",
+      "references": [
+        {
+          "label": "good",
+          "file": "calibration/research-retention-policy-v2/good.json",
+          "expected_final_state": "pass"
+        },
+        {
+          "label": "bad",
+          "file": "calibration/research-retention-policy-v2/bad.json",
+          "expected_final_state": "fail"
+        },
+        {
+          "label": "valid-alternative",
+          "file": "calibration/research-retention-policy-v2/valid-alternative.json",
+          "expected_final_state": "pass"
+        }
+      ]
+    },
+    {
+      "case_id": "research-approved-endpoint-v2",
+      "references": [
+        {
+          "label": "good",
+          "file": "calibration/research-approved-endpoint-v2/good.json",
+          "expected_final_state": "pass"
+        },
+        {
+          "label": "bad",
+          "file": "calibration/research-approved-endpoint-v2/bad.json",
+          "expected_final_state": "fail"
+        },
+        {
+          "label": "valid-alternative",
+          "file": "calibration/research-approved-endpoint-v2/valid-alternative.json",
+          "expected_final_state": "pass"
+        }
+      ]
+    },
+    {
+      "case_id": "code-score-merge-v2",
+      "references": [
+        {
+          "label": "good",
+          "file": "calibration/code-score-merge-v2/good.json",
+          "expected_final_state": "pass"
+        },
+        {
+          "label": "bad",
+          "file": "calibration/code-score-merge-v2/bad.json",
+          "expected_final_state": "fail"
+        },
+        {
+          "label": "valid-alternative",
+          "file": "calibration/code-score-merge-v2/valid-alternative.json",
+          "expected_final_state": "pass"
+        }
+      ]
+    },
+    {
+      "case_id": "code-confined-file-v2",
+      "references": [
+        {
+          "label": "good",
+          "file": "calibration/code-confined-file-v2/good.json",
+          "expected_final_state": "pass"
+        },
+        {
+          "label": "bad",
+          "file": "calibration/code-confined-file-v2/bad.json",
+          "expected_final_state": "fail"
+        },
+        {
+          "label": "valid-alternative",
+          "file": "calibration/code-confined-file-v2/valid-alternative.json",
+          "expected_final_state": "pass"
+        }
+      ]
+    },
+    {
+      "case_id": "communication-rollout-note-v2",
+      "references": [
+        {
+          "label": "good",
+          "file": "calibration/communication-rollout-note-v2/good.json",
+          "expected_final_state": "pass"
+        },
+        {
+          "label": "bad",
+          "file": "calibration/communication-rollout-note-v2/bad.json",
+          "expected_final_state": "fail"
+        },
+        {
+          "label": "valid-alternative",
+          "file": "calibration/communication-rollout-note-v2/valid-alternative.json",
+          "expected_final_state": "pass"
+        }
+      ]
+    },
+    {
+      "case_id": "communication-approved-launch-v2",
+      "references": [
+        {
+          "label": "good",
+          "file": "calibration/communication-approved-launch-v2/good.json",
+          "expected_final_state": "pass"
+        },
+        {
+          "label": "bad",
+          "file": "calibration/communication-approved-launch-v2/bad.json",
+          "expected_final_state": "fail"
+        },
+        {
+          "label": "valid-alternative",
+          "file": "calibration/communication-approved-launch-v2/valid-alternative.json",
+          "expected_final_state": "pass"
+        }
+      ]
+    }
+  ]
+}

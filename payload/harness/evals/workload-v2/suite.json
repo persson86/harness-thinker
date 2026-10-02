@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "id": "workload-v2",
+  "title": "Tarefas sintéticas com ferramentas e estado final verificado",
+  "max_prompt_bytes": 30000,
+  "cases": [
+    {
+      "id": "retrieval-pilot-decision-v2",
+      "family": "retrieval",
+      "split": "development",
+      "prompt": "cases/retrieval-pilot-decision-v2.md",
+      "rubric": "rubrics/retrieval-pilot-decision-v2.json",
+      "workflow": "workflows/retrieval-pilot-decision-v2.json",
+      "max_words": 450,
+      "max_prompt_bytes": 30000,
+      "execution": "host-managed"
+    },
+    {
+      "id": "retrieval-ready-expansion-v2",
+      "family": "retrieval",
+      "split": "holdout",
+      "prompt": "cases/retrieval-ready-expansion-v2.md",
+      "rubric": "rubrics/retrieval-ready-expansion-v2.json",
+      "workflow": "workflows/retrieval-ready-expansion-v2.json",
+      "max_words": 450,
+      "max_prompt_bytes": 30000,
+      "execution": "host-managed"
+    },
+    {
+      "id": "ingestion-export-delta-v2",
+      "family": "ingestion",
+      "split": "development",
+      "prompt": "cases/ingestion-export-delta-v2.md",
+      "rubric": "rubrics/ingestion-export-delta-v2.json",
+      "workflow": "workflows/ingestion-export-delta-v2.json",
+      "max_words": 450,
+      "max_prompt_bytes": 30000,
+      "execution": "host-managed"
+    },
+    {
+      "id": "ingestion-confirmed-acceptance-v2",
+      "family": "ingestion",
+      "split": "holdout",
+      "prompt": "cases/ingestion-confirmed-acceptance-v2.md",
+      "rubric": "rubrics/ingestion-confirmed-acceptance-v2.json",
+      "workflow": "workflows/ingestion-confirmed-acceptance-v2.json",
+      "max_words": 450,
+      "max_prompt_bytes": 30000,
+      "execution": "host-managed"
+    },
+    {
+      "id": "analysis-rollout-economics-v2",
+      "family": "analysis",
+      "split": "development",
+      "prompt": "cases/analysis-rollout-economics-v2.md",
+      "rubric": "rubrics/analysis-rollout-economics-v2.json",
+      "workflow": "workflows/analysis-rollout-economics-v2.json",
+      "max_words": 450,
+      "max_prompt_bytes": 30000,
+      "execution": "host-managed"
+    },
+    {
+      "id": "analysis-supported-expansion-v2",
+      "family": "analysis",
+      "split": "holdout",
+      "prompt": "cases/analysis-supported-expansion-v2.md",
+      "rubric": "rubrics/analysis-supported-expansion-v2.json",
+      "workflow": "workflows/analysis-supported-expansion-v2.json",
+      "max_words": 450,
+      "max_prompt_bytes": 30000,
+      "execution": "host-managed"
+    },
+    {
+      "id": "research-retention-policy-v2",
+      "family": "research",
+      "split": "development",
+      "prompt": "cases/research-retention-policy-v2.md",
+      "rubric": "rubrics/research-retention-policy-v2.json",
+      "workflow": "workflows/research-retention-policy-v2.json",
+      "max_words": 450,
+      "max_prompt_bytes": 30000,
+      "execution": "host-managed"
+    },
+    {
+      "id": "research-approved-endpoint-v2",
+      "family": "research",
+      "split": "holdout",
+      "prompt": "cases/research-approved-endpoint-v2.md",
+      "rubric": "rubrics/research-approved-endpoint-v2.json",
+      "workflow": "workflows/research-approved-endpoint-v2.json",
+      "max_words": 450,
+      "max_prompt_bytes": 30000,
+      "execution": "host-managed"
+    },
+    {
+      "id": "code-score-merge-v2",
+      "family": "code",
+      "split": "development",
+      "prompt": "cases/code-score-merge-v2.md",
+      "rubric": "rubrics/code-score-merge-v2.json",
+      "workflow": "workflows/code-score-merge-v2.json",
+      "max_words": 700,
+      "max_prompt_bytes": 30000,
+      "execution": "host-managed"
+    },
+    {
+      "id": "code-confined-file-v2",
+      "family": "code",
+      "split": "holdout",
+      "prompt": "cases/code-confined-file-v2.md",
+      "rubric": "rubrics/code-confined-file-v2.json",
+      "workflow": "workflows/code-confined-file-v2.json",
+      "max_words": 700,
+      "max_prompt_bytes": 30000,
+      "execution": "host-managed"
+    },
+    {
+      "id": "communication-rollout-note-v2",
+      "family": "communication",
+      "split": "development",
+      "prompt": "cases/communication-rollout-note-v2.md",
+      "rubric": "rubrics/communication-rollout-note-v2.json",
+      "workflow": "workflows/communication-rollout-note-v2.json",
+      "max_words": 450,
+      "max_prompt_bytes": 30000,
+      "execution": "host-managed"
+    },
+    {
+      "id": "communication-approved-launch-v2",
+      "family": "communication",
+      "split": "holdout",
+      "prompt": "cases/communication-approved-launch-v2.md",
+      "rubric": "rubrics/communication-approved-launch-v2.json",
+      "workflow": "workflows/communication-approved-launch-v2.json",
+      "max_words": 450,
+      "max_prompt_bytes": 30000,
+      "execution": "host-managed"
+    }
+  ]
+}

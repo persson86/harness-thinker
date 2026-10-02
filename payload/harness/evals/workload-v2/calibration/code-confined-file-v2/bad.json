@@ -1,0 +1,11 @@
+{
+  "case_id": "code-confined-file-v2",
+  "label": "bad",
+  "artifacts": {
+    "src/paths.py": "from pathlib import Path\ndef validate_input_file(root,relative):\n    return (Path(root)/relative).resolve()\n",
+    "deliverables/note.md": "Garantia absoluta de confinamento."
+  },
+  "expected_final_state": "fail",
+  "judge_expectation": "material_failure",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

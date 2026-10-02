@@ -1,0 +1,1 @@
+[P4] Aditivo assinado: elegibilidade aprovada e retenção zero habilitada para endpoint texto simples. [P5] Projeto usa somente texto simples nesse endpoint, sem uploads. Logs de faturamento continuam por 90 dias, sem conteúdo de documentos.

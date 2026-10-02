@@ -1,0 +1,11 @@
+{
+  "case_id": "communication-approved-launch-v2",
+  "label": "valid-alternative",
+  "artifacts": {
+    "deliverables/result.json": "{\"launch_approved\": true, \"launch_time\": \"sexta 09:00\", \"production_use_measured\": false}\n",
+    "deliverables/message.md": "Atualização do formulário\n\nO formulário passou nos testes completos, incluindo anexos, e recebeu aceite da coordenação. A abertura foi aprovada para sexta às 09:00; a operação confirmou suporte. O uso em produção será acompanhado após a abertura.\n"
+  },
+  "expected_final_state": "pass",
+  "judge_expectation": "acceptable",
+  "notes": "Reference fixture for instrument calibration; not observed candidate performance."
+}

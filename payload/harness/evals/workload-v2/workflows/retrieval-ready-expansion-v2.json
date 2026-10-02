@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "id": "retrieval-ready-expansion-v2",
+  "workspace": [
+    {
+      "path": "archive/01-decision.md",
+      "source": "fixtures/retrieval-ready-expansion-v2/archive/01-decision.md"
+    },
+    {
+      "path": "archive/02-proposal.md",
+      "source": "fixtures/retrieval-ready-expansion-v2/archive/02-proposal.md"
+    },
+    {
+      "path": "archive/03-training.md",
+      "source": "fixtures/retrieval-ready-expansion-v2/archive/03-training.md"
+    },
+    {
+      "path": "archive/04-correction.md",
+      "source": "fixtures/retrieval-ready-expansion-v2/archive/04-correction.md"
+    },
+    {
+      "path": "archive/05-draft.md",
+      "source": "fixtures/retrieval-ready-expansion-v2/archive/05-draft.md"
+    },
+    {
+      "path": "archive/06-update.md",
+      "source": "fixtures/retrieval-ready-expansion-v2/archive/06-update.md"
+    }
+  ],
+  "writable": [
+    "deliverables"
+  ],
+  "artifacts": [
+    "deliverables/result.json",
+    "deliverables/note.md"
+  ],
+  "checks": [
+    {
+      "id": "structured-result",
+      "kind": "json",
+      "path": "deliverables/result.json",
+      "assertions": [
+        {
+          "pointer": "/decision",
+          "equals": "expand_200"
+        },
+        {
+          "pointer": "/pilot_authorized",
+          "equals": true
+        },
+        {
+          "pointer": "/expansion_authorized",
+          "equals": true
+        },
+        {
+          "pointer": "/limit",
+          "equals": 200
+        }
+      ]
+    },
+    {
+      "id": "decision-note",
+      "kind": "text",
+      "path": "deliverables/note.md"
+    }
+  ]
+}

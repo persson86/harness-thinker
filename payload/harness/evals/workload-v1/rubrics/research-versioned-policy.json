@@ -1,0 +1,25 @@
+{
+  "criteria": [
+    {
+      "id": "policy",
+      "description": "Responde que histórico desligado não garante ausência de armazenamento nem retenção zero na versão 3.2, apoiando a conclusão em P1.",
+      "critical": true
+    },
+    {
+      "id": "conflict",
+      "description": "Resolve conflito por escopo, versão e autoridade: P2 é histórico e P3 contradiz manual vigente; não usa simplesmente a data mais nova.",
+      "critical": false
+    },
+    {
+      "id": "eligibility",
+      "description": "Distingue possibilidade de solicitação de aprovação e considera a exclusão de uploads; não declara conta elegível ou protegida.",
+      "critical": true
+    },
+    {
+      "id": "verification",
+      "description": "Propõe verificar contrato/elegibilidade, endpoints, uploads e retenção operacional antes do anúncio, sem simular consulta externa ou dar garantia além das fontes.",
+      "critical": false
+    }
+  ],
+  "reference_notes": "P1 distingue lista visível, uso para melhoria e logs operacionais por até 30 dias. Zero é modalidade condicionada, incompatível com uploads conforme esse texto. P4 confirma apenas possibilidade de solicitar análise. A resposta pode recomendar não anunciar retenção zero no estado atual e redesenhar fluxo ou pedir esclarecimento contratual; não precisa dar aconselhamento jurídico nem inventar outra política. As fontes são fictícias, não evidência de serviço real."
+}
