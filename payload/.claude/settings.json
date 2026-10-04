@@ -10,6 +10,7 @@
       "Edit(./raw/**)"
     ]
   },
+  "autoCompactWindow": 300000,
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -83,6 +84,18 @@
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/agenda-gate.sh",
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-compact.sh",
+            "timeout": 5
           }
         ]
       }

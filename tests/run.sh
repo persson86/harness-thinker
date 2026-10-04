@@ -350,6 +350,17 @@ run python3 -B -m unittest discover -s "$REPO/tests" -p 'test_task*.py'
 assert_rc "tarefas, retomada e superfície local" 0
 [ "$RC" -ne 0 ] || printf '%s\n' "$OUT" | tail -4
 
+# ------------------------------------------------- post-compact (7.23.0-rc.5)
+PC="$V1/.claude/hooks/post-compact.sh"
+run bash -c "echo '{\"hook_event_name\":\"SessionStart\",\"source\":\"compact\"}' | bash '$PC'"
+assert_rc "post-compact responde à compactação" 0
+assert_out "post-compact injeta contexto no SessionStart" '"hookEventName": "SessionStart"'
+assert_out "post-compact não renova autorização pelo resumo" "commit não implica push"
+run bash -c "echo '{\"hook_event_name\":\"SessionStart\",\"source\":\"startup\"}' | bash '$PC'"
+[ "$RC" -eq 0 ] && [ -z "$OUT" ] && ok "post-compact silencioso fora da compactação" || bad "post-compact silencioso fora da compactação" "$OUT"
+run bash -c "echo 'não é json' | bash '$PC'"
+[ "$RC" -eq 0 ] && [ -z "$OUT" ] && ok "post-compact falha aberto com entrada inválida" || bad "post-compact falha aberto com entrada inválida" "$OUT"
+
 # ------------------------------------------------- páginas-hub (7.22.0, C1)
 # Teste de documentação, não de comportamento do modelo: confere que a regra
 # de forma está ligada do playbook de transcrição ao contrato.

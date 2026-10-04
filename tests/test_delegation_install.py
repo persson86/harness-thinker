@@ -2,6 +2,7 @@
 """Installer migration for generated Codex skill ignore rules."""
 from pathlib import Path
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -119,6 +120,34 @@ class DelegationInstallTests(unittest.TestCase):
             self.assertIn("Bash(git status)", merged["permissions"]["allow"])
             self.assertEqual(1, sum(h["command"] == "local-stop" for group in merged["hooks"]["Stop"]
                                     for h in group["hooks"]))
+
+    def test_fresh_install_sets_compaction_window_and_post_compact_hook(self):
+        with tempfile.TemporaryDirectory(prefix="delegation-install-") as directory:
+            target = Path(directory) / "vault"
+            target.mkdir()
+            result = self.run_install(target)
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            settings = json.loads((target / ".claude/settings.json").read_text(encoding="utf-8"))
+            self.assertEqual(300000, settings["autoCompactWindow"])
+            [grupo] = settings["hooks"]["SessionStart"]
+            self.assertEqual("compact", grupo["matcher"])
+            self.assertIn("post-compact.sh", grupo["hooks"][0]["command"])
+            self.assertTrue(os.access(target / ".claude/hooks/post-compact.sh", os.X_OK))
+
+    def test_update_preserves_local_compaction_window_and_does_not_duplicate_hook(self):
+        for local in (500000, "auto"):
+            with self.subTest(local=local), tempfile.TemporaryDirectory(prefix="delegation-install-") as directory:
+                target = Path(directory) / "vault"
+                settings = target / ".claude/settings.json"
+                settings.parent.mkdir(parents=True)
+                settings.write_text(json.dumps({"autoCompactWindow": local}), encoding="utf-8")
+                for _ in range(2):
+                    result = self.run_install(target)
+                    self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                merged = json.loads(settings.read_text(encoding="utf-8"))
+                self.assertEqual(local, merged["autoCompactWindow"])
+                comandos = [h["command"] for g in merged["hooks"]["SessionStart"] for h in g["hooks"]]
+                self.assertEqual(1, sum("post-compact.sh" in c for c in comandos))
 
     def test_fresh_install_gets_harness_statusline_at_five_seconds(self):
         with tempfile.TemporaryDirectory(prefix="delegation-install-") as directory:

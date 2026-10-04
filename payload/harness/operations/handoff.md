@@ -12,6 +12,8 @@ O resultado do handoff nao e conhecimento duravel do vault: nao cria pagina, nao
 
 Nunca dispara sozinho: e sempre invocacao manual.
 
+No Claude Code, a compactacao automatica do harness ocorre em 300 mil tokens de contexto. Em tarefa longa com estado que um resumo pode perder (correcoes, decisoes, restricoes de autorizacao), o handoff ou um checkpoint da operacao `task` antes desse ponto preserva o que a compactacao resume.
+
 ## Principio
 
 Registrar ESTADO, nao instrucoes. Descrever o que esta feito e o que nao esta ("a pagina X ja tem frontmatter; os cross-links de Y ainda nao foram verificados"), nunca ordens ao proximo agente ("faca Y"). O proximo agente decide a partir do estado; ele verifica, nao obedece cegamente.

@@ -1,5 +1,13 @@
 # Changes
 
+## 7.23.0-rc.5 - 2026-10-03 (laboratory candidate)
+
+- **Compaction window.** `.claude/settings.json` sets `autoCompactWindow` to 300000 tokens. Without it, models with a native 1M window compact near 967K, so long vault sessions carried 300K–500K+ tokens into every call. Updates add the key only when absent; a local value, including `"auto"`, is kept, and `--autocompact` or `CLAUDE_CODE_AUTO_COMPACT_WINDOW` still override per session.
+- **Post-compaction reminder.** New `SessionStart` hook (`post-compact.sh`, matcher `compact`) injects one short paragraph: the summary is memory, not a source; files are re-read from disk before editing; completed actions are not redone because the summary mentions them; authorizations hold only in the scope the summary records explicitly (commit does not imply push), with a question before irreversible actions when that scope is ambiguous; a known `task` ID may be resumed as reading, not as an order. It reads no transcript and fails open.
+- An early "context is filling" warning was prototyped and dropped before release: it depended on the undocumented transcript format and added a turn for a benefit no data supported yet.
+- `adapters/claude.md` and `operations/handoff.md` document both. Tests cover fresh install, preserved local values (number and `"auto"`), no hook duplication across two updates, and the hook's silent paths.
+- Unmeasured: cost per session after the change and how often compaction loses state. The plan was reviewed blind by Sol high and Fable high; neither could read the repository, so their objections were weighed as critique of the plan, not as code verification.
+
 ## 7.23.0-rc.4 - 2026-10-02 (laboratory candidate)
 
 - Ships the persistent evaluator prototyped locally in rc.3, with a high-effort minimum, dynamic inventory, explicit unavailable profiles and immutable comparison policies. Historical rounds stay readable; execution cannot silently mix executor versions.
