@@ -53,6 +53,8 @@ Categorias, escopos, `inbox_dir`, `subsharded` e esferas rápidas vivem em `vaul
 
 Resumo operacional: páginas indexáveis precisam de frontmatter completo e `summary:`; páginas no inbox configurado não entram no índice até promoção; `wiki/log.md` é append-only; `build-index.py generate` é a única forma de atualizar root e shards.
 
+Artefato gerado (HTML, PDF, imagem, deck, export, captura) vai para `output/<slug>/`; texto em andamento, para `drafts/`. `wiki/` só recebe páginas das categorias configuradas, mais `index.md` e `log.md`.
+
 ## Operações
 
 Use `harness/operations/<op>.md` como playbook canônico:

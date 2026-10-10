@@ -20,3 +20,4 @@ queue/
 /.grok/
 /.agents/skills/thinker-delegate/
 /drafts/
+/output/

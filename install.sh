@@ -188,6 +188,20 @@ ensure_generated_skills_ignored() {
 }
 ensure_generated_skills_ignored
 
+# Artefatos gerados moram em output/, fora da wiki e do git (contract.md >
+# Wiki, drafts e output). Acrescenta a regra só se nenhuma equivalente existir.
+ensure_output_dir() {
+  local ignore="$TARGET/.gitignore"
+  mkdir -p "$TARGET/output"
+  if ! grep -Eqx '/?output/?' "$ignore"; then
+    if [ -s "$ignore" ] && [ "$(tail -c 1 "$ignore" | wc -l | tr -d ' ')" -eq 0 ]; then
+      printf '\n' >> "$ignore"
+    fi
+    printf '%s\n' "/output/" >> "$ignore"
+  fi
+}
+ensure_output_dir
+
 # Lista de arquivos do payload (relpath a partir de payload/).
 PAYLOAD_FILES=()
 while IFS= read -r f; do PAYLOAD_FILES+=("$f"); done < <(cd "$PAYLOAD" && find . -type f ! -name '*.pyc' ! -path '*/__pycache__/*' | sed 's|^\./||' | sort)

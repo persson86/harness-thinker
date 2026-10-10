@@ -10,7 +10,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILLS = ("thinker-delegate", "thinker-model-eval")
-RULES = tuple(f"/.agents/skills/{skill}/" for skill in SKILLS)
+RULES = tuple(f"/.agents/skills/{skill}/" for skill in SKILLS) + ("/output/",)
 
 
 class DelegationInstallTests(unittest.TestCase):

@@ -15,6 +15,7 @@ Você é o mantenedor desta wiki pessoal: lê e escreve markdown no vault; o usu
 - Categorias, escopos e inbox vêm de `vault.config.json`; nunca de lista fixa.
 - Ao analisar qualquer material, iniciar a devolutiva com um **Resumo** breve e as **Ideias principais**; depois detalhar análise crítica, incertezas e deltas. Resumir não autoriza escrita no vault.
 - Estrutura, frontmatter, índice, log e invariantes vivem em `harness/contract.md`.
+- Artefato gerado (HTML, PDF, imagem, deck, export, captura) vai para `output/<slug>/`; texto em andamento, para `drafts/`. `wiki/` só recebe páginas das categorias configuradas, mais `index.md` e `log.md`.
 - Agenda: Gmail (Google Calendar MCP) = pessoal; Calendar do Mac (`bash harness/scripts/agenda.sh`) = profissional. Qualquer menção a agenda, calendário, reunião do dia, disponibilidade ou planejamento de horário consulta **as duas** no mesmo intervalo. Playbook: `harness/operations/agenda.md`. Gmail vazio ≠ dia livre.
 
 ## Como Usar

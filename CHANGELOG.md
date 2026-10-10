@@ -1,5 +1,12 @@
 # Changes
 
+## 7.23.0-rc.7 - 2026-10-10 (laboratory candidate)
+
+- **Generated artifacts live in `output/`.** `contract.md` gains *Wiki, drafts e output*: `wiki/` holds only markdown pages in the configured categories plus `index.md` and `log.md`; `drafts/` holds text still being edited or ingested; `output/<slug>/` holds generated deliverables (HTML, PDF, images, decks, exports, context packs, screenshots). Both stay out of git and the index. `CLAUDE.md`, `AGENTS.md` and the Grok rules carry a one-line rule.
+- `build-index.py health` fails on a folder at the wiki root that is not a configured category, a stray file at the root, or a non-`.md` file inside a category, and tells where to move it. Hidden entries (`.DS_Store`, `.obsidian`) are ignored. Previously a gitignored export folder inside `wiki/` only surfaced as pages without `summary`, and a PDF or HTML file was not seen at all.
+- The installer creates `output/` and appends `/output/` to `.gitignore` once, unless an equivalent rule (`output`, `output/`, `/output`) already exists; the fresh-vault template includes it.
+- Hooks still cannot stop an external app from writing into `wiki/`; the health check reports it and the app's output folder has to be pointed at `output/`.
+
 ## 7.23.0-rc.6 - 2026-10-10 (laboratory candidate)
 
 - **Real Codex session IDs.** `delegate.py` and `delegation-indicator.py` fall back to `CODEX_THREAD_ID`, which the Codex host exports to tool shells with the thread ID used in the rollout file name. A Codex principal that previously passed an invented label (`<prefix>-review`) left its jobs unlinked from the conversation in monitoring panels, which match by exact ID. `delegate.md` now says to omit `--session` or pass `$CODEX_THREAD_ID` in Codex and forbids derived labels when a native ID exists; `delegation.md` marks `S` and `MINHA-SESSAO` as placeholders. Explicit `--session` and `THINKER_SESSION_ID` still win.

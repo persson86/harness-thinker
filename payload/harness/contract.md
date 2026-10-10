@@ -100,6 +100,14 @@ Indice, grafo e manifest verificam propriedades estruturais. Nao certificam verd
 
 Slugs devem ser descritivos e em `kebab-case`.
 
+## Wiki, drafts e output
+
+- `wiki/` contem so paginas markdown das categorias de `vault.config.json`, mais `wiki/index.md` e `wiki/log.md`. Nenhuma outra pasta ou arquivo na raiz da wiki; nenhum arquivo nao-`.md` dentro das categorias.
+- `drafts/`: texto em andamento que o usuario ainda vai editar ou ingerir (rascunho, brief, preparacao de revisao).
+- `output/<slug>/`: artefato gerado para consumir ou enviar (HTML, PDF, imagem, deck, export, pacote de contexto, captura de tela). Produto pronto, regeneravel.
+- `drafts/` e `output/` ficam fora do git e do indice. Ferramentas que gravam por conta propria (navegador headless, geradores de imagem, apps externos) apontam para `output/`.
+- `build-index.py health` reprova pasta fora das categorias ou arquivo nao-`.md` dentro de `wiki/`, com a orientacao de mover para `output/` ou `drafts/`.
+
 ## Indice
 
 O indice e gerado, nao editado a mao.

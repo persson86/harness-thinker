@@ -25,7 +25,8 @@ Subcomandos:
                        wiki/, um por linha. Exit 0 = limpo; 1 = bloqueio.
   health               Health-check em UMA passada (verify.sh): sincronia,
                        summaries ausentes, categorias fora do config, colisões
-                       de slug (FAIL) + estatísticas de grafo (informativo).
+                       de slug, arquivos fora do lugar na wiki (FAIL) +
+                       estatísticas de grafo (informativo).
   quality [<paths>]    Juiz determinístico de conteúdo: wikilinks quebrados nas
                        páginas especificadas (relativas a wiki/). Sem args: lê
                        paths de stdin. Exit 0 = limpo; 1 = links quebrados.
@@ -227,6 +228,32 @@ def load_pages():
     """Lê cada página do vault UMA vez: [(path, texto)]. Insumo comum de
     collect/graph/gate/health — evita varreduras repetidas do disco."""
     return [(p, read_file(p)) for p in iter_pages()]
+
+
+def misplaced_entries():
+    """Entradas da wiki que não são páginas: pasta fora das categorias na raiz
+    ou arquivo não-.md em qualquer nível. Ocultos (.DS_Store, .obsidian) ficam
+    de fora. Artefato gerado mora em output/, texto em andamento em drafts/."""
+    categories = {slug for slug, _d, _s in CATEGORIES}
+    found = []
+    if not os.path.isdir(VAULT):
+        return found
+    for name in sorted(os.listdir(VAULT)):
+        if name.startswith("."):
+            continue
+        path = os.path.join(VAULT, name)
+        is_dir = os.path.isdir(path)
+        if not is_dir and name in EXCLUDE:
+            continue
+        if not is_dir or name not in categories:
+            found.append(name + ("/" if is_dir else ""))
+            continue
+        for root, dirs, files in os.walk(path):
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            for fn in files:
+                if not fn.startswith(".") and not fn.endswith(".md"):
+                    found.append(os.path.relpath(os.path.join(root, fn), VAULT))
+    return sorted(found)
 
 
 def collect(pages=None):
@@ -1006,7 +1033,7 @@ def cmd_health():
     """Consolida check + páginas sem summary + grafo numa varredura só.
 
     FAIL (exit 1): drift de índice, categoria fora do config, colisão de slug,
-    página indexável sem summary. Grafo (órfãs, sub-conectadas, links quebrados)
+    página indexável sem summary, entrada fora do lugar na wiki. Grafo (órfãs, sub-conectadas, links quebrados)
     é informativo — mesma semântica do antigo `diagnose graph` no verify.sh.
     """
     pages = load_pages()
@@ -1027,6 +1054,12 @@ def cmd_health():
         print("  SEM SUMMARY (não-inbox, fora do índice): %d" % len(skipped))
         for s in sorted(skipped):
             print("      - %s" % s)
+    misplaced = misplaced_entries()
+    if misplaced:
+        print("  FORA DO LUGAR NA WIKI: %d" % len(misplaced))
+        for s in misplaced:
+            print("      - wiki/%s" % s)
+        print("      => artefato gerado vai para output/<slug>/; texto em andamento, para drafts/")
     print("  grafo: %d links válidos | densidade %.1f/página | "
           "órfãs publicadas: %d | órfãs inbox: %d | "
           "sub-conectadas publicadas: %d | sub-conectadas inbox: %d | "
@@ -1037,7 +1070,7 @@ def cmd_health():
              len(groups["islands"]), len(set(dangling))))
     for src, tgt in sorted(set(dangling)):
         print("      - link quebrado: %s -> [[%s]]" % (src, tgt))
-    return 1 if (drift or skipped) else 0
+    return 1 if (drift or skipped or misplaced) else 0
 
 
 def main():

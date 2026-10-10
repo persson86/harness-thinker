@@ -28,6 +28,7 @@ Qualquer menção a agenda, calendário, reunião do dia, disponibilidade ou pla
 
 - `raw/` é imutável.
 - `wiki/` é território autoral; não delete página sem confirmação explícita.
+- Artefato gerado (HTML, PDF, imagem, deck, export, captura) vai para `output/<slug>/`; texto em andamento, para `drafts/`. `wiki/` só recebe páginas das categorias configuradas, mais `index.md` e `log.md`.
 - `wiki/index.md` e `wiki/*/_index*.md` são gerados; nunca editar à mão.
 - `[[wikilinks]]` só apontam para páginas existentes.
 - Categorias, escopos e inbox vêm de `vault.config.json`.

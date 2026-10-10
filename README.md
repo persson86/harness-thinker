@@ -29,6 +29,10 @@ commit the reviewed paths, create `v<VERSION>`, push branch and tag, then update
 target with `install.sh TARGET --update`. Verify target `harness/.version`, manifest,
 vault health and local/remote SHA parity. Publishing vault knowledge is a separate scope.
 
+## 7.23.0-rc.7 — Generated artifacts go to `output/`
+
+Three places, three jobs. `wiki/` is knowledge only: markdown pages in the categories of `vault.config.json`, plus `index.md` and `log.md`. `drafts/` is text in progress you will still edit or ingest. `output/<slug>/` is anything generated to read or send — HTML, PDF, images, decks, exports, screenshots. `drafts/` and `output/` are outside git and the index. `build-index.py health` (run by `verify.sh` and LINT) fails on a non-category folder or a non-markdown file inside `wiki/` and says where it belongs. The installer creates `output/` and adds `/output/` to `.gitignore` when no equivalent rule exists. An external app that writes into `wiki/` is caught by the check, not prevented: point its output folder at `output/`.
+
 ## 7.23.0-rc.6 — Native agents for the same provider, real Codex session IDs
 
 Same provider, native agent. When the principal wants another model from its own provider, it spawns the host's subagent — Opus, Sonnet, Fable or Haiku in Claude Code; Sol, Astra, Luna or Terra in Codex — rather than calling `delegate.py`. The native agent can read the vault and the code, costs no second CLI start and appears in the host's own transcript. `delegate.py` stays the route for a different provider (Claude, Codex and Grok between each other), for `model-eval` and for an explicit request. With a declared principal, `route` reports `same_provider` and recommends `native_agent` without blocking `submit`. Native agents keep no `history`/`feedback`; a same-provider critical review is blind only when the brief names what the reviewer must not read.
@@ -153,7 +157,7 @@ bash harness/scripts/update.sh
 Pulls the latest harness from GitHub and reinstalls it in place. Run from the vault root.
 
 What gets overwritten: `CLAUDE.md`, `AGENTS.md`, `harness/`, `.claude/commands/`, `.claude/hooks/`, `.claude/scripts/`, `.grok/`. `.claude/settings.json` is merged: custom `statusLine`, settings, permissions and unrelated hooks are preserved; on a fresh Claude vault the harness adds its 5-second delegation statusLine.
-What is never touched: `wiki/`, `raw/`, `queue/`, `vault.config.json`, `vault-heuristics.md`, `.claude/memory/`, `.claude/settings.local.json`. The only `.gitignore` migration appends the two exact generated-skill rules for `thinker-delegate` and `thinker-model-eval` when absent; it preserves all existing lines and refuses a symlink or tracked collision.
+What is never touched: `wiki/`, `raw/`, `queue/`, `vault.config.json`, `vault-heuristics.md`, `.claude/memory/`, `.claude/settings.local.json`. The only `.gitignore` migrations append the two exact generated-skill rules for `thinker-delegate` and `thinker-model-eval` and the `/output/` rule (unless an equivalent exists) when absent; it preserves all existing lines and refuses a symlink or tracked collision.
 
 ## Per-vault config
 

@@ -80,6 +80,41 @@ run BI health
 assert_rc "health falha com categoria fora do config" 1
 rm -rf "$V1/wiki/naoexiste"
 
+# ------------------------------------------------- build-index: artefato fora do lugar na wiki
+mkdir -p "$V1/wiki/Saidas avulsas"; echo "# export" > "$V1/wiki/Saidas avulsas/export.md"
+run BI health
+assert_rc "health falha com pasta fora das categorias na wiki" 1
+assert_out "health aponta a pasta e manda para output/" "wiki/Saidas avulsas/"
+assert_out "health orienta output/" "output/<slug>/"
+rm -rf "$V1/wiki/Saidas avulsas"
+CAT1="$(cd "$V1" && python3 -c "import json;print(json.load(open('vault.config.json'))['categories'][0][0])")"
+echo "<html></html>" > "$V1/wiki/$CAT1/relatorio.html"; : > "$V1/wiki/.DS_Store"
+run BI health
+assert_rc "health falha com arquivo não-md dentro da categoria" 1
+assert_out "health aponta o arquivo não-md" "wiki/$CAT1/relatorio.html"
+rm -f "$V1/wiki/$CAT1/relatorio.html"
+run BI health
+assert_rc "health ignora ocultos e volta a passar" 0
+rm -f "$V1/wiki/.DS_Store"
+
+# ------------------------------------------------- installer: output/ fora do git
+run grep -cx "/output/" "$V1/.gitignore"
+assert_out "vault novo ignora output/ uma vez" "^1$"
+run test -d "$V1/output"
+assert_rc "vault novo tem output/" 0
+V3="$TMP/v3"; page "$V3/wiki/alpha/pagina-um.md" "primeira página"; printf 'raw/\noutput\n' > "$V3/.gitignore"
+run "$REPO/install.sh" "$V3"
+run "$REPO/install.sh" "$V3" --update
+run grep -Ecx "/?output/?" "$V3/.gitignore"
+assert_out "regra equivalente de output não é duplicada" "^1$"
+V4="$TMP/v4"; page "$V4/wiki/alpha/pagina-um.md" "primeira página"; printf 'raw/' > "$V4/.gitignore"
+run "$REPO/install.sh" "$V4"
+run "$REPO/install.sh" "$V4" --update
+run grep -cx "/output/" "$V4/.gitignore"
+assert_out "update acrescenta /output/ uma vez em vault antigo" "^1$"
+run grep -cx "raw/" "$V4/.gitignore"
+assert_out "linha sem quebra final é preservada" "^1$"
+
 # ------------------------------------------------- build-index: gate
 page "$V1/wiki/reference/pagina-ok.md" "página válida"
 run BI generate
