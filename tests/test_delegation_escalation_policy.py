@@ -84,6 +84,28 @@ class EscalationPolicyTests(unittest.TestCase):
                 self.assertIn(trigger, pointer_line, path)
             self.assertIn("nunca pela própria sensação de confiança", pointer_line, path)
 
+    def test_same_provider_runs_as_native_agent(self):
+        operation = self.read_payload("harness/operations/delegate.md")
+        native = "## Mesmo provedor: agente nativo"
+        self.assertEqual(1, operation.count(native))
+        self.assertLess(operation.index(native), operation.index(SECTION))
+        body = re.split(r"\n## ", operation.split(native, 1)[1], maxsplit=1)[0]
+        self.assertIn("roda como agente nativo do host, não pela extensão", body)
+        self.assertIn("fica para outro provedor", body)
+        self.assertIn("sem bloquear a submissão", body)
+        self.assertIn("só é às cegas se o brief disser o que não ler", body)
+        self.assertIn("e então como agente nativo", self.section())
+        pointer = "`harness/operations/delegate.md` > Mesmo provedor: agente nativo"
+        for path in ("CLAUDE.md", "AGENTS.md", ".grok/rules/thinker.md"):
+            self.assertIn(pointer, self.read_payload(path), path)
+
+    def test_codex_session_uses_native_thread_id(self):
+        operation = self.read_payload("harness/operations/delegate.md")
+        self.assertIn("`CODEX_THREAD_ID`", operation)
+        self.assertIn("Nunca invente rótulo derivado", operation)
+        for path in ("harness/scripts/delegate.py", "harness/scripts/delegation-indicator.py"):
+            self.assertIn('os.environ.get("CODEX_THREAD_ID")', self.read_payload(path), path)
+
     def test_conversation_entry_recognizes_explicit_request(self):
         operation = self.read_payload("harness/operations/delegate.md")
         self.assertIn("“Peça uma segunda opinião de outro modelo”", operation)

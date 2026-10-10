@@ -22,6 +22,20 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual("delegate", decision["action"])
         self.assertEqual("declared_not_verified", decision["principal_identity"])
 
+    def test_same_provider_recommends_native_agent_without_blocking(self):
+        host = routing.principal("claude", "opus", "high")
+        args = dict(benefit="independent critique", critical=True)
+        decision = routing.decide(adapters.resolve_profile(explicit="fable"), "review", host=host, **args)
+        self.assertTrue(decision["same_provider"])
+        self.assertEqual("delegate", decision["action"])
+        self.assertEqual("native_agent", decision["recommendation"])
+        decision = routing.decide(adapters.resolve_profile(explicit="sol"), "review", host=host, **args)
+        self.assertFalse(decision["same_provider"])
+        self.assertNotIn("recommendation", decision)
+        decision = routing.decide(adapters.resolve_profile(explicit="fable"), "review", **args)
+        self.assertFalse(decision["same_provider"])
+        self.assertNotIn("recommendation", decision)
+
     def test_quota_is_explicit_provider_snapshot_and_expires(self):
         profile = adapters.resolve_profile(explicit="opus")
         args = dict(benefit="independent critique", critical=True, now=100)

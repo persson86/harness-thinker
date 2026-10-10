@@ -4,6 +4,8 @@
 
 Siga `/delegate` e `harness/operations/delegate.md`. A extensão fica disponível por padrão em sessões novas; instalar não inicia colaboradores nem coleta retroativa. Desligamento explícito prevalece. O principal decide se o ganho justifica delegar, prepara contexto mínimo, acompanha a inbox e revisa propostas sem sobrescrever drafts vivos.
 
+Mesmo provedor do principal roda como agente nativo do host, sem `delegate.py` — no Claude Code, subagente com Opus, Sonnet, Fable ou Haiku; no Codex, Sol, Astra, Luna ou Terra. A extensão fica para outro provedor, `model-eval` e pedido explícito; detalhes em `harness/operations/delegate.md` > Mesmo provedor: agente nativo.
+
 Escolha explícita de modelo vence preferência da sessão e padrão. Git começa em Luna low via Codex; um pedido explícito de Sonnet usa Sonnet nessa operação sem mudar o padrão permanente. Nunca substitua modelo ou cobrança silenciosamente. Commit e push têm autorizações distintas. Use o helper determinístico para publicar; o principal responde por escopo, autoria e integração.
 
 Escalonamento: com a extensão ligada, peça por iniciativa própria uma revisão crítica de outro modelo quando um gatilho observável valer — aposta, irreversibilidade, evidência frágil ou travamento —, nunca pela própria sensação de confiança. Prefira outro provedor, brief às cegas e uma revisão por decisão; detalhes em `harness/operations/delegate.md` > Escalonamento para revisão crítica.

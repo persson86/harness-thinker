@@ -370,6 +370,17 @@ class CLITests(unittest.TestCase):
         self.assertFalse(self.cli("status")["enabled"])
         self.assertFalse(self.cli("status", session="host-b")["enabled"])
 
+    def test_codex_thread_id_is_the_default_session_and_explicit_session_wins(self):
+        thread = "0190a000-0000-7000-8000-000000000001"
+        self.env["CODEX_THREAD_ID"] = thread
+        self.enable(session=None)
+        job = self.completed(self.submit(session=None))
+        self.assertEqual(thread, job["session"])
+        self.assertEqual([job["id"]], [j["id"] for j in self.cli("inbox", session=None)["jobs"]])
+        self.assertEqual([], self.cli("inbox", session="host-b")["jobs"])
+        self.env["THINKER_SESSION_ID"] = "declared"
+        self.assertEqual([], self.cli("inbox", session=None)["jobs"])
+
     def test_empty_missing_invalid_and_ambiguous_ids_refuse_cleanly(self):
         self.enable()
         first = self.completed(self.submit())

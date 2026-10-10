@@ -102,9 +102,11 @@ Quando houver override explícito de modelo ou esforço, prefira um recorte curt
 
 Delegação fica disponível por padrão em sessões novas; instalação e status não iniciam agentes. Desligamentos explícitos de sessão e globais prevalecem, inclusive durante atualização. Use a skill `thinker-delegate` e `harness/operations/delegate.md`. O controle é `python3 harness/scripts/delegate.py`; não gerencie CLIs com send-keys nem reimplemente o supervisor.
 
+Mesmo provedor do principal roda como agente nativo do host, sem `delegate.py` — no Claude Code, subagente com Opus, Sonnet, Fable ou Haiku; no Codex, Sol, Astra, Luna ou Terra. A extensão fica para outro provedor, `model-eval` e pedido explícito; detalhes em `harness/operations/delegate.md` > Mesmo provedor: agente nativo.
+
 Instrução explícita do usuário vence preferência da sessão e padrão da tarefa. Git usa Luna low por padrão; “use Sonnet neste commit” vale para essa operação e não muda o padrão permanente. Indisponibilidade não autoriza substituição silenciosa. Commit e push continuam autorizações distintas.
 
-Com o recurso ativo, mantenha um ID exclusivo desta sessão, confira entregas pendentes antes de concluir e registre escolhas/resultados sem inferir aprovação humana. Colaboradores retornam propostas; o principal preserva edições humanas e revisa a integração. Não escrever histórico quando o recurso estiver desligado. O manual detalhado fica em `harness/delegation.md` e só precisa ser carregado quando pertinente.
+Com o recurso ativo, mantenha um ID exclusivo desta sessão (o `CODEX_THREAD_ID` do host, lido sem `--session`; nunca um rótulo inventado), confira entregas pendentes antes de concluir e registre escolhas/resultados sem inferir aprovação humana. Colaboradores retornam propostas; o principal preserva edições humanas e revisa a integração. Não escrever histórico quando o recurso estiver desligado. O manual detalhado fica em `harness/delegation.md` e só precisa ser carregado quando pertinente.
 
 Antes do primeiro job, informe o principal conhecido com `session-context`; atualize ao trocar de modelo. `route` compara a alternativa local e `submit` exige benefício mais trabalho independente ou revisão crítica. Use Sonnet em contribuições delimitadas e Opus em revisão crítica quando adequados; defaults são hipóteses de rota, não resultados de benchmark. Quotas são snapshots manuais por provedor, expiram e nunca são somadas entre provedores. Falha exige diagnóstico antes de retry.
 

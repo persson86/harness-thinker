@@ -29,6 +29,12 @@ commit the reviewed paths, create `v<VERSION>`, push branch and tag, then update
 target with `install.sh TARGET --update`. Verify target `harness/.version`, manifest,
 vault health and local/remote SHA parity. Publishing vault knowledge is a separate scope.
 
+## 7.23.0-rc.6 — Native agents for the same provider, real Codex session IDs
+
+Same provider, native agent. When the principal wants another model from its own provider, it spawns the host's subagent — Opus, Sonnet, Fable or Haiku in Claude Code; Sol, Astra, Luna or Terra in Codex — rather than calling `delegate.py`. The native agent can read the vault and the code, costs no second CLI start and appears in the host's own transcript. `delegate.py` stays the route for a different provider (Claude, Codex and Grok between each other), for `model-eval` and for an explicit request. With a declared principal, `route` reports `same_provider` and recommends `native_agent` without blocking `submit`. Native agents keep no `history`/`feedback`; a same-provider critical review is blind only when the brief names what the reviewer must not read.
+
+Codex session ID. Inside Codex the CLI reads `CODEX_THREAD_ID` when `--session` is absent, so jobs carry the real thread ID and monitoring panels that link by exact ID attach them to the right conversation. Invented labels are forbidden by the playbook; explicit `--session` and `THINKER_SESSION_ID` still take precedence.
+
 ## Personal model evaluation (7.23.0-rc.4)
 
 Evaluate the configurations you actually use for each action: requested model and effort,

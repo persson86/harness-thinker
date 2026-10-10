@@ -16,6 +16,7 @@ Reconheça pedidos naturais, sem exigir vocabulário técnico:
 - “Essa revisão ficou longa”: comentário de uso; não inferir descarte nem inventar avaliação quantitativa.
 - “Mostre o que aprendemos sobre os modelos”: histórico e padrões limitados aos casos observados.
 - “Peça uma segunda opinião de outro modelo”: revisão crítica agora, mesmo sem gatilho; ver Escalonamento.
+- “Use o Fable/Sol/… nesta revisão”: mesmo provedor do principal vira agente nativo; outro provedor vai pela extensão.
 
 Use `python3 harness/scripts/delegate.py --help` somente quando precisar da interface completa. Opções globais (`--session`, `--json`, `--vault`, `--state-dir`) vêm antes do comando. O script encontra o vault pela instalação. Não use a cópia do repo-fonte para operar outro vault sem `--vault` explícito.
 
@@ -23,7 +24,7 @@ Use `python3 harness/scripts/delegate.py --help` somente quando precisar da inte
 
 Verifique `status` antes de usar a funcionalidade. Atribua à conversa um ID exclusivo, preferindo o ID nativo da plataforma. Sem ID disponível, gere UUID uma vez e preserve-o no contexto/handoff. Nunca use um ID compartilhado como “default” entre terminais.
 
-A CLI aceita `--session` e, na ausência dele, lê `THINKER_SESSION_ID` ou `CLAUDE_SESSION_ID`. No Claude, o hook recebe `session_id`: use esse mesmo ID para os avisos. No Codex e Grok, use o ID que o host expuser; se não estiver disponível, gere um UUID com `python3 -c 'import uuid; print(uuid.uuid4())'` e passe `--session` nos próximos comandos. Não tente deduzir a sessão varrendo históricos de outros terminais.
+A CLI aceita `--session` e, na ausência dele, lê `THINKER_SESSION_ID`, `CLAUDE_SESSION_ID` ou `CODEX_THREAD_ID`. No Claude, o hook recebe `session_id`: use esse mesmo ID para os avisos. No Codex, o host expõe o ID da thread em `CODEX_THREAD_ID`, o mesmo do nome do rollout: omita `--session` ou passe `--session "$CODEX_THREAD_ID"`. No Grok, use o ID que o host expuser; se não estiver disponível, gere um UUID com `python3 -c 'import uuid; print(uuid.uuid4())'` e passe `--session` nos próximos comandos. Nunca invente rótulo derivado (ex.: `<prefixo>-revisao`) quando houver ID nativo: painéis de monitoramento e o hook ligam jobs à conversa só pelo ID exato, e um rótulo deixa os jobs soltos. Não tente deduzir a sessão varrendo históricos de outros terminais.
 
 ```bash
 python3 harness/scripts/delegate.py --session ID status
@@ -67,6 +68,12 @@ Para uma comparação ou cadeia com mais de um estágio, crie um `run`. Declare 
 
 Não use a extensão para ocultar exportação de material a um provedor fora do escopo do pedido. Se a tarefa estiver autorizada, não invente aprovações repetidas para passos rotineiros dentro desse escopo.
 
+## Mesmo provedor: agente nativo
+
+Modelo do mesmo provedor do principal roda como agente nativo do host, não pela extensão. No Claude Code, use o subagente do host com `model` Opus, Sonnet, Fable ou Haiku; no Codex, o subagente nativo com Sol, Astra, Luna ou Terra. O nativo lê o vault e o código com as ferramentas do host, dispensa subir outra CLI e aparece em painéis que leem o transcript do próprio host. `delegate.py submit` fica para outro provedor (Claude, Codex e Grok entre si), que só a extensão alcança, para rodadas de `model-eval` e para pedido explícito do usuário de usar a extensão. Com principal declarado, `route` marca `same_provider` e recomenda `native_agent`, sem bloquear a submissão.
+
+O nativo segue o contrato de brief e retorno de [Agentes nativos e supervisão longa](#agentes-nativos-e-supervisão-longa) e as regras de spawn de `CLAUDE.md`/`AGENTS.md`. Ele não grava `history` nem `feedback` e não consome os limites da extensão; `native report` espelha o estado no painel do harness quando a frente for longa. Como herda acesso ao vault, uma revisão crítica nativa só é às cegas se o brief disser o que não ler: o draft com a conclusão do principal e a conversa. Mesmo provedor continua exigindo papel distinto declarado; não spawne o próprio modelo da sessão sem frente independente.
+
 ## Escalonamento para revisão crítica
 
 Objetivo: o principal pede, por iniciativa própria, uma segunda leitura de outro modelo quando o custo de errar justifica contexto, tempo e uso. Vale para qualquer principal, provedor, modelo ou esforço.
@@ -84,7 +91,7 @@ Consequência material e irreversibilidade prevalecem sobre tamanho e formato: u
 
 **Momento e orçamento.** Uma revisão por entrega, enquanto ela ainda muda o rumo: antes de comprometer a abordagem (aposta, evidência), antes do ato irreversível ou ao reconhecer o travamento. Agrupe decisões relacionadas da mesma entrega numa só leitura; uma ingestão com várias páginas é uma entrega. Se a entrega já existe, torne-a durável antes. Os limites de chamadas valem para o escalonamento: reserve-os para os gatilhos de maior consequência.
 
-**Revisor.** Escolha explícita do usuário vence, inclusive a preferência declarada para a sessão. Sem ela, prefira a classe de fronteira de outro provedor que não o do principal: treinos diferentes reduzem erros correlacionados, sem que isso vire corroboração. Hipóteses iniciais: Opus high com principal Codex ou Grok; Sol high com principal Claude. O padrão de rota de `review` é Opus, então passe `--model` sempre que a escolha for outra. Mesmo provedor só com papel distinto declarado. Com quota blocked, limite atingido ou modelo indisponível, não substitua silenciosamente: trabalhe no principal e diga ao usuário que a revisão não ocorreu.
+**Revisor.** Escolha explícita do usuário vence, inclusive a preferência declarada para a sessão. Sem ela, prefira a classe de fronteira de outro provedor que não o do principal: treinos diferentes reduzem erros correlacionados, sem que isso vire corroboração. Hipóteses iniciais: Opus high com principal Codex ou Grok; Sol high com principal Claude. O padrão de rota de `review` é Opus, então passe `--model` sempre que a escolha for outra. Mesmo provedor só com papel distinto declarado, e então como agente nativo (ver Mesmo provedor: agente nativo). Com quota blocked, limite atingido ou modelo indisponível, não substitua silenciosamente: trabalhe no principal e diga ao usuário que a revisão não ocorreu.
 
 **Brief às cegas.** A primeira leitura recebe pergunta, critérios, evidências e arquivos, inclusive as saídas de comando que sustentam a conclusão, mas não a conclusão do principal. Material autorizado que esteja fora do vault ou num formato recusado pode ir como trecho `.txt` em `drafts/`. Recusa por segredo, credencial, configuração protegida ou escopo de circulação não se contorna com cópia: deixe o material de fora e declare a limitação no brief. Peça uma resposta própria que separe verificado, inferência e não verificável, com objeções ancoradas em arquivo e linha. O principal compara as duas leituras e confere cada objeção na fonte antes de aplicá-la. Divergência material sem desempate pede no máximo uma chamada de reconciliação com a tese explícita (“encontrei X, você indica Y; que evidência desempata?”). Quando ela for previsível, crie o `run` antes da primeira leitura; senão, a reconciliação é um job avulso que cita o job anterior em `--reason`.
 

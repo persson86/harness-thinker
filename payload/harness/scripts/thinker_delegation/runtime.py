@@ -104,7 +104,8 @@ def _routing(value):
     if value is None:
         return None
     allowed = {"action", "benefit", "independent", "principal", "principal_identity",
-               "critical_review", "quota", "quota_evidence", "same_model", "reason", "note"}
+               "critical_review", "quota", "quota_evidence", "same_model", "same_provider",
+               "recommendation", "reason", "note"}
     if not isinstance(value, dict) or set(value) - allowed:
         raise DelegationError("Routing metadata is invalid")
     required = {"action", "benefit", "independent", "principal", "principal_identity",
@@ -121,6 +122,11 @@ def _routing(value):
         raise DelegationError("Routing quota evidence is invalid")
     if any(type(value[key]) is not bool for key in ("independent", "critical_review", "same_model")):
         raise DelegationError("Routing flags are invalid")
+    # Opcionais desde 7.23.0-rc.6; jobs anteriores não os têm.
+    if "same_provider" in value and type(value["same_provider"]) is not bool:
+        raise DelegationError("Routing flags are invalid")
+    if "recommendation" in value and value["recommendation"] != "native_agent":
+        raise DelegationError("Routing recommendation is invalid")
     principal = value["principal"]
     if principal is not None:
         if not isinstance(principal, dict) or set(principal) != {"provider", "model", "effort", "identity_evidence"}:

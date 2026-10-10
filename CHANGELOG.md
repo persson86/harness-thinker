@@ -1,5 +1,12 @@
 # Changes
 
+## 7.23.0-rc.6 - 2026-10-10 (laboratory candidate)
+
+- **Real Codex session IDs.** `delegate.py` and `delegation-indicator.py` fall back to `CODEX_THREAD_ID`, which the Codex host exports to tool shells with the thread ID used in the rollout file name. A Codex principal that previously passed an invented label (`<prefix>-review`) left its jobs unlinked from the conversation in monitoring panels, which match by exact ID. `delegate.md` now says to omit `--session` or pass `$CODEX_THREAD_ID` in Codex and forbids derived labels when a native ID exists; `delegation.md` marks `S` and `MINHA-SESSAO` as placeholders. Explicit `--session` and `THINKER_SESSION_ID` still win.
+- **Same provider runs as a native agent.** A collaborator from the principal's own provider runs as the host's native subagent — Opus, Sonnet, Fable or Haiku under Claude Code; Sol, Astra, Luna or Terra under Codex — instead of through `delegate.py`. The native agent reads the vault and code with host tools, skips a second CLI process and shows up in the host transcript. The extension remains the path for another provider, `model-eval` rounds and an explicit user request. A native critical review is blind only if the brief says what not to read. `CLAUDE.md`, `AGENTS.md` and the Grok rules carry a one-line pointer.
+- `route` adds `same_provider` and, when it would delegate to the declared principal's provider, `recommendation: native_agent`. It only advises: `action` and `submit` are unchanged, so explicit choices and `model-eval` keep working.
+- Tests cover the environment fallback and its precedence, the routing advice and the text contract with its pointers. Unmeasured: whether native same-provider reviews change decisions as often as extension reviews did; native agents write no `history`/`feedback`.
+
 ## 7.23.0-rc.5 - 2026-10-03 (laboratory candidate)
 
 - **Compaction window.** `.claude/settings.json` sets `autoCompactWindow` to 300000 tokens. Without it, models with a native 1M window compact near 967K, so long vault sessions carried 300K–500K+ tokens into every call. Updates add the key only when absent; a local value, including `"auto"`, is kept, and `--autocompact` or `CLAUDE_CODE_AUTO_COMPACT_WINDOW` still override per session.

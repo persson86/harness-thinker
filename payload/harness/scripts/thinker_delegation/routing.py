@@ -42,7 +42,13 @@ def decide(profile, task, *, host=None, benefit="", independent=False,
     else:
         result.update(action="delegate", reason="bounded_critical_review" if critical
                       else "independent_contribution")
+    # Mesmo provedor do principal declarado: o agente nativo do host lê o vault e aparece no
+    # transcript. Só recomenda; escolha explícita e model-eval continuam podendo submeter.
+    result["same_provider"] = bool(host and host.get("provider") == profile["provider"])
+    if result["action"] == "delegate" and result["same_provider"]:
+        result["recommendation"] = "native_agent"
     result["note"] = ("Mesmo modelo só se justifica por trabalho independente ou revisão crítica; "
-                      "diversidade não é corroboracão. Git pode executar sem chamada de modelo. "
+                      "diversidade não é corroboracão. Mesmo provedor do principal roda como agente nativo do host. "
+                      "Git pode executar sem chamada de modelo. "
                       "Quota desconhecida não significa quota disponível.")
     return result

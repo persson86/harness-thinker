@@ -19,7 +19,8 @@ def arguments():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--vault", default=str(Path(__file__).resolve().parents[2]))
     parser.add_argument("--state-dir")
-    parser.add_argument("--session", default=os.environ.get("THINKER_SESSION_ID") or os.environ.get("CLAUDE_SESSION_ID"))
+    parser.add_argument("--session", default=os.environ.get("THINKER_SESSION_ID") or os.environ.get("CLAUDE_SESSION_ID")
+                                     or os.environ.get("CODEX_THREAD_ID"))
     parser.add_argument("--claude-statusline", action="store_true", help="Ler somente identidade de sessão do stdin do host")
     parser.add_argument("--all-sessions", action="store_true")
     parser.add_argument("--watch", type=int, metavar="SEG",

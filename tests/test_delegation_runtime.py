@@ -142,6 +142,18 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual("declared_not_verified", job["routing"]["principal_identity"])
         self.assertEqual("available", job["routing"]["quota"])
 
+    def test_same_provider_advice_is_stored_without_blocking_submit(self):
+        self.enable()
+        selected = real_adapters.resolve_profile("review")
+        host = routing.principal(selected["provider"], "sonnet", "high")
+        decision = routing.decide(selected, "review", host=host,
+                                  benefit="independent critique", critical=True)
+        self.assertEqual("native_agent", decision["recommendation"])
+        job = self.wait(self.submit(routing=decision)["id"])
+        self.assertEqual(decision, job["routing"])
+        legacy = {k: v for k, v in decision.items() if k not in ("same_provider", "recommendation")}
+        self.assertEqual(legacy, self.wait(self.submit(routing=legacy)["id"])["routing"])
+
     def test_explicit_model_snapshot_and_output_isolation(self):
         self.enable()
         job = self.wait(self.submit(model_source="override", reason="bounded review")["id"])
