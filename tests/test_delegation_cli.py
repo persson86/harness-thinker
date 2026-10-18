@@ -198,6 +198,47 @@ class CLITests(unittest.TestCase):
         self.assertIn("provider_quota_blocked", refusal["error"])
         self.assertEqual(1, len(self.cli("status")["jobs"]))
 
+    def codex_rollout(self, primary, secondary, name="rollout-a.jsonl"):
+        now = time.time()
+        stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 30))
+        record = {"timestamp": stamp, "type": "event_msg", "payload": {"type": "token_count", "rate_limits": {
+            "limit_id": "codex", "primary": {"used_percent": primary, "window_minutes": 300, "resets_at": now + 3600},
+            "secondary": {"used_percent": secondary, "window_minutes": 10080, "resets_at": now + 86400}}}}
+        day = self.root / ".codex/sessions/2026/10/18"
+        day.mkdir(parents=True, exist_ok=True)
+        (day / name).write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+    def test_observed_codex_quota_routes_with_its_own_evidence_and_manual_wins(self):
+        empty = self.cli("quota", "--provider", "codex", "--observe")
+        self.assertIsNone(empty["effective"])
+        self.codex_rollout(primary=20.0, secondary=95.0)
+        observed = self.cli("quota", "--provider", "codex", "--observe")
+        self.assertEqual("constrained", observed["effective"]["availability"])
+        self.assertEqual([300, 10080], [row["minutes"] for row in observed["pacing"]])
+        draft = self.cli("route", "--model", "sol", "--task", "draft", "--benefit", "Draft", "--independent")
+        self.assertEqual("local", draft["routing"]["action"])
+        self.assertEqual("local_observation_not_attributed", draft["routing"]["quota_evidence"])
+        review = self.cli("route", "--model", "sol", "--benefit", "Critique", "--critical-review")
+        self.assertEqual("delegate", review["routing"]["action"])
+        self.cli("quota", "--provider", "codex", "--availability", "available", "--reason", "Felipe liberou")
+        draft = self.cli("route", "--model", "sol", "--task", "draft", "--benefit", "Draft", "--independent")
+        self.assertEqual("delegate", draft["routing"]["action"])
+        self.assertEqual("manual_account_snapshot_not_attributed", draft["routing"]["quota_evidence"])
+        self.refused("quota", "--provider", "claude", "--observe")
+        self.refused("quota", "--provider", "codex", "--observe", "--availability", "blocked")
+        self.refused("quota", "--provider", "codex", "--reason", "sem disponibilidade")
+
+    def test_observed_block_refuses_retry_and_corrupt_cache_is_unknown(self):
+        self.enable()
+        job = self.completed(self.submit("host-a", "--model", "sol"))
+        self.codex_rollout(primary=100.0, secondary=40.0)
+        self.cli("quota", "--provider", "codex", "--observe")
+        refusal = self.refused("retry", job["id"], "--reason", "Earlier failure reviewed")
+        self.assertIn("provider_quota_blocked", refusal["error"])
+        (self.state / "quota-observations.json").write_text("{not json", encoding="utf-8")
+        route = self.cli("route", "--model", "sol", "--benefit", "Critique", "--critical-review")
+        self.assertEqual("unknown", route["routing"]["quota"])
+
     def test_malformed_optional_policy_fields_fail_without_traceback(self):
         self.enable()
         for field, invalid in (("principals", []), ("quotas", []), ("quotas", {"claude": {"availability": "available"}})):

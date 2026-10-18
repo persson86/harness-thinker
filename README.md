@@ -29,6 +29,10 @@ commit the reviewed paths, create `v<VERSION>`, push branch and tag, then update
 target with `install.sh TARGET --update`. Verify target `harness/.version`, manifest,
 vault health and local/remote SHA parity. Publishing vault knowledge is a separate scope.
 
+## 7.23.0-rc.8 — Observed Codex quota for delegation routing
+
+Before escalating to Codex, `delegate.py quota --provider codex --observe` reads the last quota event Codex wrote to its local rollouts — no credentials, no network — and routing uses it: a window at 90% or more reserves Codex for critical review, a window at 100% blocks it, each until that window resets. A fresh reading below the threshold counts as available for 30 minutes; an older one says nothing about spare capacity. A manual `quota` decision still wins. Delegation jobs themselves leave no rollout, so the reading refreshes only when you use Codex interactively.
+
 ## 7.23.0-rc.7 — Generated artifacts go to `output/`
 
 Three places, three jobs. `wiki/` is knowledge only: markdown pages in the categories of `vault.config.json`, plus `index.md` and `log.md`. `drafts/` is text in progress you will still edit or ingest. `output/<slug>/` is anything generated to read or send — HTML, PDF, images, decks, exports, screenshots. `drafts/` and `output/` are outside git and the index. `build-index.py health` (run by `verify.sh` and LINT) fails on a non-category folder or a non-markdown file inside `wiki/` and says where it belongs. The installer creates `output/` and adds `/output/` to `.gitignore` when no equivalent rule exists. An external app that writes into `wiki/` is caught by the check, not prevented: point its output folder at `output/`.

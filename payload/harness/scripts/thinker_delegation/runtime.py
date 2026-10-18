@@ -118,7 +118,8 @@ def _routing(value):
         raise DelegationError("Routing principal identity is invalid")
     if value["quota"] not in {"unknown", "available", "blocked", "constrained"}:
         raise DelegationError("Routing quota is invalid")
-    if "quota_evidence" in value and value["quota_evidence"] != "manual_account_snapshot_not_attributed":
+    if "quota_evidence" in value and value["quota_evidence"] not in {
+            "manual_account_snapshot_not_attributed", "local_observation_not_attributed"}:
         raise DelegationError("Routing quota evidence is invalid")
     if any(type(value[key]) is not bool for key in ("independent", "critical_review", "same_model")):
         raise DelegationError("Routing flags are invalid")

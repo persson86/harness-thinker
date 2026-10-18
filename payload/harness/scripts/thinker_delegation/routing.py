@@ -30,7 +30,7 @@ def decide(profile, task, *, host=None, benefit="", independent=False,
                                  and host.get("model") == profile["model"])}
     if quota and quota.get("expires_at", 0) > now:
         result["quota"] = quota["availability"]
-        result["quota_evidence"] = "manual_account_snapshot_not_attributed"
+        result["quota_evidence"] = quota.get("evidence") or "manual_account_snapshot_not_attributed"
     if result["quota"] == "blocked":
         result.update(action="blocked", reason="provider_quota_blocked")
     elif not benefit:

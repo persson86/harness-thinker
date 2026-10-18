@@ -13,7 +13,7 @@ import time
 import uuid
 
 sys.dont_write_bytecode = True
-from thinker_delegation import adapters, board, routing, native
+from thinker_delegation import adapters, board, routing, native, quota_observe
 from thinker_delegation.runtime import DelegationStore, DelegationError, _atomic, _read
 from thinker_delegation.git_publish import prepare_plan, execute_plan, PublicationError, _load_plan
 
@@ -47,11 +47,13 @@ def parser():
     limits.add_argument("--session-calls", type=int)
     limits.add_argument("--provider-calls", type=int)
     limits.add_argument("--auto-default", choices=["on", "off"])
-    balance = sub.add_parser("quota", help="Snapshot manual por provedor; nunca saldo inferido")
+    balance = sub.add_parser("quota", help="Snapshot manual ou leitura local observada; nunca saldo inferido")
     balance.add_argument("--provider", choices=["codex", "claude", "grok"], required=True)
-    balance.add_argument("--availability", choices=["unknown", "available", "constrained", "blocked"], required=True)
+    balance.add_argument("--availability", choices=["unknown", "available", "constrained", "blocked"])
     balance.add_argument("--ttl-seconds", type=int, default=1800)
-    balance.add_argument("--reason", required=True)
+    balance.add_argument("--reason")
+    balance.add_argument("--observe", action="store_true",
+                         help="Ler a cota dos rollouts locais do Codex em vez de registrar snapshot manual")
     on = sub.add_parser("on", help="Ativar explicitamente para esta sessão")
     on.add_argument("--mode", choices=["request", "auto"], default="request")
     on.add_argument("--model", choices=sorted(adapters.PROFILES), help="Preferência desta sessão")
@@ -236,8 +238,26 @@ def resolve(store, args):
     host = declared or stored.get("principals", {}).get(args.session)
     result["routing"] = routing.decide(result, args.task, host=host, benefit=args.benefit,
                                         independent=args.independent, critical=args.critical_review,
-                                        quota=stored.get("quotas", {}).get(result["provider"]))
+                                        quota=effective_quota(store, stored, result["provider"]))
     return result
+
+
+def observations(store):
+    """Leituras automáticas ficam fora de policy.json: corrupção aqui vira unknown, não trava a política."""
+    try:
+        value = _read(store.state / "quota-observations.json", {})
+    except (DelegationError, OSError, ValueError):
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def effective_quota(store, stored, provider, now=None):
+    """Decisão manual vigente prevalece; sem ela, a leitura local classificada agora."""
+    now = time.time() if now is None else now
+    manual = stored.get("quotas", {}).get(provider)
+    if manual and manual.get("expires_at", 0) > now and manual.get("availability") != "unknown":
+        return manual
+    return quota_observe.classify(observations(store).get(provider), now)
 
 
 def public_job(job):
@@ -393,10 +413,30 @@ def dispatch(store, args):
             value.setdefault("principals", {})[sid] = host
             _atomic(store.state / "policy.json", value)
         return {"principal": host, "session": sid}
+    if command == "quota" and args.observe:
+        enabled(store, args)
+        if args.provider != "codex" or args.availability or args.reason:
+            raise DelegationError("--observe lê só os rollouts locais do Codex e dispensa --availability e --reason.")
+        now = time.time()
+        observation = quota_observe.read_codex()
+        if observation is None:
+            return {"provider": "codex", "observation": None, "effective": None,
+                    "message": "Nenhuma leitura de cota válida nos rollouts locais do Codex; quota segue unknown."}
+        observation["read_at"] = now
+        with store._lock():
+            value = observations(store)
+            value["codex"] = observation
+            _atomic(store.state / "quota-observations.json", value)
+        return {"provider": "codex", "observation": observation,
+                "age_seconds": round(now - observation["measured_at"]),
+                "effective": effective_quota(store, policy(store), "codex", now),
+                "pacing": quota_observe.pacing(observation, now)}
     if command == "quota":
         enabled(store, args)
-        if not 1 <= args.ttl_seconds <= 86400 or not args.reason.strip():
-            raise DelegationError("Snapshot exige motivo e validade entre 1 e 86400 segundos.")
+        if not args.availability or not (args.reason or "").strip():
+            raise DelegationError("Snapshot manual exige --availability e --reason; para leitura local use --observe.")
+        if not 1 <= args.ttl_seconds <= 86400:
+            raise DelegationError("Snapshot exige validade entre 1 e 86400 segundos.")
         now = time.time()
         observation = {"availability": args.availability, "observed_at": now,
                        "expires_at": now + args.ttl_seconds, "reason": args.reason[:1000],
@@ -594,7 +634,7 @@ def dispatch(store, args):
                                   host=current.get("principals", {}).get(args.session) or old.get("principal"),
                                   benefit=old.get("benefit", ""), independent=old.get("independent", False),
                                   critical=old.get("critical_review", False),
-                                  quota=current.get("quotas", {}).get(job["profile"].get("provider")))
+                                  quota=effective_quota(store, current, job["profile"].get("provider")))
         if decision["action"] != "delegate":
             raise DelegationError("Retry bloqueado pela política atual: " + decision["reason"])
         return public_job(store.retry(identifier, reason=args.reason, routing=decision))
@@ -616,6 +656,17 @@ def render(value):
         return value["result"]["text"]
     if "history_path" in value:
         return "Histórico pronto: " + value["history_path"]
+    if "observation" in value:
+        if not value["observation"]:
+            return value["message"]
+        effective = value.get("effective") or {}
+        rows = [f"Codex · leitura de {value['age_seconds'] // 60} min atrás · rota: {effective.get('availability', 'unknown')}"
+                + (" (" + effective["evidence"] + ")" if effective.get("evidence") else "")]
+        for row in value.get("pacing", []):
+            label = "5 h" if row["minutes"] == 300 else ("semana" if row["minutes"] == 10080 else f"{row['minutes']} min")
+            rows.append(f"  {label}: {row['used_percent']:.0f}% usado, {row['elapsed_percent']:.0f}% da janela decorrida "
+                        f"({row['delta_points']:+.0f} pts; informativo)")
+        return "\n".join(rows)
     if "providers" in value:
         return "\n".join(f"{p['profile']}: " + (p.get("cli_version", "compatível") if p["ready"] else p["error"])
                          for p in value["providers"]) + "\n" + value["note"]

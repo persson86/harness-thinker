@@ -1,5 +1,13 @@
 # Changes
 
+## 7.23.0-rc.8 - 2026-10-18 (laboratory candidate)
+
+- **Observed Codex quota.** `delegate.py quota --provider codex --observe` reads the latest `rate_limits` event from local Codex rollouts (`$CODEX_HOME/sessions`, bounded tail of the 20 most recent files, chosen by event timestamp rather than mtime). No credentials, no network. The reading lives in `quota-observations.json`, apart from `policy.json`, so a corrupt cache becomes `unknown` instead of blocking routing.
+- Classification happens at each `route`, `submit` and `retry`, through one helper. A window at 90% or more is `constrained`, at 100% `blocked`, each until its own reset: usage only grows inside a window, so an old reading is a lower bound and a restriction stays valid. Spare capacity counts only for 30 minutes after the measurement. Jobs record `quota_evidence: local_observation_not_attributed`; the runtime accepts it alongside the manual value, so older jobs stay valid.
+- A current manual snapshot other than `unknown` wins over the observation, so an explicit decision is never overridden by a fresher number. The command also prints per-window pacing (usage against elapsed window); it is informative and never enters routing.
+- Limits: delegation jobs run `codex exec --ephemeral` and leave no rollout, so only interactive Codex sessions refresh the reading; the reading is explicit, not implicit in `submit`. The Claude half (statusline input `rate_limits`) was left out: it only exists with an open vault window and would need a writer outside the indicator's shared lock. The 90% threshold is a starting guess.
+- Origin: idea taken from `akitaonrails/ai-usagebar` without adopting it (it reads OAuth credentials and refreshes tokens). The plan was reviewed by Astra high via the extension and Fable as a native agent with repository access; both said implement with changes, and those changes are what shipped (no pacing or 95% block in routing, per-window expiry, manual precedence, one helper for retry, cache outside policy).
+
 ## 7.23.0-rc.7 - 2026-10-10 (laboratory candidate)
 
 - **Generated artifacts live in `output/`.** `contract.md` gains *Wiki, drafts e output*: `wiki/` holds only markdown pages in the configured categories plus `index.md` and `log.md`; `drafts/` holds text still being edited or ingested; `output/<slug>/` holds generated deliverables (HTML, PDF, images, decks, exports, context packs, screenshots). Both stay out of git and the index. `CLAUDE.md`, `AGENTS.md` and the Grok rules carry a one-line rule.
