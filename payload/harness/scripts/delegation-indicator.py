@@ -31,6 +31,7 @@ def arguments():
 
 def main():
     args = arguments()
+    data = None
     if args.claude_statusline:
         raw = sys.stdin.read(65536)
         try:
@@ -57,6 +58,8 @@ def main():
         # globalmente e observar os jobs ja existentes deste vault.
         all_sessions = args.all_sessions or not args.session
         store = DelegationStore(args.vault, args.state_dir)
+        if isinstance(data, dict):
+            record_claude_quota(store, data)
         deadline = time.monotonic() + (args.watch or 0)
         while True:
             data = snapshot(store, args.session, all_sessions)
@@ -69,6 +72,15 @@ def main():
         # distinto de quatro zeros quando o estado nao pode ser lido.
         print("delegacao externa: estado desconhecido")
     return 0
+
+
+def record_claude_quota(store, data):
+    """Coleta oportunista da cota do Claude; nunca bloqueia nem altera a saída."""
+    try:
+        from thinker_delegation import quota_observe
+        quota_observe.write_claude(store.state, data, time.time())
+    except Exception:
+        pass
 
 
 def snapshot(store, session, all_sessions):

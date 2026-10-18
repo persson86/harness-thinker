@@ -130,5 +130,46 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual("delegate", decision["action"])
 
 
+class SignalTests(unittest.TestCase):
+    def test_claude_statusline_windows_and_opportunistic_writer(self):
+        data = {"rate_limits": {"five_hour": {"used_percentage": 41.5, "resets_at": NOW + 3600},
+                                "seven_day": {"used_percentage": 12, "resets_at": NOW + 86400}}}
+        found = quota_observe.from_claude_statusline(data, NOW)
+        self.assertEqual([300, 10080], [w["minutes"] for w in found["windows"]])
+        self.assertIsNone(quota_observe.from_claude_statusline({"rate_limits": {"five_hour": {}}}, NOW))
+        with tempfile.TemporaryDirectory(prefix="quota-claude-") as directory:
+            state = Path(directory)
+            self.assertFalse(quota_observe.write_claude(state / "missing", data, NOW))
+            self.assertFalse((state / "missing").exists())
+            self.assertTrue(quota_observe.write_claude(state, data, NOW))
+            self.assertFalse(quota_observe.write_claude(state, data, NOW + 60))
+            self.assertTrue(quota_observe.write_claude(state, data, NOW + quota_observe.CLAUDE_REFRESH_SECONDS + 1))
+            data["rate_limits"]["five_hour"]["used_percentage"] = 42.0
+            self.assertTrue(quota_observe.write_claude(state, data, NOW + 400))
+            stored = json.loads((state / quota_observe.CLAUDE_FILE).read_text())
+            self.assertEqual(42.0, stored["windows"][0]["used_percent"])
+            self.assertEqual(oct(0o600), oct((state / quota_observe.CLAUDE_FILE).stat().st_mode & 0o777))
+
+    def test_recent_provider_limit_failure_reserves_without_blocking(self):
+        job = {"state": "failed", "error_code": "provider_limit", "profile": {"provider": "codex"},
+               "finished_at": iso(NOW - 120)}
+        signal = quota_observe.provider_limit_signal([job, {"state": "completed"}, "junk"], "codex", NOW)
+        self.assertEqual("constrained", signal["availability"])
+        self.assertEqual(NOW - 120 + quota_observe.PROVIDER_LIMIT_SECONDS, signal["expires_at"])
+        self.assertIsNone(quota_observe.provider_limit_signal([job], "claude", NOW))
+        self.assertIsNone(quota_observe.provider_limit_signal([job], "codex", NOW + 3600))
+
+    def test_strictest_signal_wins(self):
+        available = {"availability": "available", "expires_at": NOW + 5}
+        blocked = {"availability": "blocked", "expires_at": NOW + 5}
+        self.assertIs(blocked, quota_observe.strictest(available, None, blocked))
+        self.assertIsNone(quota_observe.strictest(None, None))
+
+    def test_threshold_is_a_parameter(self):
+        reading = observation(NOW - 60, secondary=85.0)
+        self.assertEqual("available", quota_observe.classify(reading, NOW)["availability"])
+        self.assertEqual("constrained", quota_observe.classify(reading, NOW, constrained=80)["availability"])
+
+
 if __name__ == "__main__":
     unittest.main()

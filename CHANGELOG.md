@@ -1,5 +1,13 @@
 # Changes
 
+## 7.23.0-rc.9 - 2026-10-18 (laboratory candidate)
+
+- **Automatic local signals.** `route`, `submit` and `retry` read the Codex rollouts at decision time, in memory, and use whichever is newer between that and the `--observe` cache; `route` still writes no state. The extra cost measured on the real vault was about 70 ms per call.
+- **Claude half.** `delegation-indicator.py --claude-statusline` records the statusline's `rate_limits` (5 h and 7 d) in `quota-observation-claude.json`: no lock, atomic rename, only when values change or every 5 minutes, and only when the state area already exists. The timestamp is receipt time. Custom statuslines, `claude -p` and a Codex principal produce no reading.
+- **Provider-limit feedback.** A job that failed with `provider_limit` in the last 30 minutes makes that provider `constrained`, evidence `provider_limit_failure_not_attributed`. The CLI classifier also matches "overloaded"/"capacity", so this reserves the provider instead of blocking it. The strictest current local signal wins; a manual decision still overrides all of them.
+- **Calibration.** `quota --provider X --constrained-percent N` stores a per-provider threshold (50–99, default 90) in `policy.json`. `submit` and `retry` with a known quota append to `quota-decisions.jsonl` (last 1000 lines); `quota --provider X --report` counts decisions, refusals caused by quota, states and evidence.
+- Not done here: promoting 7.23.0 to stable still needs the human pilot; showing quota in Agents Monitor belongs to that project.
+
 ## 7.23.0-rc.8 - 2026-10-18 (laboratory candidate)
 
 - **Observed Codex quota.** `delegate.py quota --provider codex --observe` reads the latest `rate_limits` event from local Codex rollouts (`$CODEX_HOME/sessions`, bounded tail of the 20 most recent files, chosen by event timestamp rather than mtime). No credentials, no network. The reading lives in `quota-observations.json`, apart from `policy.json`, so a corrupt cache becomes `unknown` instead of blocking routing.

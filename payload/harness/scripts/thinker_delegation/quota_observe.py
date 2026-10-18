@@ -1,4 +1,7 @@
-"""Cota observada nos rollouts locais do Codex; leitura explícita, sem credenciais nem rede.
+"""Cota observada localmente: rollouts do Codex e stdin da statusLine do Claude.
+
+Sem credenciais nem rede. O Claude entrega `rate_limits` à statusLine; o Codex
+grava `rate_limits` nos rollouts.
 
 O rollout é uma superfície não documentada: cada linha é dado opcional, formato
 inesperado vira ausência de evidência e nunca zero. Os jobs da delegação rodam
@@ -12,12 +15,19 @@ folga observada só vale enquanto a leitura é recente.
 from __future__ import annotations
 
 import datetime as dt
+import json
 import math
 import os
 from pathlib import Path
-import json
+import tempfile
 
 EVIDENCE = "local_observation_not_attributed"
+PROVIDER_LIMIT_EVIDENCE = "provider_limit_failure_not_attributed"
+PROVIDER_LIMIT_SECONDS = 1800
+CLAUDE_FILE = "quota-observation-claude.json"
+CLAUDE_WINDOWS = (("five_hour", 300), ("seven_day", 10080))
+CLAUDE_REFRESH_SECONDS = 300
+SEVERITY = {"available": 0, "constrained": 1, "blocked": 2}
 CONSTRAINED_PERCENT = 90.0
 BLOCKED_PERCENT = 100.0
 FRESH_SECONDS = 1800
@@ -146,3 +156,81 @@ def pacing(observation, now):
         rows.append({"minutes": w["minutes"], "used_percent": w["used_percent"],
                      "elapsed_percent": round(elapsed, 1), "delta_points": round(w["used_percent"] - elapsed, 1)})
     return rows
+
+
+def strictest(*quotas):
+    """A restrição mais forte entre sinais vigentes; empate mantém o primeiro."""
+    best = None
+    for quota in quotas:
+        if quota and (best is None or SEVERITY[quota["availability"]] > SEVERITY[best["availability"]]):
+            best = quota
+    return best
+
+
+def from_claude_statusline(data, now):
+    """`rate_limits` do stdin da statusLine. O horário é o do recebimento, não o da medição."""
+    limits = data.get("rate_limits") if isinstance(data, dict) else None
+    if not isinstance(limits, dict):
+        return None
+    windows = []
+    for key, minutes in CLAUDE_WINDOWS:
+        value = limits.get(key)
+        if not isinstance(value, dict):
+            continue
+        used, reset = value.get("used_percentage"), value.get("resets_at")
+        if _number(used, 0, 1000) and _number(reset, 1, 10**12):
+            windows.append({"minutes": minutes, "used_percent": float(used), "resets_at": float(reset)})
+    if not windows:
+        return None
+    return {"provider": "claude", "source": "claude_statusline", "measured_at": now, "windows": windows}
+
+
+def write_claude(state, data, now):
+    """Escritor oportunista da statusLine: sem lock, rename atômico, só quando muda.
+
+    Não cria a área de estado; sem ela não há delegação para informar. Qualquer
+    falha é silenciosa, porque a statusLine nunca pode quebrar por causa disto.
+    """
+    observation = from_claude_statusline(data, now)
+    state = Path(state)
+    if observation is None or not state.is_dir():
+        return False
+    path = state / CLAUDE_FILE
+    try:
+        current = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+    except (OSError, ValueError):
+        current = None
+    if (isinstance(current, dict) and current.get("windows") == observation["windows"]
+            and _number(current.get("measured_at"), 1, 10**12)
+            and 0 <= now - current["measured_at"] < CLAUDE_REFRESH_SECONDS):
+        return False
+    fd, temporary = tempfile.mkstemp(prefix=".quota-", dir=state)
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(observation, stream, allow_nan=False)
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+    return True
+
+
+def provider_limit_signal(jobs, provider, now):
+    """Falha recente classificada como provider_limit vira constrained por 30 minutos.
+
+    O classificador da CLI também casa "overloaded"/"capacity", que não esgotam a
+    conta; por isso o sinal reserva o provedor sem bloqueá-lo.
+    """
+    latest = None
+    for job in jobs:
+        if (not isinstance(job, dict) or job.get("state") != "failed" or job.get("error_code") != "provider_limit"
+                or (job.get("profile") or {}).get("provider") != provider):
+            continue
+        finished = _timestamp(job.get("finished_at"))
+        if finished is not None and now - PROVIDER_LIMIT_SECONDS < finished <= now + 300:
+            latest = finished if latest is None else max(latest, finished)
+    if latest is None:
+        return None
+    return {"availability": "constrained", "expires_at": latest + PROVIDER_LIMIT_SECONDS,
+            "evidence": PROVIDER_LIMIT_EVIDENCE}

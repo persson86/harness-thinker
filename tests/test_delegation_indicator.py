@@ -122,5 +122,30 @@ class IndicatorCLITests(unittest.TestCase):
         self.assertNotIn("Traceback", result.stderr)
 
 
+    def test_claude_statusline_records_quota_only_when_state_exists(self):
+        with tempfile.TemporaryDirectory(prefix="delegation-indicator-") as directory:
+            root = Path(directory)
+            scripts = self.install(root)
+            vault, state = root / "vault", root / "state"
+            vault.mkdir()
+            payload = json.dumps({"session_id": "host-a", "rate_limits": {
+                "five_hour": {"used_percentage": 33, "resets_at": 4102444800},
+                "seven_day": {"used_percentage": 7, "resets_at": 4102444800}}})
+            command = [sys.executable, "-B", str(scripts / "delegation-indicator.py"),
+                       "--vault", str(vault), "--state-dir", str(state), "--claude-statusline"]
+            result = subprocess.run(command, input=payload, capture_output=True, text=True, timeout=10)
+            self.assertEqual(0, result.returncode)
+            self.assertFalse(state.exists())
+            state.mkdir(mode=0o700)
+            (state / ".lock").touch(mode=0o600)
+            result = subprocess.run(command, input=payload, capture_output=True, text=True, timeout=10)
+            self.assertEqual(0, result.returncode)
+            self.assertIn("delegacao externa", result.stdout)
+            self.assertNotIn("Traceback", result.stderr)
+            stored = json.loads((state / "quota-observation-claude.json").read_text())
+            self.assertEqual("claude_statusline", stored["source"])
+            self.assertEqual(33.0, stored["windows"][0]["used_percent"])
+
+
 if __name__ == "__main__":
     unittest.main()

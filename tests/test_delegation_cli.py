@@ -235,13 +235,40 @@ class CLITests(unittest.TestCase):
         self.cli("quota", "--provider", "codex", "--observe")
         refusal = self.refused("retry", job["id"], "--reason", "Earlier failure reviewed")
         self.assertIn("provider_quota_blocked", refusal["error"])
+        shutil.rmtree(self.root / ".codex")
         (self.state / "quota-observations.json").write_text("{not json", encoding="utf-8")
         route = self.cli("route", "--model", "sol", "--benefit", "Critique", "--critical-review")
         self.assertEqual("unknown", route["routing"]["quota"])
 
+    def test_live_codex_reading_threshold_report_and_provider_limit(self):
+        self.enable()
+        self.codex_rollout(primary=10.0, secondary=85.0)
+        draft = ("route", "--model", "sol", "--task", "draft", "--benefit", "Draft", "--independent")
+        self.assertEqual("available", self.cli(*draft)["routing"]["quota"])
+        self.cli("quota", "--provider", "codex", "--constrained-percent", "80")
+        self.assertEqual("constrained", self.cli(*draft)["routing"]["quota"])
+        self.assertFalse((self.state / "quota-decisions.jsonl").exists())
+        refusal = self.refused("submit", "--model", "sol", "--brief", "brief.md", "--reason", "Draft")
+        self.assertIn("preserve_constrained_provider_quota", refusal["error"])
+        report = self.cli("quota", "--provider", "codex", "--report")
+        self.assertEqual((1, 1, 80), (report["decisions"], report["changed_outcome"], report["threshold"]))
+        self.refused("quota", "--provider", "codex", "--constrained-percent", "100")
+        self.refused("quota", "--provider", "codex", "--report", "--observe")
+        self.cli("quota", "--provider", "claude", "--constrained-percent", "95")
+        failed = self.state / "jobs/00000000-0000-4000-8000-0000000000aa/job.json"
+        failed.parent.mkdir(parents=True)
+        failed.write_text(json.dumps({"state": "failed", "error_code": "provider_limit",
+                                      "profile": {"provider": "claude"},
+                                      "finished_at": time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime())}))
+        route = self.cli("route", "--model", "sonnet", "--task", "draft", "--benefit", "Draft", "--independent")
+        self.assertEqual("constrained", route["routing"]["quota"])
+        self.assertEqual("provider_limit_failure_not_attributed", route["routing"]["quota_evidence"])
+        shutil.rmtree(failed.parent)  # fixture parcial: status recusaria um job sem vault
+
     def test_malformed_optional_policy_fields_fail_without_traceback(self):
         self.enable()
-        for field, invalid in (("principals", []), ("quotas", []), ("quotas", {"claude": {"availability": "available"}})):
+        for field, invalid in (("principals", []), ("quotas", []), ("quotas", {"claude": {"availability": "available"}}),
+                               ("quota_thresholds", {"codex": 120})):
             (self.state / "policy.json").write_text(json.dumps({"defaults": {}, "decisions": [], field: invalid}))
             self.refused("route")
         (self.state / "policy.json").write_text(json.dumps({"defaults": {}, "decisions": []}))

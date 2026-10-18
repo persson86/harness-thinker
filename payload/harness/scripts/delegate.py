@@ -54,6 +54,10 @@ def parser():
     balance.add_argument("--reason")
     balance.add_argument("--observe", action="store_true",
                          help="Ler a cota dos rollouts locais do Codex em vez de registrar snapshot manual")
+    balance.add_argument("--report", action="store_true",
+                         help="Resumo das decisões de submit/retry em que a cota era conhecida")
+    balance.add_argument("--constrained-percent", type=float,
+                         help="Limite de uso (50-99) que torna o provedor constrained; calibração explícita")
     on = sub.add_parser("on", help="Ativar explicitamente para esta sessão")
     on.add_argument("--mode", choices=["request", "auto"], default="request")
     on.add_argument("--model", choices=sorted(adapters.PROFILES), help="Preferência desta sessão")
@@ -217,6 +221,11 @@ def policy(store):
             raise DelegationError("Identidade do principal inválida na política.")
         if routing.principal(host.get("provider"), host.get("model"), host.get("effort")) is None:
             raise DelegationError("Identidade vazia na política.")
+    thresholds = value.get("quota_thresholds", {})
+    if not isinstance(thresholds, dict) or any(
+            provider not in {"codex", "claude", "grok"} or type(limit) not in (int, float) or not 50 <= limit <= 99
+            for provider, limit in thresholds.items()):
+        raise DelegationError("Limite de quota inválido na política.")
     for provider, observation in quotas.items():
         if (provider not in {"codex", "claude", "grok"} or not isinstance(observation, dict)
                 or observation.get("availability") not in {"unknown", "available", "constrained", "blocked"}
@@ -242,22 +251,90 @@ def resolve(store, args):
     return result
 
 
-def observations(store):
-    """Leituras automáticas ficam fora de policy.json: corrupção aqui vira unknown, não trava a política."""
+def _lenient(path):
     try:
-        value = _read(store.state / "quota-observations.json", {})
+        value = _read(path, {})
     except (DelegationError, OSError, ValueError):
         return {}
     return value if isinstance(value, dict) else {}
 
 
+def observations(store):
+    """Leituras automáticas ficam fora de policy.json: corrupção aqui vira unknown, não trava a política."""
+    value = _lenient(store.state / "quota-observations.json")
+    claude = _lenient(store.state / quota_observe.CLAUDE_FILE)
+    if claude:
+        value["claude"] = claude
+    return value
+
+
+def live_observation(store, provider):
+    """Para o Codex, a leitura mais recente entre o cache e os rollouts lidos agora, sem gravar."""
+    cached = observations(store).get(provider)
+    if provider != "codex":
+        return cached
+    try:
+        live = quota_observe.read_codex()
+    except (OSError, ValueError):
+        live = None
+    if live and (not isinstance(cached, dict) or not isinstance(cached.get("measured_at"), (int, float))
+                 or live["measured_at"] > cached["measured_at"]):
+        return live
+    return cached
+
+
 def effective_quota(store, stored, provider, now=None):
-    """Decisão manual vigente prevalece; sem ela, a leitura local classificada agora."""
+    """Decisão manual vigente prevalece; sem ela, o sinal local mais restritivo agora."""
     now = time.time() if now is None else now
     manual = stored.get("quotas", {}).get(provider)
     if manual and manual.get("expires_at", 0) > now and manual.get("availability") != "unknown":
         return manual
-    return quota_observe.classify(observations(store).get(provider), now)
+    threshold = stored.get("quota_thresholds", {}).get(provider, quota_observe.CONSTRAINED_PERCENT)
+    observed = quota_observe.classify(live_observation(store, provider), now, constrained=threshold)
+    try:
+        jobs = [_read(path) for path in store._paths()]
+    except (DelegationError, OSError, ValueError):
+        jobs = []
+    return quota_observe.strictest(observed, quota_observe.provider_limit_signal(jobs, provider, now))
+
+
+QUOTA_LOG_LINES = 1000
+
+
+def log_quota_decision(store, command, provider, decision):
+    """Registro para calibrar limites: só submit/retry com quota conhecida; route segue sem estado."""
+    if decision.get("quota", "unknown") == "unknown":
+        return
+    entry = {"at": time.time(), "command": command, "provider": provider, "quota": decision["quota"],
+             "evidence": decision.get("quota_evidence"), "action": decision["action"],
+             "reason": decision["reason"], "critical": decision["critical_review"]}
+    path = store.state / "quota-decisions.jsonl"
+    with store._lock():
+        lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+        lines = (lines + [json.dumps(entry, ensure_ascii=False)])[-QUOTA_LOG_LINES:]
+        temporary = path.with_name(".quota-decisions.tmp")
+        temporary.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, path)
+
+
+def quota_report(store, provider):
+    path = store.state / "quota-decisions.jsonl"
+    entries = []
+    for line in (path.read_text(encoding="utf-8").splitlines() if path.is_file() else []):
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(entry, dict) and entry.get("provider") == provider:
+            entries.append(entry)
+    changed = [e for e in entries if e.get("reason") in {"provider_quota_blocked", "preserve_constrained_provider_quota"}]
+    count = lambda key: {value: sum(1 for e in entries if e.get(key) == value)
+                         for value in sorted({str(e.get(key)) for e in entries})}
+    return {"provider": provider, "decisions": len(entries), "changed_outcome": len(changed),
+            "by_quota": count("quota"), "by_evidence": count("evidence"),
+            "threshold": policy(store).get("quota_thresholds", {}).get(provider, quota_observe.CONSTRAINED_PERCENT),
+            "note": "Só submit/retry com quota conhecida; route não é registrado. changed_outcome = recusa por quota."}
 
 
 def public_job(job):
@@ -413,6 +490,19 @@ def dispatch(store, args):
             value.setdefault("principals", {})[sid] = host
             _atomic(store.state / "policy.json", value)
         return {"principal": host, "session": sid}
+    if command == "quota" and sum([args.observe, args.report, args.constrained_percent is not None]) > 1:
+        raise DelegationError("Use um modo por vez: --observe, --report ou --constrained-percent.")
+    if command == "quota" and args.report:
+        return quota_report(store, args.provider)
+    if command == "quota" and args.constrained_percent is not None:
+        enabled(store, args)
+        if not 50 <= args.constrained_percent <= 99 or args.availability or args.reason:
+            raise DelegationError("--constrained-percent aceita 50 a 99 e dispensa --availability e --reason.")
+        with store._lock():
+            value = policy(store)
+            value.setdefault("quota_thresholds", {})[args.provider] = args.constrained_percent
+            _atomic(store.state / "policy.json", value)
+        return {"provider": args.provider, "quota_thresholds": value["quota_thresholds"]}
     if command == "quota" and args.observe:
         enabled(store, args)
         if args.provider != "codex" or args.availability or args.reason:
@@ -489,6 +579,7 @@ def dispatch(store, args):
         sid = enabled(store, args)
         profile = resolve(store, args)
         decision = profile["routing"]
+        log_quota_decision(store, "submit", profile["provider"], decision)
         if decision["action"] != "delegate":
             raise DelegationError("Rota não delegada: " + decision["reason"] +
                                   ". Use o principal ou explicite benefício e trabalho independente/revisão crítica.")
@@ -635,6 +726,7 @@ def dispatch(store, args):
                                   benefit=old.get("benefit", ""), independent=old.get("independent", False),
                                   critical=old.get("critical_review", False),
                                   quota=effective_quota(store, current, job["profile"].get("provider")))
+        log_quota_decision(store, "retry", job["profile"].get("provider"), decision)
         if decision["action"] != "delegate":
             raise DelegationError("Retry bloqueado pela política atual: " + decision["reason"])
         return public_job(store.retry(identifier, reason=args.reason, routing=decision))
@@ -656,6 +748,10 @@ def render(value):
         return value["result"]["text"]
     if "history_path" in value:
         return "Histórico pronto: " + value["history_path"]
+    if "changed_outcome" in value:
+        return (f"{value['provider']}: {value['decisions']} decisão(ões) com quota conhecida, "
+                f"{value['changed_outcome']} recusada(s) por quota; limite constrained {value['threshold']:g}%\n"
+                f"por estado: {value['by_quota']}\npor evidência: {value['by_evidence']}\n{value['note']}")
     if "observation" in value:
         if not value["observation"]:
             return value["message"]
