@@ -29,6 +29,10 @@ commit the reviewed paths, create `v<VERSION>`, push branch and tag, then update
 target with `install.sh TARGET --update`. Verify target `harness/.version`, manifest,
 vault health and local/remote SHA parity. Publishing vault knowledge is a separate scope.
 
+## 7.23.0-rc.10 — Ranked search, and search before grep
+
+`build-index.py search` ranks pages with SQLite FTS5 BM25 — title counts most, then summary, then tags and body — and ignores function words like "de" or "que". Unquoted words of four letters or more also match longer forms, so `carteira` finds `carteiras`; quotes still mean an exact phrase and `--all` still requires every term. Nothing is stored on disk: the index is built in memory per call. If your Python's SQLite lacks FTS5 the old ranking runs and says so; `THINKER_SEARCH_ENGINE=legacy` forces it. The operations now tell agents to start with `search` and loose terms and keep grep for literal strings and confirmation. On one private vault this ranked relevant pages higher than grep and at least as well as the previous search; vector embeddings showed nothing to gain there and were left out.
+
 ## 7.23.0-rc.9 — Local quota signals for delegation routing
 
 Routing reads quota from local signals only — no credentials, no network: the last quota event Codex wrote to its local rollouts (read at each `route`, `submit` and `retry`), the Claude quota the harness statusline receives, and a recent `provider_limit` failure (which only reserves the provider). The strictest signal wins: a window at 90% or more reserves Codex for critical review, a window at 100% blocks it, each until that window resets. A fresh reading below the threshold counts as available for 30 minutes; an older one says nothing about spare capacity. A manual `quota` decision still wins. Delegation jobs themselves leave no rollout, so the Codex reading refreshes only when you use Codex interactively. `quota --provider X --constrained-percent N` tunes the threshold and `quota --provider X --report` shows how often quota changed a decision, so the threshold can be calibrated with data.

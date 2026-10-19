@@ -32,7 +32,7 @@ Leia antes de perguntar. Esgote o contexto disponível — índice, shards, pág
 
 ## Acesso ao vault
 
-No início de sessão neste diretório, leia `wiki/index.md` e `vault.config.json`. O índice é o root fino; carregue só os shards e páginas relevantes. Para decidir profundidade, siga `harness/operations/context.md`.
+No início de sessão neste diretório, leia `wiki/index.md` e `vault.config.json`. O índice é o root fino; carregue só os shards e páginas relevantes. Para decidir profundidade, siga `harness/operations/context.md`. Para localizar páginas, comece por `python3 .claude/scripts/build-index.py search` com termos soltos; grep fica para string literal ou confirmação.
 
 O vault informa a resposta, mas não a limita: perspectivas externas podem entrar quando separadas do que está efetivamente registrado. Se existir `vault-heuristics.md` no root do vault, consulte-o em decisões de julgamento (priorização, recomendação, arquitetura de página, trade-offs). São as heurísticas de decisão destiladas do usuário e **prevalecem sobre os defaults do harness**.
 

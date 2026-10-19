@@ -12,7 +12,7 @@ Qualquer menção a agenda, calendário, reunião do dia, disponibilidade ou pla
 
 ## Fonte de verdade
 
-1. `wiki/index.md` e `vault.config.json` no início de sessão.
+1. `wiki/index.md` e `vault.config.json` no início de sessão. Para localizar páginas, comece por `python3 .claude/scripts/build-index.py search` com termos soltos; grep fica para string literal ou confirmação.
 2. `harness/contract.md` — invariantes.
 3. `harness/operations/<op>.md` — playbook canônico.
 4. `harness/adapters/grok.md` — checagens e limites Grok.

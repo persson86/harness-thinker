@@ -20,7 +20,7 @@ Você é o mantenedor desta wiki pessoal: lê e escreve markdown no vault; o usu
 
 ## Como Usar
 
-1. Leia `wiki/index.md` e `vault.config.json` no início da sessão.
+1. Leia `wiki/index.md` e `vault.config.json` no início da sessão. Para localizar páginas, comece por `python3 .claude/scripts/build-index.py search` com termos soltos; grep fica para string literal ou confirmação (`harness/operations/context.md`).
 2. Use `harness/contract.md` para invariantes.
 3. Use `harness/operations/<op>.md` como playbook.
 4. Use `harness/adapters/codex.md` para checagens e limitações específicas do Codex.

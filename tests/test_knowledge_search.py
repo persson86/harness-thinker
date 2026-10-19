@@ -122,6 +122,47 @@ class KnowledgeSearchTests(unittest.TestCase):
         self.assertEqual(before, after)
         self.assertEqual((baseline_hits, improved_hits), (5, 8))
 
+    def test_function_words_do_not_match_every_page(self):
+        self.page("memoria", "Memória de agentes", "Como agentes guardam estado")
+        for i in range(5):
+            self.page("ruido%d" % i, "Outro tema %d" % i, "Texto de apoio de outra coisa")
+        output = self.invoke("search", "memoria de agentes")
+        self.assertEqual(self.slugs(output), ["memoria"])
+        self.assertIn("— 1 resultado(s)", output.stdout)
+        # Consulta só de palavras funcionais continua valendo como digitada.
+        self.assertTrue(self.slugs(self.invoke("search", "de")))
+
+    def test_rare_and_repeated_terms_rank_first(self):
+        self.page("comum", "Notas", "projeto projeto projeto")
+        self.page("raro", "Notas", "projeto multisig")
+        self.page("titulo", "Multisig", "custódia em várias chaves")
+        for i in range(4):
+            self.page("extra%d" % i, "Notas %d" % i, "projeto")
+        ranked = self.slugs(self.invoke("search", "projeto multisig"))
+        self.assertEqual(ranked[0], "titulo")
+        self.assertLess(ranked.index("raro"), ranked.index("comum"))
+
+    def test_hyphenated_term_is_a_phrase_and_digits_count(self):
+        self.page("spec", "Spec-driven development", "spec driven")
+        self.page("solto", "Spec", "driven by data, not by spec")
+        self.page("fase1", "Plano", "entrega da fase 1")
+        self.page("fase2", "Plano", "entrega da fase 2")
+        self.assertEqual(self.slugs(self.invoke("search", "spec-driven")), ["spec"])
+        self.assertEqual(self.slugs(self.invoke("search", "--all", "fase 2")), ["fase2"])
+        self.page("plural", "Notas", "três carteiras separadas")
+        self.assertIn("plural", self.slugs(self.invoke("search", "carteira")))
+        self.assertNotIn("plural", self.slugs(self.invoke("search", '"carteira"')))
+
+    def test_legacy_engine_fallback_keeps_output_contract(self):
+        self.page("alpha", "Alpha", "alpha")
+        env = {**os.environ, "CLAUDE_PROJECT_DIR": str(self.root),
+               "THINKER_SEARCH_ENGINE": "legacy"}
+        result = subprocess.run(["python3", str(SCRIPT), "search", "alpha"], env=env,
+                                text=True, capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(self.slugs(result), ["alpha"])
+        self.assertNotIn("FTS5", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

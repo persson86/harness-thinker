@@ -27,6 +27,10 @@ Pedido de agenda, calendario, disponibilidade ou planejamento de horario do usua
 - Profunda: root + shards relevantes + ate 5 paginas de conteudo.
 - Recall amplo: `python3 .claude/scripts/build-index.py search "<termos>"`.
 
+## Localizar paginas
+
+Para achar paginas por pessoa, tema ou conceito, comece por `search` com 2 a 6 termos soltos: nomes proprios, conceito central e um sinonimo provavel (inclusive o termo em ingles ou portugues). Termos sem aspas rendem mais; use aspas so para frase exata e `--all` so para estreitar. A busca ranqueia por BM25 e ignora palavras funcionais soltas ("de", "que"). Use grep para string literal, para confirmar uma ocorrencia ou dentro de pagina ja escolhida. O ranking sugere candidatos; nao determina verdade nem vigencia.
+
 ## Execucao
 
 1. Use o root como mapa das esferas e ponteiro para shards.

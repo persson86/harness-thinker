@@ -17,7 +17,7 @@ Quando o usuario pedir explicitamente:
 
 1. Ler `wiki/index.md`.
 2. Abrir shards relevantes.
-3. Usar `python3 .claude/scripts/build-index.py search "<termos>"` para recall amplo quando util.
+3. Usar `python3 .claude/scripts/build-index.py search "<termos>"` para recall amplo antes de grep (ver `context.md` > Localizar paginas).
 4. Selecionar ate 8 paginas pertinentes. Em paginas grandes, partir do estado vigente e das secoes pertinentes; ler integralmente quando necessario para reconciliar a evidencia. Nunca tratar trecho como leitura completa.
 5. Incluir perfil do usuario quando disponivel na plataforma/memoria ativa.
 6. Produzir analise com:

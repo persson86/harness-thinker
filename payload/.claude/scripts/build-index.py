@@ -30,7 +30,8 @@ Subcomandos:
   quality [<paths>]    Juiz determinístico de conteúdo: wikilinks quebrados nas
                        páginas especificadas (relativas a wiki/). Sem args: lê
                        paths de stdin. Exit 0 = limpo; 1 = links quebrados.
-  search "<termos>"    Recall ranqueado por keyword (title>summary>tags>body);
+  search "<termos>"    Recall ranqueado por BM25 (SQLite FTS5 em memória; title>
+                       summary>tags=body), ignorando palavras funcionais soltas;
                        frases entre aspas são exatas e --all exige todos os termos.
   review <slug>         Referências diretas candidatas a revisão (wikilinks no
                        corpo e `sources:`), sem inferir correção automática.
@@ -730,27 +731,83 @@ def _parse_search_query(query):
     return normalized
 
 
-def cmd_search(query, require_all=False):
-    """Recall ranqueado por keyword. grep-before-fetch: devolve candidatos com
-    summary inline para o agente abrir só os melhores."""
-    try:
-        terms = _parse_search_query(query)
-    except ValueError as exc:
-        print("[search] erro: %s" % exc)
-        return 2
-    if not terms:
-        print('uso: build-index.py search "<termos>"')
-        return 2
-    results = []
+# Palavras funcionais (PT/EN) ignoradas como termo solto: sem isso, "de" casa com
+# quase todas as páginas e afoga o ranking. Frases entre aspas nunca são
+# filtradas, e uma consulta feita só de palavras funcionais vale como digitada.
+SEARCH_STOPWORDS = frozenset(_normalize_search(word) for word in """
+a o e é de da do das dos em no na nos nas num numa um uma uns umas para pra pro
+por pelo pela com que se ao aos as os ou mais menos como sobre entre sem até já
+tb também mas porque pq quando onde qual quais quem isso esse essa este esta
+isto aquele aquela eu me meu minha meus minhas você vc te teu tua seu sua seus
+suas ele ela eles elas nós nosso nossa lhe tem ter tenho ser foi era são estar
+estou está não sim muito pouco bem só faz fazer fiz pode posso vou vai ir quero
+queria gostaria preciso precisa algo algum alguma cada todo toda todos todas
+outro outra the of and to in is for on with what how
+""".split())
+# bm25 do FTS5 recebe um peso por coluna, inclusive a não indexada (path):
+# título 3, summary 2, tags 1, corpo 1 — a combinação medida na avaliação.
+SEARCH_WEIGHTS = (0.0, 3.0, 2.0, 1.0, 1.0)
+SEARCH_LIMIT = 25
+
+
+def _search_clauses(terms):
+    """Termos normalizados → [(palavras, frase?)]. Termo com hífen ou apóstrofo
+    (`spec-driven`, `d'agua`) vira frase: as palavras precisam vir juntas."""
+    clauses = []
+    for token, phrase in terms:
+        words = re.findall(r"[^\W_]+", token)
+        if words:
+            clauses.append((words, phrase or len(words) > 1))
+    content = [c for c in clauses
+               if c[1] or (c[0][0] not in SEARCH_STOPWORDS and len(c[0][0]) > 1)
+               or c[0][0].isdigit()]
+    return content or clauses
+
+
+def _search_pages():
+    pages = []
     for p in iter_pages():
         res = split_fm(read_file(p))
         if res is None:
             continue
         fm, end_idx, lines = res
+        pages.append((p, fm, "\n".join(lines[end_idx + 1:])))
+    return pages
+
+
+def _search_fts(pages, clauses, require_all):
+    """Ranking BM25 do SQLite FTS5 em memória; None se o SQLite não tiver FTS5."""
+    if os.environ.get("THINKER_SEARCH_ENGINE") == "legacy":
+        return None
+    import sqlite3
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("CREATE VIRTUAL TABLE pages USING fts5(path UNINDEXED, title, summary, "
+                   "tags, body, tokenize='unicode61 remove_diacritics 2')")
+    except sqlite3.OperationalError:
+        return None
+    db.executemany("INSERT INTO pages VALUES (?, ?, ?, ?, ?)",
+                   [(p, fm_get(fm, "title") or "", fm_get(fm, "summary") or "",
+                     fm_get(fm, "tags") or "", body) for p, fm, body in pages])
+    # Termo solto de 4+ letras casa por prefixo (`carteira` acha `carteiras`),
+    # como a busca por substring fazia; frases continuam exatas.
+    match = (" AND " if require_all else " OR ").join(
+        '"%s"%s' % (" ".join(words), "" if phrase or len(words[0]) < 4 else "*")
+        for words, phrase in clauses)
+    rows = db.execute("SELECT path, bm25(pages, ?, ?, ?, ?, ?) FROM pages "
+                      "WHERE pages MATCH ?", SEARCH_WEIGHTS + (match,)).fetchall()
+    db.close()
+    return [(max(1, int(round(-rank * 10))), -rank, path) for path, rank in rows]
+
+
+def _search_legacy(pages, terms, require_all):
+    """Ranking anterior (substring, presença por campo); fallback sem FTS5."""
+    results = []
+    for p, fm, raw_body in pages:
         title = _normalize_search(fm_get(fm, "title") or "")
         summary = _normalize_search(fm_get(fm, "summary") or "")
         tags = _normalize_search(fm_get(fm, "tags") or "")
-        body = _normalize_search("\n".join(lines[end_idx + 1:]))
+        body = _normalize_search(raw_body)
         fields = ((title, 5), (summary, 3), (tags, 2), (body, 1))
         score = 0
         matched = 0
@@ -767,16 +824,38 @@ def cmd_search(query, require_all=False):
         if require_all and matched != len(terms):
             score = 0
         if score:
-            status, as_of, superseded_by = knowledge_status(fm)
-            results.append((score, page_category(p), slug_of(p), fm_get(fm, "summary") or "",
-                            status, as_of, superseded_by))
-    results.sort(key=lambda r: (-r[0], r[1], r[2]))
+            results.append((score, score, p))
+    return results
+
+
+def cmd_search(query, require_all=False):
+    """Recall ranqueado por keyword. grep-before-fetch: devolve candidatos com
+    summary inline para o agente abrir só os melhores."""
+    try:
+        terms = _parse_search_query(query)
+    except ValueError as exc:
+        print("[search] erro: %s" % exc)
+        return 2
+    if not terms:
+        print('uso: build-index.py search "<termos>"')
+        return 2
+    pages = _search_pages()
+    meta = {p: fm for p, fm, _body in pages}
+    results = _search_fts(pages, _search_clauses(terms), require_all)
+    if results is None:
+        if os.environ.get("THINKER_SEARCH_ENGINE") != "legacy":
+            print("[search] FTS5 indisponível neste SQLite; usando ranking legado")
+        results = _search_legacy(pages, terms, require_all)
+    results.sort(key=lambda r: (-r[1], page_category(r[2]), slug_of(r[2])))
     print("[search] '%s' — %d resultado(s)" % (query, len(results)))
-    for score, cat, slug, summ, status, as_of, superseded_by in results[:25]:
+    for score, _raw, p in results[:SEARCH_LIMIT]:
+        fm = meta[p]
+        status, as_of, superseded_by = knowledge_status(fm)
         print("  [%d] [[%s]] (%s) — %s%s" %
-              (score, slug, cat, summ, status_badge(status, as_of, superseded_by)))
-    if len(results) > 25:
-        print("  ... (+%d; refine os termos)" % (len(results) - 25))
+              (score, slug_of(p), page_category(p), fm_get(fm, "summary") or "",
+               status_badge(status, as_of, superseded_by)))
+    if len(results) > SEARCH_LIMIT:
+        print("  ... (+%d; refine os termos)" % (len(results) - SEARCH_LIMIT))
     return 0
 
 
