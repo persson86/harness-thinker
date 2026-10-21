@@ -139,6 +139,8 @@ Operacoes comuns: `ingest`, `inbox`, `query`, `review`, `lint`, `update`, `feed`
 
 `handoff` nao aparece na lista de operacoes comuns: e operacao de estado de sessao (compactacao de contexto para retomar uma tarefa depois), nao de conhecimento duravel. O resultado gerado nunca vira entrada em `wiki/log.md`, nunca vira pagina, nunca roda o indice, e nao e gerenciado pelo installer (os arquivos do playbook/command em si sao instalados normalmente, como o resto do payload). Um validador de `wiki/log.md` nao deve esperar entradas de handoff.
 
+`one-page` tambem fica fora da lista: monta material de compartilhamento a partir da wiki, sem mudar conhecimento duravel. O rascunho vive em `drafts/one-page/` e a exportacao em `output/one-page-<slug>/`; nunca gera pagina, entrada de log nem regeneracao do indice.
+
 ## Gates de Encerramento
 
 Antes de concluir operacao que muda conhecimento duravel:

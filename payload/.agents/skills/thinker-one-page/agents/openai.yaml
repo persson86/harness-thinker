@@ -1,0 +1,6 @@
+interface:
+  display_name: "One Page"
+  short_description: "Página de contexto para colegas, em dois minutos de leitura"
+  default_prompt: "Use $thinker-one-page para montar a One Page deste assunto."
+policy:
+  allow_implicit_invocation: true

@@ -22,12 +22,16 @@ templates/vault/   # scaffold for a new vault (--init)
 
 ## Release discipline
 
-Maintain the source repository, never its installed target. In Felipe's environment
-the source is `/Users/persson/Builder/projects/harness-thinker`; the vault is a separate target.
+Maintain the source repository, never its installed target. Keep the source clone
+outside the vault; the vault is a separate target.
 For a harness change: run `bash tests/run.sh`, increment `VERSION`, document the change,
 commit the reviewed paths, create `v<VERSION>`, push branch and tag, then update the
 target with `install.sh TARGET --update`. Verify target `harness/.version`, manifest,
 vault health and local/remote SHA parity. Publishing vault knowledge is a separate scope.
+
+## 7.23.0-rc.11 — One Page for colleagues
+
+`/one-page <subject>` (or `$thinker-one-page` in Codex, or just asking for a one-pager) turns what the vault knows about a client, project or meeting into a page a colleague reads in two minutes: what is happening and the decision asked, an at-a-glance table, and one refutable hypothesis per lens — business, product, design, technology — with what would refute it and whom to ask. A room filter keeps out judgments about people, confidential items and private conversations used as authority, without emptying the page of facts. The page shows on screen first; reviewer notes stay apart and are never exported; export happens only when you ask. The budget is 420 words, checked by `harness/scripts/one-page-count.sh`.
 
 ## 7.23.0-rc.10 — Ranked search, and search before grep
 
@@ -195,7 +199,7 @@ the link, the index or the log, and the turn closes.
 
 ## Operations
 
-Triggered in natural language or via `/command` (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **REVIEW**, **AGENDA** (Gmail pessoal + Calendar do Mac profissional), **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **TASK**, **MODEL-EVAL**, **MEMORY** (Claude-only; Grok Build recusa), **DREAM**, **REVERIE**.
+Triggered in natural language or via `/command` (neutral playbooks in `payload/harness/operations/`): **INGEST**, **QUERY**, **REVIEW**, **AGENDA** (Gmail pessoal + Calendar do Mac profissional), **INBOX**, **FEED**, **TRANSCRIPT**, **DEEP**, **LINT**, **TASK**, **ONE-PAGE**, **MODEL-EVAL**, **MEMORY** (Claude-only; Grok Build recusa), **DREAM**, **REVERIE**.
 
 ## 7.23.0-rc.2 — Critical-review escalation
 

@@ -220,7 +220,7 @@ class CLITests(unittest.TestCase):
         self.assertEqual("local_observation_not_attributed", draft["routing"]["quota_evidence"])
         review = self.cli("route", "--model", "sol", "--benefit", "Critique", "--critical-review")
         self.assertEqual("delegate", review["routing"]["action"])
-        self.cli("quota", "--provider", "codex", "--availability", "available", "--reason", "Felipe liberou")
+        self.cli("quota", "--provider", "codex", "--availability", "available", "--reason", "usuário liberou")
         draft = self.cli("route", "--model", "sol", "--task", "draft", "--benefit", "Draft", "--independent")
         self.assertEqual("delegate", draft["routing"]["action"])
         self.assertEqual("manual_account_snapshot_not_attributed", draft["routing"]["quota_evidence"])

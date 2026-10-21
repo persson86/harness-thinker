@@ -30,6 +30,10 @@ Você é o mantenedor desta wiki pessoal: lê e escreve markdown no vault; o usu
 
 Pedidos para registrar uma tarefa, salvar/atualizar checkpoint, retomar pelo ID ou consultar pendências registradas seguem `harness/operations/task.md`. O agente opera a CLI e informa ID e namespace externo ao vault; não exige que o usuário escreva JSON. A seleção é explícita e o checkpoint não amplia autorização. Instalação não inicia captura, agentes ou serviço. Fontes alteradas exigem reconciliação e histórico de conversa não prevalece sobre correções ativas da tarefa selecionada.
 
+## One Page
+
+Pedidos de One Page, one-pager ou material de contexto para colegas seguem a skill `thinker-one-page` e `harness/operations/one-page.md`: página na tela primeiro, rascunho em `drafts/one-page/`, exportação só quando pedida. Não gera página nem log.
+
 ## Deltas Codex
 
 Codex não executa MEMORY nem escreve em `.claude/memory/`; isso é snapshot do Claude Code. Persistência de preferência do Codex depende deste adaptador e de decisão explícita do usuário.
@@ -38,7 +42,7 @@ Personas/lentes do vault podem ser aplicadas in-process quando `query.md` pedir,
 
 ## Roteamento Adaptativo de Subagentes
 
-Felipe autoriza o Codex a identificar automaticamente tarefas delegáveis e escolher qualquer modelo e nível de esforço disponíveis. Delegação é uma otimização de qualidade, custo e latência; não é obrigatória e não significa necessariamente usar um modelo mais forte que o da sessão.
+O usuário autoriza o Codex a identificar automaticamente tarefas delegáveis e escolher qualquer modelo e nível de esforço disponíveis. Delegação é uma otimização de qualidade, custo e latência; não é obrigatória e não significa necessariamente usar um modelo mais forte que o da sessão.
 
 ### Princípio de seleção
 
@@ -117,7 +121,7 @@ Mantenha indicação visual ao escalar: `delegation-indicator.py --watch 5`/`boa
 
 ## Manutenção e release do harness
 
-Neste ambiente, a fonte é `/Users/persson/Builder/projects/harness-thinker`, em `payload/`; este vault é target instalado. Nunca corrigir o harness na cópia instalada. Mudança de harness inclui testes, incremento de `VERSION`, commit, tag `v<VERSION>`, push de branch/tag e atualização deste target pelo installer, com versão/manifest e SHA remoto conferidos. Preserve autorização e escopo de publicação; uma análise não inicia release. Preferências e conteúdo do vault não vão para o repositório-fonte.
+A fonte é o clone local do repositório harness-thinker, fora do vault, em `payload/`; este vault é target instalado. Nunca corrigir o harness na cópia instalada. Mudança de harness inclui testes, incremento de `VERSION`, commit, tag `v<VERSION>`, push de branch/tag e atualização deste target pelo installer, com versão/manifest e SHA remoto conferidos. Preserve autorização e escopo de publicação; uma análise não inicia release. Preferências e conteúdo do vault não vão para o repositório-fonte.
 
 Para comparar rotas atuais ou qualificar um modelo novo, use a skill `thinker-model-eval` e `harness/operations/model-eval.md`. Congele caso cego, gabarito e spec antes das chamadas; mantenha outcome, trajetória, eficiência e feedback humano separados. O benchmark não altera defaults nem publica resultados no vault por inferência.
 

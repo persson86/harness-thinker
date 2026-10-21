@@ -51,6 +51,16 @@ run test -f "$V1/.agents/skills/thinker-model-eval/SKILL.md"
 assert_rc "init instala skill model-eval Codex" 0
 run test -f "$V1/.grok/skills/thinker-model-eval/SKILL.md"
 assert_rc "init instala skill model-eval Grok" 0
+run test -f "$V1/.agents/skills/thinker-one-page/SKILL.md"
+assert_rc "init instala skill one-page Codex" 0
+run test -f "$V1/.claude/commands/one-page.md"
+assert_rc "init instala comando one-page" 0
+run test -x "$V1/harness/scripts/one-page-count.sh"
+assert_rc "init deixa contador one-page executável" 0
+printf -- '# T: x\n\nUma duas três.\n\n| | |\n|---|---|\n| **A** | quatro |\n\n```\n[caixa] -> [outra]\n```\n- [ ] cinco — seis\n\n## Fontes\n| fora | da | conta |\n' > "$TMP/one-page.md"
+run bash "$V1/harness/scripts/one-page-count.sh" "$TMP/one-page.md"
+[ "$OUT" = "11" ] && ok "contador one-page ignora tabela, diagrama, checkbox e Fontes" \
+  || bad "contador one-page ignora tabela, diagrama, checkbox e Fontes" "esperado 11, veio $OUT"
 run test -f "$V1/harness/operations/model-eval.md"
 assert_rc "init instala operação model-eval" 0
 run test -x "$V1/harness/scripts/model_eval_validate.py"
@@ -246,7 +256,7 @@ assert_rc "command /agenda instalado" 0
 FAKE="$TMP/fake-icalBuddy"
 cat > "$FAKE" <<'EOS'
 #!/bin/bash
-echo "• 09:00 - 09:30 : Secret Call : https://teams.microsoft.com/l/meetup-join/abc : attendees: ana@trinca.com, Maria"
+echo "• 09:00 - 09:30 : Secret Call : https://teams.microsoft.com/l/meetup-join/abc : attendees: ana@example.com, Maria"
 echo "password: hunter2 join https://meet.google.com/xxx"
 EOS
 chmod +x "$FAKE"
@@ -256,7 +266,7 @@ assert_out "agenda.sh nomeia fonte profissional" "profissional"
 assert_out "agenda.sh lembra Gmail pessoal" "Gmail"
 echo "$OUT" | grep -q 'https://' && bad "agenda.sh remove URLs" "$OUT" || ok "agenda.sh remove URLs"
 echo "$OUT" | grep -qi 'hunter2' && bad "agenda.sh remove senha" "$OUT" || ok "agenda.sh remove senha"
-echo "$OUT" | grep -q 'ana@trinca.com' && bad "agenda.sh remove e-mail" "$OUT" || ok "agenda.sh remove e-mail"
+echo "$OUT" | grep -q 'ana@example.com' && bad "agenda.sh remove e-mail" "$OUT" || ok "agenda.sh remove e-mail"
 
 run bash -c "ICALBUDDY=/nao-existe bash '$V1/harness/scripts/agenda.sh' today"
 assert_rc "agenda.sh falha sem icalBuddy" 1
