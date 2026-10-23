@@ -14,7 +14,7 @@ payload/           # what gets installed 1:1 into the target
   harness/         #   contract + operations/ + adapters/ + scripts/verify.sh
   .claude/         #   commands/ hooks/ scripts/build-index.py settings.json
   .grok/           #   Grok Build rules, hook shim, memory-skill shadow
-  .agents/         #   optional delegation and model-eval skills for Codex
+  .agents/         #   Codex skills, including One Page and Product View
 templates/vault/   # scaffold for a new vault (--init)
 ```
 
@@ -28,6 +28,12 @@ For a harness change: run `bash tests/run.sh`, increment `VERSION`, document the
 commit the reviewed paths, create `v<VERSION>`, push branch and tag, then update the
 target with `install.sh TARGET --update`. Verify target `harness/.version`, manifest,
 vault health and local/remote SHA parity. Publishing vault knowledge is a separate scope.
+
+## 7.23.0-rc.12: Product and business direction
+
+Use `/thinker-product-view <material or subject>` in Claude Code or `$thinker-product-view` in Codex to read a transcript, presentation, proposal or vault topic through product and business lenses. Both entrypoints use [the same operation](payload/harness/operations/product-view.md). The agent retrieves the user's current role and relevant context from the target vault, formulates the problem or opportunity, explains the value mechanism and material constraints, recommends a direction with an alternative and a condition that would change it, and derives the next contribution.
+
+Analysis appears in the conversation by default. It does not automatically create files, ingest, update the profile or publish. Requested drafts go to `drafts/product-view/`; requested exports to `output/product-view-<slug>/`. A brief for colleagues follows One Page and its audience filter. The format adapts: an offer discussion needs a strategic choice beyond a local test, while a routine blocker may only need impact, acceptance and the existing owner. [Synthetic behavioral cases](payload/harness/evals/product-view.md) support maintenance; business value and performance gains remain unmeasured.
 
 ## 7.23.0-rc.11 — One Page for colleagues
 

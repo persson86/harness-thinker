@@ -141,6 +141,8 @@ Operacoes comuns: `ingest`, `inbox`, `query`, `review`, `lint`, `update`, `feed`
 
 `one-page` tambem fica fora da lista: monta material de compartilhamento a partir da wiki, sem mudar conhecimento duravel. O rascunho vive em `drafts/one-page/` e a exportacao em `output/one-page-<slug>/`; nunca gera pagina, entrada de log nem regeneracao do indice.
 
+`product-view` orienta entendimento de problema/oportunidade, direcao de produto e negocio e proposta de valor a partir de material profissional e do papel atual do usuario. A analise aparece na conversa por padrao, sem escrita, ingestao ou nova operacao no log. Rascunho solicitado vai para `drafts/product-view/`, exportacao solicitada para `output/product-view-<slug>/`; conhecimento duravel e material compartilhavel seguem suas operacoes proprias.
+
 ## Gates de Encerramento
 
 Antes de concluir operacao que muda conhecimento duravel:

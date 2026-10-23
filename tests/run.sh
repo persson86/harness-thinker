@@ -55,6 +55,12 @@ run test -f "$V1/.agents/skills/thinker-one-page/SKILL.md"
 assert_rc "init instala skill one-page Codex" 0
 run test -f "$V1/.claude/commands/one-page.md"
 assert_rc "init instala comando one-page" 0
+run test -f "$V1/.agents/skills/thinker-product-view/SKILL.md"
+assert_rc "init instala skill product-view Codex" 0
+run test -f "$V1/.claude/commands/thinker-product-view.md"
+assert_rc "init instala comando thinker-product-view Claude" 0
+run cmp "$REPO/payload/harness/operations/product-view.md" "$V1/harness/operations/product-view.md"
+assert_rc "init instala playbook comum product-view sem alterar bytes" 0
 run test -x "$V1/harness/scripts/one-page-count.sh"
 assert_rc "init deixa contador one-page executável" 0
 printf -- '# T: x\n\nUma duas três.\n\n| | |\n|---|---|\n| **A** | quatro |\n\n```\n[caixa] -> [outra]\n```\n- [ ] cinco — seis\n\n## Fontes\n| fora | da | conta |\n' > "$TMP/one-page.md"
@@ -381,8 +387,9 @@ assert_out "shim Stop pede Calendar do Mac" "Calendar do Mac"
 
 # Delegation suite: fake providers, isolated Git repositories, no paid calls.
 # CODEX_HOME vazio: aliases Codex resolvem para o ID embutido, não para o catálogo da máquina.
+# IDs do host não vazam para fixtures sem sessão; casos que precisam deles os definem.
 mkdir -p "$TMP/codex-home"
-run env CODEX_HOME="$TMP/codex-home" python3 -B -m unittest discover -s "$REPO/tests" -p 'test_delegation_*.py'
+run env -u CODEX_THREAD_ID -u THINKER_SESSION_ID -u CLAUDE_SESSION_ID CODEX_HOME="$TMP/codex-home" python3 -B -m unittest discover -s "$REPO/tests" -p 'test_delegation_*.py'
 assert_rc "delegação: ciclo, adaptadores, CLI, hook e Git isolados" 0
 [ "$RC" -ne 0 ] || printf '%s\n' "$OUT" | tail -4
 run python3 -B -m unittest discover -s "$REPO/tests" -p 'test_knowledge_*.py'

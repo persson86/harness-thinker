@@ -1,0 +1,6 @@
+interface:
+  display_name: "Visão de Produto e Negócio"
+  short_description: "Problema, oportunidade, direção e proposta de valor"
+  default_prompt: "Use $thinker-product-view para analisar este material com visão de produto e negócio e recomendar uma direção."
+policy:
+  allow_implicit_invocation: true

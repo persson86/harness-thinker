@@ -74,6 +74,7 @@ Use `harness/operations/<op>.md` como playbook canônico:
 - `task` — continuidade explícita por tarefa: registrar/atualizar checkpoint, retomar pelo ID e consultar pendências; agente opera a CLI e mantém estado fora do vault. Não captura conversas automaticamente nem inicia agentes.
 - `handoff` — compacta o estado de uma tarefa longa em bloco copiável para retomar em nova sessão ou outro agente; não gera página nem log.
 - `one-page` — página de contexto para colegas lerem em dois minutos: tese, filtro da sala, hipóteses por lente; mostra na tela, rascunho em `drafts/`, exporta só quando pedido; não gera página nem log.
+- `product-view`: visão de produto e negócio para material profissional: problema/oportunidade, direção e proposta de valor considerando o papel atual do usuário; `/thinker-product-view`, análise na conversa sem escrita por padrão.
 - `memory` — Claude-only, memória viva em `~/.claude/projects/<este-vault>/memory/`.
 
 ## Índice e log

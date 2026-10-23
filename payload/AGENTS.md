@@ -36,6 +36,8 @@ Pedidos de One Page, one-pager ou material de contexto para colegas seguem a ski
 
 ## Deltas Codex
 
+Pedidos de `thinker-product-view` ou de orientação com visão de produto e negócio seguem a skill `thinker-product-view` e `harness/operations/product-view.md`: problema/oportunidade, direção e proposta de valor considerando o papel atual do usuário. Análise na conversa por padrão, sem ingestão ou escrita automática; material para colegas segue One Page quando pedido.
+
 Codex não executa MEMORY nem escreve em `.claude/memory/`; isso é snapshot do Claude Code. Persistência de preferência do Codex depende deste adaptador e de decisão explícita do usuário.
 
 Personas/lentes do vault podem ser aplicadas in-process quando `query.md` pedir, sem spawn obrigatório. Para análise profunda, siga `deep.md`.

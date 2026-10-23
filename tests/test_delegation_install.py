@@ -9,7 +9,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILLS = ("thinker-delegate", "thinker-model-eval", "thinker-one-page")
+SKILLS = ("thinker-delegate", "thinker-model-eval", "thinker-one-page", "thinker-product-view")
 RULES = tuple(f"/.agents/skills/{skill}/" for skill in SKILLS) + ("/output/",)
 
 
@@ -100,6 +100,27 @@ class DelegationInstallTests(unittest.TestCase):
             self.assertNotEqual(0, result.returncode)
             self.assertIn("thinker-model-eval", result.stderr)
             self.assertEqual("user-owned collision\n", skill.read_text(encoding="utf-8"))
+            self.assertEqual("# custom\n", (target / ".gitignore").read_text(encoding="utf-8"))
+
+    def test_update_refuses_tracked_product_view_skill_before_replacing_it(self):
+        with tempfile.TemporaryDirectory(prefix="product-view-install-") as directory:
+            target = Path(directory) / "vault"
+            relative = ".agents/skills/thinker-product-view/SKILL.md"
+            skill = target / relative
+            skill.parent.mkdir(parents=True)
+            skill.write_text("user-owned product view\n", encoding="utf-8")
+            (target / ".gitignore").write_text("# custom\n", encoding="utf-8")
+            self.run_git(target, "init")
+            self.run_git(target, "config", "user.name", "Installer Fixture")
+            self.run_git(target, "config", "user.email", "installer@example.invalid")
+            self.run_git(target, "add", ".gitignore", relative)
+            self.run_git(target, "commit", "-m", "fixture")
+
+            result = self.run_install(target)
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("thinker-product-view", result.stderr)
+            self.assertEqual("user-owned product view\n", skill.read_text(encoding="utf-8"))
+            self.assertFalse((target / ".claude/commands/thinker-product-view.md").exists())
             self.assertEqual("# custom\n", (target / ".gitignore").read_text(encoding="utf-8"))
 
     def test_settings_merge_preserves_custom_statusline_permissions_and_hooks_twice(self):
