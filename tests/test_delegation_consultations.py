@@ -365,6 +365,29 @@ class ConsultationRuntimeTests(unittest.TestCase):
         with self.assertRaises(self.runtime.DelegationError):
             self.store.finish_consultation("host-a", call["id"], "failed")
 
+    def test_link_records_host_agent_only_after_start_and_never_relinks(self):
+        call = self.admit()
+        with self.assertRaises(self.runtime.DelegationError):
+            self.store.link_consultation("host-a", call["id"], "agent-1")
+        self.store.start_consultation("host-a", call["id"])
+        with self.assertRaises(self.runtime.DelegationError):
+            self.store.link_consultation("host-b", call["id"], "agent-1")
+        with self.assertRaises(self.runtime.DelegationError):
+            self.store.link_consultation("host-a", call["id"], "/root/path")
+        self.assertEqual("agent-1", self.store.link_consultation("host-a", call["id"], "agent-1")["agent_id"])
+        self.store.link_consultation("host-a", call["id"], "agent-1")
+        with self.assertRaises(self.runtime.DelegationError):
+            self.store.link_consultation("host-a", call["id"], "agent-2")
+        with self.assertRaises(self.runtime.DelegationError):
+            self.store.finish_consultation("host-a", call["id"], "completed", agent_id="agent-2")
+        self.assertEqual("agent-1", self.store.finish_consultation("host-a", call["id"], "completed")["agent_id"])
+
+    def test_finish_can_record_agent_when_link_was_skipped(self):
+        call = self.admit()
+        self.store.start_consultation("host-a", call["id"])
+        done = self.store.finish_consultation("host-a", call["id"], "completed", agent_id="ade9f565b92db45f0")
+        self.assertEqual(("completed", "ade9f565b92db45f0"), (done["state"], done["agent_id"]))
+
 # Use installed CLI copies with local fake binaries, without the legacy helper's
 # explicit-call normalization: omission must remain observable as automatic.
 import test_delegation_cli as cli_fixtures
@@ -416,6 +439,7 @@ class ConsultationCLITests(unittest.TestCase):
         advisor = self.cli("consult", "admit", "--consult-role", "advisor", "--delivery", "one", "--initiation", "auto",
                            "--provider", "codex", "--model", "astra", "--reason", "Compare two approaches")
         self.cli("consult", "start", advisor["id"])
+        self.cli("consult", "link", advisor["id"], "--agent-id", "Kuhn")
         fallback = self.cli("consult", "admit", "--consult-role", "reviewer", "--fallback", "claude quota blocked",
                             "--delivery", "one", "--initiation", "explicit", "--provider", "codex",
                             "--model", "sol", "--reason", "Contest the proposal")
@@ -431,7 +455,8 @@ class ConsultationCLITests(unittest.TestCase):
         self.assertTrue(consultations["available"])
         self.assertFalse(consultations["autonomy"]["host-a"])
         native = {c["id"]: c for c in consultations["native"]}
-        self.assertEqual(("advisor", "running"), (native[advisor["id"]]["consult_role"], native[advisor["id"]]["state"]))
+        self.assertEqual(("advisor", "running", "Kuhn"), (native[advisor["id"]]["consult_role"],
+                                                         native[advisor["id"]]["state"], native[advisor["id"]]["agent_id"]))
         self.assertEqual("same_provider_fallback", native[fallback["id"]]["independence"])
 
     def test_request_mode_and_explicit_toggle_on_have_clear_effect(self):

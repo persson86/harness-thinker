@@ -567,12 +567,31 @@ class DelegationStore:
             _atomic(self.state / "consultations.json", value)
         return call
 
-    def finish_consultation(self, session, identifier, state):
+    def link_consultation(self, session, identifier, agent_id):
+        """Record which host agent serves a started native consultation; dashboards join on it."""
+        _require_parent()
+        _identifier(session)
+        _job_id(identifier)
+        _identifier(agent_id, "agent")
+        with self._lock():
+            value = self._consultations()
+            call = value["calls"].get(identifier)
+            if not call or call["session"] != session or call["transport"] != "native" or call["state"] == "reserved":
+                raise DelegationError("Native consultation must be started by this session before linking an agent")
+            if call.get("agent_id") not in (None, agent_id):
+                raise DelegationError("Native consultation is already linked to another agent")
+            call.update(agent_id=agent_id, updated_at=_now())
+            _atomic(self.state / "consultations.json", value)
+        return call
+
+    def finish_consultation(self, session, identifier, state, agent_id=None):
         _require_parent()
         _identifier(session)
         _job_id(identifier)
         if state not in {"completed", "failed", "cancelled"}:
             raise DelegationError("A terminal consultation state is required")
+        if agent_id is not None:
+            _identifier(agent_id, "agent")
         with self._lock():
             value = self._consultations()
             call = value["calls"].get(identifier)
@@ -582,7 +601,11 @@ class DelegationStore:
                 raise DelegationError("Native consultation already has another terminal state")
             if call["state"] == "reserved" and state == "completed":
                 raise DelegationError("A reserved consultation cannot complete before reported start")
+            if agent_id is not None and call.get("agent_id") not in (None, agent_id):
+                raise DelegationError("Native consultation is already linked to another agent")
             call.update(state=state, updated_at=_now())
+            if agent_id is not None:
+                call["agent_id"] = agent_id
             _atomic(self.state / "consultations.json", value)
         return call
 

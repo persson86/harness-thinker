@@ -50,7 +50,7 @@ Não traduza Luna/Terra/Sol para nomes Grok.
 
 ## Delegação opcional entre CLIs
 
-Advisor e Reviewer seguem a política comum `harness/operations/consult.md`: autonomia ligada por padrão com toggle por sessão/default/todas, pedidos explícitos sem religar autonomia, hard off preservado. Use admissão `consult admit/start/finish` antes/depois de consulta nativa, somente se o host oferecer o modelo e o spawn necessários; externos usam campos de consulta em `submit`. Não traduza identidades, não omita classificação e não prometa interceptação técnica do host.
+Advisor e Reviewer seguem a política comum `harness/operations/consult.md`: autonomia ligada por padrão com toggle por sessão/default/todas, pedidos explícitos sem religar autonomia, hard off preservado. Use admissão `consult admit/start/link/finish` antes/depois de consulta nativa, somente se o host oferecer o modelo e o spawn necessários; externos usam campos de consulta em `submit`. Não traduza identidades, não omita classificação e não prometa interceptação técnica do host.
 
 Siga a skill `thinker-delegate` e `harness/operations/delegate.md`. A extensão está disponível por padrão em sessões novas, sem spawn obrigatório e respeitando off explícito; a regra de ignorar roteamento Codex acima trata dos subagentes nativos, não impede chamada à CLI Codex pela extensão. Escolha explícita do usuário vence sessão e padrão. Git prefere execução determinística; não traduza Luna/Sonnet para modelos Grok. Registre a execução efetiva e consulte a inbox enquanto houver trabalhos da sessão. O principal preserva a coautoria e o escopo de publicação.
 

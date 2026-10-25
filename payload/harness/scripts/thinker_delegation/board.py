@@ -304,7 +304,7 @@ def payload(store, session, all_sessions=False, limit=10, native_reports=None,
 
 CONSULTATION_FIELDS = ("id", "session", "consult_role", "delivery", "initiation", "provider", "model",
                        "reason", "state", "stale", "cancel_requested", "fallback_reason", "independence",
-                       "created_at", "started_at", "updated_at")
+                       "agent_id", "created_at", "started_at", "updated_at")
 
 
 def _consultations(store, session, all_sessions, shown, history, recent):

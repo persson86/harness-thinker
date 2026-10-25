@@ -49,9 +49,13 @@ def parser():
     admit.add_argument("--fallback", help="Reviewer nativo: indisponibilidade observada do outro provedor")
     starting = consultation.add_parser("start", help="Revalidar imediatamente antes do spawn nativo")
     starting.add_argument("id")
+    linking = consultation.add_parser("link", help="Registrar o agente do host que atende a consulta iniciada")
+    linking.add_argument("id")
+    linking.add_argument("--agent-id", required=True, help="ID devolvido pelo spawn do host")
     finishing = consultation.add_parser("finish", help="Registrar término observado, mesmo após desligamento")
     finishing.add_argument("id")
     finishing.add_argument("--state", choices=["completed", "failed", "cancelled"], required=True)
+    finishing.add_argument("--agent-id", help="ID do agente do host, quando não registrado por link")
     natives = sub.add_parser("native", help="Estado reportado de agentes nativos; não agenda nem cancela")
     natives.add_argument("operation", choices=["report"])
     natives.add_argument("--id", required=True)
@@ -526,7 +530,9 @@ def dispatch(store, args):
                                             fallback=args.fallback)
         if args.operation == "start":
             return store.start_consultation(sid, args.id)
-        return store.finish_consultation(sid, args.id, args.state)
+        if args.operation == "link":
+            return store.link_consultation(sid, args.id, args.agent_id)
+        return store.finish_consultation(sid, args.id, args.state, agent_id=args.agent_id)
     if command == "native":
         return native.report(store, enabled(store, args) if args.state == "running" else session(args),
                              args.id, args.model, args.state, args.task,
