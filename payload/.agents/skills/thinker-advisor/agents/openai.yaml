@@ -1,0 +1,6 @@
+interface:
+  display_name: "Advisor: aconselhamento contextual"
+  short_description: "Consultar um modelo nativo sobre uma dificuldade concreta"
+  default_prompt: "Use $thinker-advisor para consultar um modelo do mesmo harness sobre esta dificuldade e integrar uma recomendação fundamentada."
+policy:
+  allow_implicit_invocation: true

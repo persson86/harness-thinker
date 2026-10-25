@@ -7,6 +7,8 @@ description: Gerenciar delegação opcional do Thinker, colaboradores entre CLIs
 
 Leia `harness/operations/delegate.md` no root do vault e siga a operação. Use `python3 harness/scripts/delegate.py` como interface; não reimplemente o supervisor em shell nem manipule terminais abertos com send-keys.
 
+Consultas Advisor e Reviewer também seguem `harness/operations/consult.md`: autonomia e hard off são controles distintos; nativos exigem admissão antes do spawn e externos usam campos de consulta. Não omitir classificação para contornar autonomia ou orçamento.
+
 Mantenha um único interlocutor e devolva a contribuição consolidada. Escolha explícita do usuário vence preferência de sessão e padrão. Luna low é o padrão inicial para Git. Commit e push têm autorizações distintas, independentemente do modelo.
 
 Com a extensão desligada, preserve o fluxo atual. Quando habilitada, prepare contexto mínimo, continue somente trabalho independente e recupere a inbox antes de encerrar. Colaboradores não sobrescrevem drafts vivos. Uma versão antiga exige reconciliação; não implica rejeitar as edições do usuário.

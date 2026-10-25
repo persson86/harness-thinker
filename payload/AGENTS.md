@@ -46,6 +46,14 @@ Personas/lentes do vault podem ser aplicadas in-process quando `query.md` pedir,
 
 ## Roteamento Adaptativo de Subagentes
 
+### Advisor e Reviewer
+
+O Orquestrador é o principal escolhido para a sessão. Use `thinker-advisor` para ajuda sobre uma dificuldade concreta no mesmo harness e `thinker-reviewer` para revisão independente com modelo de fronteira de outro harness; com o outro provedor indisponível, um subagente novo do mesmo harness, sem o histórico da conversa, revisa como fallback declarado. Opus, Sol, Fable, Astra e outros elegíveis são escolhas contextuais; Advisor não exige modelo superior. Siga `harness/operations/advisor.md`, `reviewer.md` e a política comum `harness/operations/consult.md`.
+
+A autonomia vem ligada por padrão, dentro dos limites, e pode ser desligada por sessão, no default ou em todas as sessões com `delegate.py autonomy`. Pedido explícito avulso funciona com autonomia desligada sem religá-la; o hard off de delegação prevalece. Antes de QUALQUER consulta nativa, execute `consult admit` e `consult start`; após o retorno real, `consult finish`. Externos usam os campos `--consult-role`, `--delivery` e `--initiation` em `submit`. Não contorne o toggle omitindo esses campos ou rebatizando uma consulta como delegação genérica. IDs de entrega e orçamento são compartilhados entre tentativas e transportes. Reavalie o controle antes de cada convocação.
+
+No Codex a admissão é um protocolo cooperativo obrigatório: a CLI não intercepta `spawn_agent` nem garante cancelamento do processo nativo. Comunique essa limitação quando pertinente; não apresente uma reserva ou `native report` como prova de execução. Colaboradores não convocam outros colaboradores. O Orquestrador valida pareceres e continua responsável pela entrega.
+
 O usuário autoriza o Codex a identificar automaticamente tarefas delegáveis e escolher qualquer modelo e nível de esforço disponíveis. Delegação é uma otimização de qualidade, custo e latência; não é obrigatória e não significa necessariamente usar um modelo mais forte que o da sessão.
 
 ### Princípio de seleção
@@ -111,7 +119,7 @@ Quando houver override explícito de modelo ou esforço, prefira um recorte curt
 
 Delegação fica disponível por padrão em sessões novas; instalação e status não iniciam agentes. Desligamentos explícitos de sessão e globais prevalecem, inclusive durante atualização. Use a skill `thinker-delegate` e `harness/operations/delegate.md`. O controle é `python3 harness/scripts/delegate.py`; não gerencie CLIs com send-keys nem reimplemente o supervisor.
 
-Mesmo provedor do principal roda como agente nativo do host, sem `delegate.py` — no Claude Code, subagente com Opus, Sonnet, Fable ou Haiku; no Codex, Sol, Astra, Luna ou Terra. A extensão fica para outro provedor, `model-eval` e pedido explícito; detalhes em `harness/operations/delegate.md` > Mesmo provedor: agente nativo.
+Mesmo provedor do principal roda como agente nativo do host, sem `delegate.py submit` — no Claude Code, subagente com Opus, Sonnet, Fable ou Haiku; no Codex, Sol, Astra, Luna ou Terra. A extensão fica para outro provedor, `model-eval` e pedido explícito; detalhes em `harness/operations/delegate.md` > Mesmo provedor: agente nativo.
 
 Instrução explícita do usuário vence preferência da sessão e padrão da tarefa. Git usa Luna low por padrão; “use Sonnet neste commit” vale para essa operação e não muda o padrão permanente. Indisponibilidade não autoriza substituição silenciosa. Commit e push continuam autorizações distintas.
 

@@ -138,3 +138,7 @@ python3 -B tests/live_delegation.py --run --model opus --scenario html
 ```
 
 Ele usa um vault temporário com dados sintéticos, preserva o original, verifica retorno e materialização do draft e desliga a extensão no laboratório ao terminar. A chamada usa a assinatura existente e pode consumir seus limites. O relatório registra modelo solicitado e informação efetivamente devolvida pela CLI; não inventa um ID de modelo quando o provedor não o informa.
+
+## Advisor, Reviewer e autonomia
+
+As consultas usam `harness/operations/consult.md` como política comum, com `advisor.md` e `reviewer.md` para seus briefs. A autonomia é ligada por padrão, com controle próprio `delegate.py autonomy status|on|off` e escopos sessão, `--default` e `--all`; `--cancel` solicita cancelamento separadamente. O hard off existente continua bloqueando delegação inclusive explícita. Nativos seguem `consult admit/start/finish` antes/depois das ferramentas do host; externos usam `submit --consult-role ... --delivery ... --initiation auto|explicit`. Não confundir classificação de consulta com `--role` de run. O protocolo nativo não é um bloqueio técnico das ferramentas do host. Instalação e leitura de estado não iniciam colaboradores nem religam preferências existentes.

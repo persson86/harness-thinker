@@ -31,6 +31,27 @@ def parser():
     p.add_argument("--json", action="store_true", help="Saída estruturada para o agente principal")
     sub = p.add_subparsers(dest="command", required=True)
     sub.add_parser("status", help="Estado, limites e sessão; não inicia agentes")
+    autonomy = sub.add_parser("autonomy", help="Controlar iniciativa automática sem desligar pedidos explícitos")
+    autonomy.add_argument("operation", choices=["status", "on", "off"])
+    autonomy_scope = autonomy.add_mutually_exclusive_group()
+    autonomy_scope.add_argument("--all", action="store_true", help="Aplicar agora a todas as sessões e ao padrão")
+    autonomy_scope.add_argument("--default", action="store_true", dest="new_default", help="Padrão para próximas sessões")
+    autonomy.add_argument("--cancel", action="store_true", help="Solicitar também cancelamento das consultas automáticas ativas")
+    consult = sub.add_parser("consult", help="Admissão cooperativa de consulta nativa; não inicia o agente do host")
+    consultation = consult.add_subparsers(dest="operation", required=True)
+    admit = consultation.add_parser("admit", help="Reservar consulta nativa dentro dos limites")
+    admit.add_argument("--consult-role", choices=["advisor", "reviewer"], required=True)
+    admit.add_argument("--delivery", required=True)
+    admit.add_argument("--initiation", choices=["auto", "explicit"], required=True)
+    admit.add_argument("--provider", choices=["codex", "claude", "grok"], required=True)
+    admit.add_argument("--model", required=True)
+    admit.add_argument("--reason", required=True, help="Dúvida e contribuição esperada")
+    admit.add_argument("--fallback", help="Reviewer nativo: indisponibilidade observada do outro provedor")
+    starting = consultation.add_parser("start", help="Revalidar imediatamente antes do spawn nativo")
+    starting.add_argument("id")
+    finishing = consultation.add_parser("finish", help="Registrar término observado, mesmo após desligamento")
+    finishing.add_argument("id")
+    finishing.add_argument("--state", choices=["completed", "failed", "cancelled"], required=True)
     natives = sub.add_parser("native", help="Estado reportado de agentes nativos; não agenda nem cancela")
     natives.add_argument("operation", choices=["report"])
     natives.add_argument("--id", required=True)
@@ -86,6 +107,10 @@ def parser():
     brief.add_argument("--prompt", help="Instrução curta; prefira --brief para textos longos")
     submit.add_argument("--file", action="append", default=[], help="Arquivo de contexto selecionado; repetível")
     submit.add_argument("--reason", required=True, help="Motivo curto da delegação")
+    submit.add_argument("--consult-role", choices=["advisor", "reviewer"], help="Papel da consulta; distinto do papel de run")
+    submit.add_argument("--delivery", help="ID estável da entrega para orçamento por papel")
+    submit.add_argument("--initiation", choices=["auto", "explicit"], default="auto",
+                        help="explicit exige pedido real do usuário; não religa autonomia")
     submit.add_argument("--timeout", type=float, default=300)
     submit.add_argument("--retry-reason", help="Diagnóstico e mudança que justificam nova tentativa após falha")
     submit.add_argument("--run", help="Run ao qual este job pertence")
@@ -100,6 +125,8 @@ def parser():
         command.add_argument("job")
         if name == "retry":
             command.add_argument("--reason", required=True, help="Diagnóstico feito antes de repetir")
+            command.add_argument("--initiation", choices=["auto", "explicit"], default="auto",
+                                 help="Pedido explícito para esta nova tentativa; não religa autonomia")
     waiting = sub.add_parser("wait", help="Aguardar por até 60 segundos, mantendo resultado recuperável")
     waiting.add_argument("job")
     waiting.add_argument("--seconds", type=float, default=20)
@@ -341,7 +368,8 @@ def public_job(job):
     keys = ("id", "session", "state", "task_type", "reason", "created_at", "started_at", "finished_at",
             "transport_success", "validation", "acceptance", "accepted_path", "acceptance_action", "feedback", "feedback_note", "error", "error_code",
             "cancel_requested", "stale", "accepted_stale", "accepted_stale_sources", "model_source", "attempt_id", "retry_of",
-            "run_id", "stage", "role", "parent_job", "handoff", "diagnostic", "routing", "retry_reason")
+            "run_id", "stage", "role", "parent_job", "handoff", "diagnostic", "routing", "retry_reason",
+            "consult_role", "delivery", "initiation")
     result = {key: job[key] for key in keys if key in job}
     result["profile"] = {key: job.get("profile", {}).get(key) for key in
                          ("provider", "model", "effort", "model_source", "cli_version", "isolation")}
@@ -478,9 +506,30 @@ def dispatch(store, args):
         result = store.status(args.session)
         result["defaults"] = {**adapters.DEFAULT_ROUTES, **policy(store)["defaults"]}
         result["jobs"] = [public_job(j) for j in store.list_jobs(args.session)] if store.state.exists() else []
+        result["autonomy"] = store.autonomy_status(args.session)
         return result
+    if command == "autonomy":
+        if args.operation == "status":
+            if args.new_default or args.cancel:
+                raise DelegationError("Status aceita somente --all opcional")
+            return store.autonomy_status(None if args.all else session(args))
+        return store.set_autonomy(args.session, args.operation == "on",
+                                  "all" if args.all else "default" if args.new_default else "session",
+                                  cancel=args.cancel)
+    if command == "consult":
+        sid = session(args)
+        if args.operation == "admit":
+            principal = policy(store).get("principals", {}).get(sid, {})
+            return store.admit_consultation(sid, args.consult_role, args.delivery, args.initiation,
+                                            args.provider, args.model, args.reason,
+                                            principal_provider=principal.get("provider"),
+                                            fallback=args.fallback)
+        if args.operation == "start":
+            return store.start_consultation(sid, args.id)
+        return store.finish_consultation(sid, args.id, args.state)
     if command == "native":
-        return native.report(store, enabled(store, args), args.id, args.model, args.state, args.task,
+        return native.report(store, enabled(store, args) if args.state == "running" else session(args),
+                             args.id, args.model, args.state, args.task,
                              effort=args.effort)
     if command == "session-context":
         sid = enabled(store, args)
@@ -594,7 +643,10 @@ def dispatch(store, args):
                                        reason=args.reason, task_type=args.task,
                                        run_id=selected_run, stage=args.stage, role=args.role,
                                        parent_job=selected_parent, handoff=args.handoff,
-                                       retry_reason=args.retry_reason, routing=decision))
+                                       retry_reason=args.retry_reason, routing=decision,
+                                       consult_role=args.consult_role, delivery=args.delivery,
+                                       initiation=args.initiation,
+                                       principal_provider=(decision.get("principal") or {}).get("provider")))
     if command == "set-default":
         with store._lock():
             value = policy(store)
@@ -729,7 +781,10 @@ def dispatch(store, args):
         log_quota_decision(store, "retry", job["profile"].get("provider"), decision)
         if decision["action"] != "delegate":
             raise DelegationError("Retry bloqueado pela política atual: " + decision["reason"])
-        return public_job(store.retry(identifier, reason=args.reason, routing=decision))
+        return public_job(store.retry(identifier, reason=args.reason, routing=decision,
+                                     initiation=args.initiation,
+                                     principal_provider=(current.get("principals", {}).get(args.session)
+                                                         or old.get("principal") or {}).get("provider")))
     method = {"accept": store.accept, "cancel": store.cancel, "retry": store.retry, "ack": store.acknowledge}[command]
     value = public_job(method(identifier))
     if (command == "ack" and value.get("feedback") in (None, "unknown") and value.get("state") == "completed"
@@ -766,6 +821,19 @@ def render(value):
     if "providers" in value:
         return "\n".join(f"{p['profile']}: " + (p.get("cli_version", "compatível") if p["ready"] else p["error"])
                          for p in value["providers"]) + "\n" + value["note"]
+    if "native_enforcement" in value:
+        state = "ligada" if value.get("enabled") else "desligada" if value.get("enabled") is False else "por sessão"
+        capability = "ligada" if value.get("delegation_enabled") else "desligada"
+        calls = value.get("calls", [])
+        reserved = sum(call["state"] in {"reserved", "queued"} for call in calls)
+        running = sum(call["state"] == "running" for call in calls)
+        cancelling = sum(call.get("cancel_requested", False) and call["state"] == "running" for call in calls)
+        return (f"Autonomia {state} · escopo {value.get('scope', 'sessão' if value.get('session') else 'todas')}"
+                f" · padrão {'ligado' if value['default_enabled'] else 'desligado'}.\n"
+                f"Capacidade de delegação {capability}; pedido explícito não religa autonomia.\n"
+                f"Consultas: {reserved} reservada(s)/na fila, {running} em execução, {cancelling} com cancelamento solicitado.\n"
+                "Nativos: protocolo cooperativo do principal, sem bloqueio técnico da ferramenta do host."
+                + ("\n" + value["message"] if value.get("message") else ""))
     if "enabled" in value:
         state = "ligada" if value["enabled"] else "desligada"
         return (f"Delegação {state}" + (f" nesta sessão ({value['session']})." if value.get("session") else ".")

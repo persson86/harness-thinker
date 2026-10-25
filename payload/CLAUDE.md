@@ -2,9 +2,13 @@
 
 ## Delegação opcional entre CLIs
 
+Advisor e Reviewer seguem `harness/operations/consult.md`, com entradas `/thinker-advisor` e `/thinker-reviewer`. O Orquestrador é o principal da sessão; Advisor aconselha no mesmo harness, Reviewer contesta com modelo de fronteira de outro harness; com o outro provedor indisponível, um subagente novo do mesmo harness (nunca `fork`) revisa como fallback declarado. Escolha contextual de modelos e esforço, sem exigir Advisor superior. Autonomia ligada por padrão não obriga convocar: respeite toggle de sessão/default/todas, orçamento e gatilho concreto. Pedido explícito não religa autonomia; hard off prevalece.
+
+Antes de cada consulta nativa use `delegate.py consult admit` e `consult start`; depois do retorno real, `consult finish`. Consultas externas usam `submit --consult-role ... --delivery ... --initiation auto|explicit`. Não omita a classificação nem use outro transporte para contornar o toggle. O controle nativo é cooperativo: a CLI não intercepta ferramentas do host nem cancela agentes nativos. Não prometer bloqueio técnico universal. Colaboradores não convocam colaboradores; o principal verifica e integra pareceres.
+
 Siga `/delegate` e `harness/operations/delegate.md`. A extensão fica disponível por padrão em sessões novas; instalar não inicia colaboradores nem coleta retroativa. Desligamento explícito prevalece. O principal decide se o ganho justifica delegar, prepara contexto mínimo, acompanha a inbox e revisa propostas sem sobrescrever drafts vivos.
 
-Mesmo provedor do principal roda como agente nativo do host, sem `delegate.py` — no Claude Code, subagente com Opus, Sonnet, Fable ou Haiku; no Codex, Sol, Astra, Luna ou Terra. A extensão fica para outro provedor, `model-eval` e pedido explícito; detalhes em `harness/operations/delegate.md` > Mesmo provedor: agente nativo.
+Mesmo provedor do principal roda como agente nativo do host, sem `delegate.py submit` — no Claude Code, subagente com Opus, Sonnet, Fable ou Haiku; no Codex, Sol, Astra, Luna ou Terra. A extensão fica para outro provedor, `model-eval` e pedido explícito; detalhes em `harness/operations/delegate.md` > Mesmo provedor: agente nativo.
 
 Escolha explícita de modelo vence preferência da sessão e padrão. Git começa em Luna low via Codex; um pedido explícito de Sonnet usa Sonnet nessa operação sem mudar o padrão permanente. Nunca substitua modelo ou cobrança silenciosamente. Commit e push têm autorizações distintas. Use o helper determinístico para publicar; o principal responde por escopo, autoria e integração.
 

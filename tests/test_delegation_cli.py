@@ -73,10 +73,14 @@ class CLITests(unittest.TestCase):
         self.temporary.cleanup()
 
     def command(self, *args, session="host-a", json_output=True):
+        if args and args[0] == "submit" and "--initiation" not in args:
+            args = (*args, "--initiation", "explicit")
         if args and args[0] == "submit" and "--benefit" not in args:
             args = (*args, "--benefit", "Independent synthetic contribution", "--independent")
         if args and args[0] == "retry" and "--reason" not in args:
             args = (*args, "--reason", "Synthetic diagnosis completed")
+        if args and args[0] == "retry" and "--initiation" not in args:
+            args = (*args, "--initiation", "explicit")
         command = [sys.executable, "-B", str(self.cli_path), "--state-dir", str(self.state)]
         if session is not None:
             command += ["--session", session]
@@ -162,7 +166,7 @@ class CLITests(unittest.TestCase):
         evidence = Path(args[args.index("--file") + 1])
         (self.vault / evidence).write_text("evidência sintética\n", encoding="utf-8")
         self.cli("session-context", "--provider", "claude", "--model", "opus", "--effort", "high")
-        self.enable()
+        self.cli("on", "--mode", "auto", "--model", "sonnet")
         job = self.completed(self.cli(*args))
         self.assertEqual("codex", job["profile"]["provider"])
         self.assertIn("sol", job["profile"]["model"])

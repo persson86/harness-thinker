@@ -70,6 +70,9 @@ class RuntimeTests(unittest.TestCase):
         self.store.set_session("host-a", True, "auto")
 
     def submit(self, **kwargs):
+        # These lifecycle fixtures represent explicitly requested calls. The
+        # autonomy suite separately exercises the default automatic admission.
+        kwargs.setdefault("initiation", "explicit")
         return self.store.submit("host-a", self.profile, "Review this draft; no original edits", ["drafts/live.md"], **kwargs)
 
     def wait(self, identifier, state=None, timeout=8):
@@ -350,7 +353,7 @@ def parse_result(profile, stdout, stderr, returncode):
         self.store.set_session("host-b", True)
         self.profile["delay"] = 0.4
         own = self.submit()
-        other = self.store.submit("host-b", self.profile, "Independent job")
+        other = self.store.submit("host-b", self.profile, "Independent job", initiation="explicit")
         self.store.set_session("host-a", False)
         self.assertEqual("cancelled", self.wait(own["id"])["state"])
         self.assertEqual("completed", self.wait(other["id"])["state"])

@@ -67,6 +67,16 @@ run cmp "$REPO/payload/.claude/commands/thinker-rea.md" "$V1/.claude/commands/th
 assert_rc "init instala entrada REA Claude sem alterar bytes" 0
 run cmp "$REPO/payload/harness/operations/rea.md" "$V1/harness/operations/rea.md"
 assert_rc "init instala playbook comum REA sem alterar bytes" 0
+for consultation in advisor reviewer; do
+  run cmp "$REPO/payload/.agents/skills/thinker-$consultation/SKILL.md" "$V1/.agents/skills/thinker-$consultation/SKILL.md"
+  assert_rc "init instala skill $consultation Codex sem alterar bytes" 0
+  run cmp "$REPO/payload/.claude/commands/thinker-$consultation.md" "$V1/.claude/commands/thinker-$consultation.md"
+  assert_rc "init instala comando $consultation Claude sem alterar bytes" 0
+  run cmp "$REPO/payload/harness/operations/$consultation.md" "$V1/harness/operations/$consultation.md"
+  assert_rc "init instala operacao $consultation sem alterar bytes" 0
+done
+run cmp "$REPO/payload/harness/operations/consult.md" "$V1/harness/operations/consult.md"
+assert_rc "init instala politica comum de autonomia sem alterar bytes" 0
 run test -x "$V1/harness/scripts/one-page-count.sh"
 assert_rc "init deixa contador one-page executável" 0
 printf -- '# T: x\n\nUma duas três.\n\n| | |\n|---|---|\n| **A** | quatro |\n\n```\n[caixa] -> [outra]\n```\n- [ ] cinco — seis\n\n## Fontes\n| fora | da | conta |\n' > "$TMP/one-page.md"

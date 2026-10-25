@@ -53,6 +53,8 @@ class EscalationPolicyTests(unittest.TestCase):
         self.assertIn("outro provedor que não o do principal", body)
         self.assertIn("sem que isso vire corroboração", body)
         self.assertIn("não substitua silenciosamente", body)
+        self.assertIn("use o Reviewer de fallback de `reviewer.md`", body)
+        self.assertIn("sem herdar a conversa", body)
         self.assertIn("diga ao usuário que a revisão não ocorreu", body)
 
     def test_first_review_is_blind_and_reconciliation_is_bounded(self):

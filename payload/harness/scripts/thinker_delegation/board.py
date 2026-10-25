@@ -260,7 +260,10 @@ def payload(store, session, all_sessions=False, limit=10, native_reports=None,
                      "seconds": elapsed(job), "timeout": job.get("timeout"),
                      "run_id": job.get("run_id"), "stage": job.get("stage"),
                      "role": job.get("role"), "retry_of": job.get("retry_of"),
-                     "cancel_requested": job.get("cancel_requested")})
+                     "cancel_requested": job.get("cancel_requested"),
+                     # `delivery` above is the inbox state; the consultation ID has its own key.
+                     "consult_role": job.get("consult_role"), "consult_delivery": job.get("delivery"),
+                     "initiation": job.get("initiation")})
 
     # Pendências continuam no escopo completo, mesmo depois de sair da tela.
     # Falhas recentes e antigas não compartilham o mesmo alerta visual.
@@ -274,6 +277,7 @@ def payload(store, session, all_sessions=False, limit=10, native_reports=None,
     native_visible = native_active + native_done[:max(0, limit)]
     native_view = {**native_reports, "visible_reports": native_visible,
                    "hidden": len(reports) - len(native_visible)}
+    consultations = _consultations(store, session, all_sessions, shown, history, recent)
     return {"board": {"session": session, "scope": "all" if all_sessions else "session",
                       "recent_seconds": recent_seconds, "history": history,
                       "enabled": status.get("enabled", False),
@@ -295,7 +299,40 @@ def payload(store, session, all_sessions=False, limit=10, native_reports=None,
                                      and j.get("feedback") in (None, "unknown")),
                       "sessions": len({j.get("session") for j in shown + native_visible}),
                       "shown": len(shown), "hidden": len(scoped) - len(shown)},
-            "jobs": rows, "native": native_view}
+            "jobs": rows, "native": native_view, "consultations": consultations}
+
+
+CONSULTATION_FIELDS = ("id", "session", "consult_role", "delivery", "initiation", "provider", "model",
+                       "reason", "state", "stale", "cancel_requested", "fallback_reason", "independence",
+                       "created_at", "started_at", "updated_at")
+
+
+def _consultations(store, session, all_sessions, shown, history, recent):
+    """Native Advisor/Reviewer admissions and autonomy per visible session.
+    External consultations already appear as jobs with `consult_role`."""
+    if not hasattr(store, "autonomy_status"):
+        return {"available": False, "reason": "unsupported"}
+    try:
+        overall = store.autonomy_status(None)
+    except DelegationError:
+        return {"available": False, "reason": "unavailable"}
+    if overall.get("consultations_damaged"):
+        return {"available": False, "reason": "damaged"}
+    calls = [c for c in overall["calls"] if all_sessions or c.get("session") == session]
+    native = [{key: call.get(key) for key in CONSULTATION_FIELDS} for call in calls
+              if call.get("transport") == "native"
+              and (call.get("state") in ("reserved", "running") or history or recent(call.get("updated_at")))]
+    sessions = ({c.get("session") for c in calls} | {j.get("session") for j in shown}) - {None}
+    if not all_sessions and session:
+        sessions.add(session)
+    autonomy = {}
+    for sid in sorted(sessions):
+        try:
+            autonomy[sid] = store.autonomy_status(sid).get("enabled")
+        except DelegationError:
+            autonomy[sid] = None
+    return {"available": True, "default_enabled": overall.get("default_enabled"),
+            "autonomy": autonomy, "native": native}
 
 
 def unavailable(session, all_sessions=False, last_success_at=None):

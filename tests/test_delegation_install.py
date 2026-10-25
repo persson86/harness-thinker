@@ -9,7 +9,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILLS = ("thinker-delegate", "thinker-model-eval", "thinker-one-page", "thinker-product-view", "thinker-rea")
+SKILLS = ("thinker-delegate", "thinker-model-eval", "thinker-one-page", "thinker-product-view", "thinker-rea", "thinker-advisor", "thinker-reviewer")
 RULES = tuple(f"/.agents/skills/{skill}/" for skill in SKILLS) + ("/output/",)
 
 
@@ -107,6 +107,36 @@ class DelegationInstallTests(unittest.TestCase):
 
     def test_update_refuses_tracked_rea_skill_before_replacing_it(self):
         self.check_tracked_skill_preserved("thinker-rea")
+
+    def test_update_refuses_tracked_advisor_skill_before_replacing_it(self):
+        self.check_tracked_skill_preserved("thinker-advisor")
+
+    def test_update_refuses_tracked_reviewer_skill_before_replacing_it(self):
+        self.check_tracked_skill_preserved("thinker-reviewer")
+
+    def test_reinstall_preserves_autonomy_off_and_does_not_start_consultations(self):
+        with tempfile.TemporaryDirectory(prefix="consultation-install-") as directory:
+            root = Path(directory)
+            target, state = root / "vault", root / "private-state"
+            target.mkdir()
+            result = self.run_install(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            cli = ["python3", "-B", str(target / "harness/scripts/delegate.py"),
+                   "--vault", str(target), "--state-dir", str(state),
+                   "--session", "install-fixture", "--json"]
+            disabled = subprocess.run(cli + ["autonomy", "off", "--all"],
+                                      capture_output=True, text=True, check=True, timeout=15)
+            self.assertFalse(json.loads(disabled.stdout)["default_enabled"])
+            before = (state / "consultations.json").read_bytes()
+            result = self.run_install(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            status = subprocess.run(cli + ["autonomy", "status"],
+                                    capture_output=True, text=True, check=True, timeout=15)
+            value = json.loads(status.stdout)
+            self.assertFalse(value["enabled"])
+            self.assertEqual([], value["calls"])
+            self.assertEqual(before, (state / "consultations.json").read_bytes())
+            self.assertFalse((state / "jobs").exists())
 
     def check_tracked_skill_preserved(self, name):
         with tempfile.TemporaryDirectory(prefix="skill-install-") as directory:

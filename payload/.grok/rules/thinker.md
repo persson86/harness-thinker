@@ -50,9 +50,11 @@ Não traduza Luna/Terra/Sol para nomes Grok.
 
 ## Delegação opcional entre CLIs
 
+Advisor e Reviewer seguem a política comum `harness/operations/consult.md`: autonomia ligada por padrão com toggle por sessão/default/todas, pedidos explícitos sem religar autonomia, hard off preservado. Use admissão `consult admit/start/finish` antes/depois de consulta nativa, somente se o host oferecer o modelo e o spawn necessários; externos usam campos de consulta em `submit`. Não traduza identidades, não omita classificação e não prometa interceptação técnica do host.
+
 Siga a skill `thinker-delegate` e `harness/operations/delegate.md`. A extensão está disponível por padrão em sessões novas, sem spawn obrigatório e respeitando off explícito; a regra de ignorar roteamento Codex acima trata dos subagentes nativos, não impede chamada à CLI Codex pela extensão. Escolha explícita do usuário vence sessão e padrão. Git prefere execução determinística; não traduza Luna/Sonnet para modelos Grok. Registre a execução efetiva e consulte a inbox enquanto houver trabalhos da sessão. O principal preserva a coautoria e o escopo de publicação.
 
-Mesmo provedor do principal roda como agente nativo do host, sem `delegate.py` — no Claude Code, subagente com Opus, Sonnet, Fable ou Haiku; no Codex, Sol, Astra, Luna ou Terra. A extensão fica para outro provedor, `model-eval` e pedido explícito; detalhes em `harness/operations/delegate.md` > Mesmo provedor: agente nativo.
+Mesmo provedor do principal roda como agente nativo do host, sem `delegate.py submit` — no Claude Code, subagente com Opus, Sonnet, Fable ou Haiku; no Codex, Sol, Astra, Luna ou Terra. A extensão fica para outro provedor, `model-eval` e pedido explícito; detalhes em `harness/operations/delegate.md` > Mesmo provedor: agente nativo.
 
 Escalonamento: com a extensão ligada, peça por iniciativa própria uma revisão crítica de outro modelo quando um gatilho observável valer — aposta, irreversibilidade, evidência frágil ou travamento —, nunca pela própria sensação de confiança. Prefira outro provedor, brief às cegas e uma revisão por decisão; detalhes em `harness/operations/delegate.md` > Escalonamento para revisão crítica.
 

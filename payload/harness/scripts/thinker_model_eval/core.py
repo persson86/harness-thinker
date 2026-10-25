@@ -907,7 +907,8 @@ def run(vault, identifier, transport=None):
             _verify_environment(vault, manifest)
             _write(path / "trials.json", trials)
             try:
-                job = transport.call("submit", *arguments, "--prompt", prompt, "--timeout", str(manifest["timeout"]),
+                job = transport.call("submit", *arguments, "--initiation", "explicit",
+                                     "--prompt", prompt, "--timeout", str(manifest["timeout"]),
                                      "--reason", f"Frozen model evaluation {manifest['id']} trial {trial['id']}; no retry")
                 identifier_job = job.get("id")
                 if not isinstance(identifier_job, str) or str(uuid.UUID(identifier_job)) != identifier_job:

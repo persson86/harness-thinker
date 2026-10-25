@@ -29,6 +29,29 @@ commit the reviewed paths, create `v<VERSION>`, push branch and tag, then update
 target with `install.sh TARGET --update`. Verify target `harness/.version`, manifest,
 vault health and local/remote SHA parity. Publishing vault knowledge is a separate scope.
 
+## 7.23.0-rc.14: Advisor, Reviewer and autonomy controls
+
+The session principal is the **Orchestrator**. `$thinker-advisor` / `/thinker-advisor` requests advice from a native model in the same harness; `$thinker-reviewer` / `/thinker-reviewer` requests an independent review by a frontier model from another provider. If that provider is unavailable, a fresh native agent of the same harness (never a fork, never the Advisor) reviews as a declared fallback, admitted with `consult admit --consult-role reviewer --fallback "<observed unavailability>"`. Model and effort depend on the question, context, consequences and availability. An Advisor need not be a higher-ranked model. Both entrypoints support natural-language routing and share [one consultation policy](payload/harness/operations/consult.md).
+
+Autonomous consultations are enabled by default, within observable triggers and call limits. The autonomy toggle controls initiative, separately from the existing delegation hard off:
+
+```bash
+python3 harness/scripts/delegate.py autonomy status
+python3 harness/scripts/delegate.py autonomy off           # this session; explicit requests still work
+python3 harness/scripts/delegate.py autonomy on
+python3 harness/scripts/delegate.py autonomy off --default # future sessions; known sessions keep their settings
+python3 harness/scripts/delegate.py autonomy off --all     # all sessions and the default; old overrides revoked
+python3 harness/scripts/delegate.py autonomy off --cancel  # also request cancellation of automatic work
+```
+
+Autonomy off governs every automatic extension submission, including generic delegation without a consultation role; such work needs an explicit request. An explicit request does not re-enable autonomy. Automatic work waiting to start is invalidated when autonomy is disabled; already started work continues unless cancellation is requested. Session/provider call limits and concurrency include admitted native consultations and external jobs. The initial automatic allowance is one Advisor and one Reviewer per delivery, including failed or cancelled attempts. Keep the same delivery ID across models and retries; another requested round must be explicit and still fits the remaining session/provider limits. Limits are not subscription quota or a guaranteed monetary budget.
+
+Native consultations use `consult admit`, `consult start` immediately before host spawn, and `consult finish` after a real return. External submissions carry `--consult-role`, `--delivery` and `--initiation auto|explicit`, separate from run roles. **Native admission is a cooperative protocol, not interception of every host tool.** The CLI does not start or cancel a native agent; the principal must use the host controls and report only confirmed outcomes. Legacy unlabeled submissions still work, but omitted initiative means automatic and cannot bypass autonomy off. Per-role budgeting requires correct classification by the principal.
+
+`board --json` exposes consultation roles on jobs and a `consultations` block (native admissions and autonomy per session), so dashboards such as Agents Monitor can show Orchestrator, Advisor and Reviewer without reading private state files.
+
+Installation and status do not launch models or reset existing off settings. Deterministic tests cover admission, queue/preflight races, shared budgets, explicit one-shot requests, retries, installation and persisted controls. Behavioral cases exercise the instruction contract; they do not prove automatic skill discovery in every host, universal bias removal, savings or improved model quality.
+
 ## 7.23.0-rc.13: Software investigation for Claude Code and Codex
 
 Ask naturally to understand a repository, investigate a system or explain a feature. `/thinker-rea` in Claude Code and `$thinker-rea` in Codex use [one investigation method](payload/harness/operations/rea.md), with natural-language routing in both adapters and implicit invocation enabled in Codex metadata. The question determines scope, evidence and depth; a narrow question can receive a short answer.

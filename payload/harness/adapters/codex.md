@@ -17,6 +17,8 @@ Este adaptador define como o Codex deve operar o second-brain sem depender dos h
 
 ## Subagentes nativos e modelo forte
 
+As skills `thinker-advisor` e `thinker-reviewer` admitem ativação implícita, sujeita à política de `harness/operations/consult.md`. Autonomia ligada permite consultas justificadas; desligada preserva somente pedidos explícitos. Antes de spawn nativo, consulte o estado e execute `consult admit/start`; após o evento real de retorno registre `consult finish`. A admissão da CLI não chama nem intercepta `spawn_agent`: é protocolo cooperativo obrigatório, com limitação explícita de enforcement. O desligamento não prova cancelamento de agentes já iniciados; use os controles do host. Não trocar papel, entrega ou transporte para recuperar orçamento. Reviewer de fallback (Claude indisponível): `spawn_agent` novo, sem copiar o histórico da conversa, com Astra, Sol ou outro modelo; nunca reutilizar o agente que atuou como Advisor.
+
 Quando o usuario pedir analise profunda, usar `harness/operations/deep.md`.
 
 No Codex, subagentes so devem ser usados quando a plataforma permitir e as regras ativas autorizarem. Modelo e esforco podem ser escolhidos por tarefa quando a interface expuser essa capacidade; uma escolha explicita do usuario nunca e substituida silenciosamente. Se ela estiver indisponivel, informe a limitacao e devolva a decisao. Sem escolha explicita, a ausencia de subagente permite execucao local com o maior rigor possivel.

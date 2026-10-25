@@ -1,0 +1,6 @@
+interface:
+  display_name: "Reviewer: revisão independente"
+  short_description: "Contestar propostas com um modelo de outro harness"
+  default_prompt: "Use $thinker-reviewer para pedir uma revisão independente desta proposta ou entrega e verificar as objeções antes de integrar."
+policy:
+  allow_implicit_invocation: true

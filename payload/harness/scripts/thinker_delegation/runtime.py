@@ -43,6 +43,9 @@ REPORTED_SOURCES = {"stream", "not_emitted", "not_emitted_ephemeral"}
 MAX_CALL_CAP = 64
 DEFAULT_SESSION_CALL_CAP = 6
 DEFAULT_PROVIDER_CALL_CAP = 4
+# A native consultation without a reported finish stops holding a concurrency
+# slot after this age. It is a record, not evidence that the host stopped it.
+NATIVE_CONSULT_STALE_SECONDS = 2 * 60 * 60
 INFRASTRUCTURE_FAILURES = {
     "provider_limit", "authentication_failed", "connection_failed",
     "environment_blocked", "cli_incompatible", "model_unavailable",
@@ -317,6 +320,272 @@ class DelegationStore:
                     _call_cap(settings[key], key)
         return value
 
+    def _consultations(self):
+        value = _read(self.state / "consultations.json", {"schema": 1, "default_enabled": True,
+                                                        "sessions": {}, "calls": {}})
+        if (not isinstance(value, dict) or set(value) != {"schema", "default_enabled", "sessions", "calls"}
+                or value["schema"] != 1 or type(value["default_enabled"]) is not bool
+                or not isinstance(value["sessions"], dict) or not isinstance(value["calls"], dict)):
+            raise DelegationError("Malformed consultation state; consultations are disabled")
+        for sid, enabled in value["sessions"].items():
+            _identifier(sid)
+            if type(enabled) is not bool:
+                raise DelegationError("Malformed consultation session setting")
+        for identifier, call in value["calls"].items():
+            _job_id(identifier)
+            if (not isinstance(call, dict) or call.get("id") != identifier
+                    or call.get("transport") not in {"native", "external"}
+                    or call.get("initiation") not in {"auto", "explicit"}
+                    or call.get("consult_role") not in {"advisor", "reviewer"}
+                    or call.get("state") not in {"reserved", "running", "completed", "failed", "cancelled"}
+                    or type(call.get("cancel_requested")) is not bool):
+                raise DelegationError("Malformed consultation call")
+            _identifier(call.get("session"))
+            for field in ("delivery", "provider", "model", "reason"):
+                _safe_text(call.get(field), field, 1000)
+            if "started_at" in call:
+                try:
+                    started = dt.datetime.fromisoformat(call["started_at"].replace("Z", "+00:00"))
+                except (AttributeError, TypeError, ValueError):
+                    raise DelegationError("Malformed consultation start time") from None
+                if started.tzinfo is None:
+                    raise DelegationError("Malformed consultation start time")
+        return value
+
+    def _consultations_or_none(self):
+        # Finalization, preflight and hard off must not stall on a damaged
+        # consultation file; new admissions still fail closed through _consultations().
+        try:
+            return self._consultations()
+        except DelegationError:
+            return None
+
+    @staticmethod
+    def _native_stale(call):
+        if call["transport"] != "native" or call["state"] != "running" or not call.get("started_at"):
+            return False
+        started = dt.datetime.fromisoformat(call["started_at"].replace("Z", "+00:00"))
+        return (dt.datetime.now(dt.timezone.utc) - started).total_seconds() > NATIVE_CONSULT_STALE_SECONDS
+
+    def _native_running(self, value):
+        if value is None:
+            return 0
+        return sum(call["transport"] == "native" and call["state"] == "running" and not self._native_stale(call)
+                   for call in value["calls"].values())
+
+    def _autonomy_enabled(self, config, value, session):
+        return (self._session_enabled(config, session)
+                and config["sessions"].get(session, {}).get("mode", "auto") == "auto"
+                and value["sessions"].get(session, value["default_enabled"]))
+
+    def autonomy_status(self, session=None):
+        """Read-only, including on a fresh installation. No host process is observed."""
+        if session is not None:
+            _identifier(session)
+        config, value = self._config(), self._consultations_or_none()
+        if value is None:
+            # Diagnosis must stay readable; automatic work is already failing closed.
+            return {"session": session, "default_enabled": None, "enabled": False if session else None,
+                    "configured_enabled": None, "consultations_damaged": True,
+                    "delegation_enabled": self._session_enabled(config, session) if session else config["enabled"],
+                    "session_override": None, "calls": [], "automatic_calls_per_role_per_delivery": 1,
+                    "native_enforcement": "cooperative_host_protocol_not_host_tool_block",
+                    "native_cancellation": "request_host_and_confirm_separately", "cost": None,
+                    "message": "Consultation state is damaged: new admissions and automatic launches are blocked."}
+        calls = [dict(call) for call in value["calls"].values()
+                 if session is None or call["session"] == session]
+        # External terminal state is authoritative in its existing job record.
+        for call in calls:
+            if call["transport"] == "external":
+                job = _read(self.state / "jobs" / call["id"] / "job.json", {})
+                if job:
+                    call["state"] = job.get("state", call["state"])
+                    call["cancel_requested"] = bool(job.get("cancel_requested"))
+            elif self._native_stale(call):
+                call["stale"] = True
+        return {"session": session, "default_enabled": value["default_enabled"],
+                "enabled": self._autonomy_enabled(config, value, session) if session else None,
+                "configured_enabled": value["sessions"].get(session, value["default_enabled"]),
+                "delegation_enabled": self._session_enabled(config, session) if session else config["enabled"],
+                "session_override": session in value["sessions"], "calls": calls,
+                "automatic_calls_per_role_per_delivery": 1,
+                "native_enforcement": "cooperative_host_protocol_not_host_tool_block",
+                "native_cancellation": "request_host_and_confirm_separately",
+                "cost": None}
+
+    def set_autonomy(self, session, enabled, scope="session", cancel=False):
+        _require_parent()
+        if type(enabled) is not bool or type(cancel) is not bool or scope not in {"session", "default", "all"}:
+            raise DelegationError("Invalid autonomy setting")
+        if scope == "session":
+            _identifier(session)
+        if cancel and (enabled or scope == "default"):
+            raise DelegationError("--cancel applies only to disabling a session or all sessions")
+        with self._lock():
+            config, value = self._config(), self._consultations()
+            if scope == "default":
+                # A session becomes known through an admission or explicit setting.
+                # Preserve all other known extension sessions when changing the default.
+                known = set(config["sessions"]) | {call["session"] for call in value["calls"].values()}
+                known |= {_read(path).get("session") for path in self._paths()}
+                for sid in known - {None}:
+                    value["sessions"].setdefault(sid, value["default_enabled"])
+                value["default_enabled"] = enabled
+            elif scope == "all":
+                value["default_enabled"] = enabled
+                value["sessions"] = {}
+                if enabled:
+                    for setting in config["sessions"].values():
+                        setting["mode"] = "auto"
+                    _atomic(self.state / "config.json", config)
+            else:
+                value["sessions"][session] = enabled
+                # An explicit session ON is also an explicit choice of the
+                # initiative mode, without reviving a hard-disabled session.
+                if enabled and session in config["sessions"]:
+                    config["sessions"][session]["mode"] = "auto"
+                    _atomic(self.state / "config.json", config)
+            if not enabled and scope != "default":
+                for call in value["calls"].values():
+                    if (scope == "session" and call["session"] != session) or call["initiation"] != "auto":
+                        continue
+                    if call["state"] == "reserved":
+                        call.update(state="cancelled", updated_at=_now())
+                    if cancel and call["state"] == "running":
+                        call.update(cancel_requested=True, updated_at=_now())
+                # Legacy queued jobs also cannot bypass the new control by
+                # omitting consultation labels. Running jobs finish normally.
+                for path in self._paths():
+                    job = _read(path)
+                    # Jobs from before rc.14 carry no initiation and no
+                    # provider_started; a running one has already launched.
+                    started = job.get("provider_started", "initiation" not in job)
+                    if ((scope == "all" or job["session"] == session)
+                            and job.get("initiation", "auto") == "auto"
+                            and (job["state"] == "queued" or
+                                 (job["state"] == "running" and (cancel or not started)))):
+                        job["cancel_requested"] = "autonomy off"
+                        _atomic(path, job)
+            _atomic(self.state / "consultations.json", value)
+        result = self.autonomy_status(session if scope == "session" else None)
+        result.update(scope=scope, message="Autonomy updated; already started calls continue unless cancellation was requested.")
+        return result
+
+    def _check_initiation_locked(self, config, value, session, initiation):
+        if initiation not in {"auto", "explicit"}:
+            raise DelegationError("Initiation must be auto or explicit")
+        if not self._session_enabled(config, session):
+            raise DelegationError("Delegation is OFF for this session")
+        if initiation == "auto" and not self._autonomy_enabled(config, value, session):
+            raise DelegationError("Autonomy is OFF; an explicit user request is required")
+
+    def _external_unavailable(self, call):
+        # Only an observed provider/infrastructure failure frees the Reviewer
+        # slot for a same-provider fallback; a cancelled or invalid review does not.
+        if call["transport"] != "external":
+            return False
+        job = _read(self.state / "jobs" / call["id"] / "job.json", {})
+        return (job.get("state") == "timed_out"
+                or (job.get("state") == "failed" and job.get("error_code") in
+                    (INFRASTRUCTURE_FAILURES - {"invalid_provider_output"})
+                    | {"provider_command_failed", "adapter_preflight_failed"}))
+
+    def _new_consultation_locked(self, config, value, session, identifier, role, delivery,
+                                 initiation, provider, model, reason, transport, principal_provider=None,
+                                 fallback=None):
+        self._check_initiation_locked(config, value, session, initiation)
+        if role not in {"advisor", "reviewer"} or transport not in {"native", "external"}:
+            raise DelegationError("Invalid consultation role or transport")
+        if fallback is not None and (role != "reviewer" or transport != "native"):
+            raise DelegationError("Fallback applies only to a native Reviewer when the other provider is unavailable")
+        if (role == "advisor" and transport != "native") or (role == "reviewer" and transport != "external"
+                                                             and fallback is None):
+            raise DelegationError("Advisor requires native admission; Reviewer requires external submission "
+                                  "or a declared --fallback")
+        fields = {key: _safe_text(item, key, 1000) for key, item in
+                  {"delivery": delivery, "provider": provider, "model": model, "reason": reason}.items()}
+        if fallback is not None:
+            fields["fallback_reason"] = _safe_text(fallback, "fallback", 1000)
+        if principal_provider is not None:
+            if principal_provider not in {"codex", "claude", "grok"}:
+                raise DelegationError("Unknown declared principal provider")
+            if ((role == "advisor" and provider != principal_provider)
+                    or (role == "reviewer" and fallback is None and provider == principal_provider)):
+                raise DelegationError("Advisor requires the same provider; Reviewer requires another provider")
+            if transport == "native" and provider != principal_provider:
+                raise DelegationError("A native consultation must use the host provider; use external submission for Reviewer")
+        prior = [call for call in value["calls"].values()
+                 if call["session"] == session and call["delivery"] == delivery
+                 and call["consult_role"] == role and call["initiation"] == "auto"]
+        if initiation == "auto" and fallback is not None:
+            if any(call.get("fallback_reason") for call in prior):
+                raise DelegationError("Automatic Reviewer fallback already used for this delivery")
+            if not all(self._external_unavailable(call) for call in prior):
+                raise DelegationError("Automatic consultation budget reached for this role and delivery")
+        elif initiation == "auto" and prior:
+            raise DelegationError("Automatic consultation budget reached for this role and delivery")
+        value["sessions"].setdefault(session, value["default_enabled"])
+        call = {"id": identifier, "session": session, "consult_role": role, **fields,
+                "initiation": initiation, "transport": transport, "state": "reserved",
+                "cancel_requested": False, "created_at": _now(), "updated_at": _now(),
+                "provider_relationship": "checked_declared" if principal_provider else "unknown"}
+        if role == "reviewer":
+            call["independence"] = "same_provider_fallback" if fallback is not None else "cross_provider"
+        value["calls"][identifier] = call
+        return call
+
+    def admit_consultation(self, session, role, delivery, initiation, provider, model, reason,
+                           principal_provider=None, fallback=None):
+        """Reserve a native call; this never creates or starts an agent."""
+        _require_parent()
+        _identifier(session)
+        with self._lock():
+            config, value = self._config(), self._consultations()
+            self._enforce_call_budget_locked(config, session, provider)
+            identifier = str(uuid.uuid4())
+            call = self._new_consultation_locked(config, value, session, identifier, role, delivery,
+                                                 initiation, provider, model, reason, "native", principal_provider,
+                                                 fallback)
+            _atomic(self.state / "consultations.json", value)
+        return call
+
+    def start_consultation(self, session, identifier):
+        _require_parent()
+        _identifier(session)
+        _job_id(identifier)
+        with self._lock():
+            config, value = self._config(), self._consultations()
+            call = value["calls"].get(identifier)
+            if not call or call["session"] != session or call["transport"] != "native" or call["state"] != "reserved":
+                raise DelegationError("Native consultation is not reserved for this session")
+            self._check_initiation_locked(config, value, session, call["initiation"])
+            running = self._native_running(value)
+            running += sum(self._recover_locked(_read(path))["state"] == "running" for path in self._paths())
+            if running >= config["concurrency"]:
+                raise DelegationError("Consultation concurrency limit reached; wait before starting")
+            call.update(state="running", started_at=_now(), updated_at=_now())
+            _atomic(self.state / "consultations.json", value)
+        return call
+
+    def finish_consultation(self, session, identifier, state):
+        _require_parent()
+        _identifier(session)
+        _job_id(identifier)
+        if state not in {"completed", "failed", "cancelled"}:
+            raise DelegationError("A terminal consultation state is required")
+        with self._lock():
+            value = self._consultations()
+            call = value["calls"].get(identifier)
+            if not call or call["session"] != session or call["transport"] != "native":
+                raise DelegationError("Native consultation does not belong to this session")
+            if call["state"] in {"completed", "failed", "cancelled"} and call["state"] != state:
+                raise DelegationError("Native consultation already has another terminal state")
+            if call["state"] == "reserved" and state == "completed":
+                raise DelegationError("A reserved consultation cannot complete before reported start")
+            call.update(state=state, updated_at=_now())
+            _atomic(self.state / "consultations.json", value)
+        return call
+
     def status(self, session=None):
         if session is not None:
             _identifier(session)
@@ -450,10 +719,13 @@ class DelegationStore:
     def _enforce_call_budget_locked(self, config, session, provider):
         session_cap, provider_cap = self._limits(config, session)
         jobs = [_read(path) for path in self._paths()]
-        if sum(job.get("session") == session for job in jobs) >= session_cap:
+        natives = [call for call in self._consultations()["calls"].values() if call["transport"] == "native"]
+        if (sum(job.get("session") == session for job in jobs)
+                + sum(call["session"] == session for call in natives)) >= session_cap:
             raise DelegationError("Session call cap reached; raise the configured cap before another call")
-        if sum(job.get("session") == session and job.get("profile", {}).get("provider") == provider
-               for job in jobs) >= provider_cap:
+        if (sum(job.get("session") == session and job.get("profile", {}).get("provider") == provider
+                for job in jobs) + sum(call["session"] == session and call["provider"] == provider
+                                     for call in natives)) >= provider_cap:
             raise DelegationError("Provider call cap reached for this session; raise the configured cap before another call")
 
     def _cancel_locked(self, session, reason):
@@ -463,6 +735,23 @@ class DelegationStore:
                 job["cancel_requested"] = reason
                 job["updated_at"] = _now()
                 _atomic(path, job)
+        consultations = self._consultations_or_none()
+        if consultations is None:
+            return
+        changed = False
+        for call in consultations["calls"].values():
+            if call["transport"] != "native" or (session is not None and call["session"] != session):
+                continue
+            if call["state"] == "reserved":
+                call.update(state="cancelled", cancel_requested=True, updated_at=_now())
+                changed = True
+            elif call["state"] == "running":
+                # Only the host can stop a native process. Preserve running
+                # until the principal reports an observed terminal state.
+                call.update(cancel_requested=True, updated_at=_now())
+                changed = True
+        if changed:
+            _atomic(self.state / "consultations.json", consultations)
 
     def _source(self, value):
         relative = Path(value)
@@ -537,7 +826,8 @@ class DelegationStore:
     def submit(self, session, profile, task, context_paths=(), timeout=300,
                model_source="session", retry_of=None, reason="", task_type="review",
                run_id=None, stage=None, role=None, parent_job=None, handoff=None,
-               retry_reason=None, routing=None):
+               retry_reason=None, routing=None, consult_role=None, delivery=None,
+               initiation="auto", principal_provider=None):
         _require_parent()
         _identifier(session)
         if not self.status(session)["enabled"]:
@@ -553,6 +843,8 @@ class DelegationStore:
         except (ValueError, TypeError):
             raise DelegationError("Profile must be JSON serializable") from None
         provider = self._provider(profile)
+        if (consult_role is None) != (delivery is None):
+            raise DelegationError("Consultation role and delivery must be supplied together")
         if retry_reason is not None:
             retry_reason = _retry_reason(retry_reason)
         routing = _routing(routing)
@@ -571,6 +863,9 @@ class DelegationStore:
                "transport_success": None, "validation": "pending",
                "acceptance": "pending", "feedback": "unknown", "acknowledged": False,
                "limitations": ["Completion requires polling; no native host wakeup is promised."]}
+        job["initiation"] = initiation
+        if consult_role is not None:
+            job.update(consult_role=consult_role, delivery=delivery, principal_provider=principal_provider)
         if routing is not None:
             job["routing"] = routing
         if run_id is not None:
@@ -589,6 +884,8 @@ class DelegationStore:
             config = self._config()
             if not self._session_enabled(config, session):
                 raise DelegationError("Delegation was disabled before submission")
+            consultations = self._consultations()
+            self._check_initiation_locked(config, consultations, session, initiation)
             self._enforce_call_budget_locked(config, session, provider)
             if retry_reason is None and self._failed_request_locked(request_fingerprint):
                 raise DelegationError("An identical failed attempt requires an explicit diagnostic retry reason")
@@ -614,6 +911,12 @@ class DelegationStore:
                         raise DelegationError("Parent must be a valid completed job from the previous stage")
                     if handoff == "full":
                         raise DelegationError("Later stages require delta or synthesis handoff")
+            if consult_role is not None:
+                self._new_consultation_locked(config, consultations, session, identifier, consult_role,
+                                              delivery, initiation, provider, profile["model"], reason,
+                                              "external", principal_provider)
+            else:
+                consultations["sessions"].setdefault(session, consultations["default_enabled"])
             if retry_of is not None:
                 original = self._get_locked(retry_of)
                 if original["state"] not in TERMINAL:
@@ -648,6 +951,8 @@ class DelegationStore:
             prompt_path = workspace / "prompt.txt"
             prompt_path.write_text(prompt, encoding="utf-8")
             prompt_path.chmod(0o600)
+            # Reserve first: a crash between writes leaves a counted call, never an uncounted job.
+            _atomic(self.state / "consultations.json", consultations)
             _atomic(directory / "job.json", job)
         try:
             launcher = subprocess.Popen([sys.executable, "-B", str(Path(__file__).resolve()), "--detach",
@@ -692,7 +997,8 @@ class DelegationStore:
                 any(profile.get(key) is not None and not isinstance(profile[key], str)
                     for key in ("model", "provider", "effort", "requested_profile"))):
             raise DelegationError("Malformed delegation profile state")
-        for key in ("validation", "acceptance", "feedback", "task_type", "requested_profile", "role"):
+        for key in ("validation", "acceptance", "feedback", "task_type", "requested_profile", "role",
+                    "consult_role", "delivery", "initiation"):
             if job.get(key) is not None and not isinstance(job[key], str):
                 raise DelegationError("Malformed delegation display state")
         timeout = job.get("timeout")
@@ -702,7 +1008,7 @@ class DelegationStore:
                   "feedback", "acknowledged", "transport_success", "timeout", "task_type",
                   "reason", "created_at", "started_at", "finished_at", "profile",
                   "requested_profile", "run_id", "stage", "role", "retry_of",
-                  "cancel_requested")
+                  "cancel_requested", "consult_role", "delivery", "initiation")
         view = {field: job.get(field) for field in fields}
         view["model_reported"], view["model_reported_source"] = reported_view(job)
         return view
@@ -939,7 +1245,8 @@ class DelegationStore:
                 _atomic(self.state / "jobs" / identifier / "job.json", job)
         return self.get(identifier)
 
-    def retry(self, identifier, session=None, reason=None, retry_reason=None, routing=None):
+    def retry(self, identifier, session=None, reason=None, retry_reason=None, routing=None,
+              initiation="auto", principal_provider=None):
         _require_parent()
         if reason is not None and retry_reason is not None:
             raise DelegationError("Specify one diagnostic retry reason")
@@ -954,7 +1261,10 @@ class DelegationStore:
                            run_id=job.get("run_id"), stage=job.get("stage"), role=job.get("role"),
                            parent_job=job.get("parent_job"), handoff=job.get("handoff"),
                            retry_reason=override,
-                           routing=routing if routing is not None else job.get("routing"))
+                           routing=routing if routing is not None else job.get("routing"),
+                           consult_role=job.get("consult_role"), delivery=job.get("delivery"),
+                           initiation=initiation,
+                           principal_provider=principal_provider if principal_provider is not None else job.get("principal_provider"))
 
     def _finish(self, identifier, state, **fields):
         with self._lock():
@@ -967,6 +1277,11 @@ class DelegationStore:
             job.update(fields)
             job.update(state=state, updated_at=_now(), finished_at=_now())
             _atomic(self.state / "jobs" / identifier / "job.json", job)
+            consultations = self._consultations_or_none()
+            if consultations is not None and identifier in consultations["calls"]:
+                consultations["calls"][identifier].update(
+                    state=state if state in {"completed", "cancelled"} else "failed", updated_at=_now())
+                _atomic(self.state / "consultations.json", consultations)
             return job
 
     def acknowledge(self, identifier):
@@ -1306,8 +1621,14 @@ def _work_owned(store, identifier, directory):
                     return 0
                 config = store._config()
                 off = not store._session_enabled(config, job["session"])
-                cancel = job.get("cancel_requested") or off
+                consultations = store._consultations_or_none()
+                # Damaged consultation state: automatic work fails closed, explicit work proceeds.
+                auto_off = (job.get("initiation", "auto") == "auto"
+                            and (consultations is None
+                                 or not store._autonomy_enabled(config, consultations, job["session"])))
+                cancel = job.get("cancel_requested") or off or auto_off
                 running = sum(store._recover_locked(_read(path))["state"] == "running" for path in store._paths())
+                running += store._native_running(consultations)
                 if not cancel and running < config["concurrency"]:
                     job.update(state="running", started_at=_now(), updated_at=_now(), supervisor_pid=os.getpid())
                     _atomic(directory / "job.json", job)
@@ -1331,12 +1652,20 @@ def _work_owned(store, identifier, directory):
                 current = store._get_locked(identifier)
                 config = store._config()
                 cancelled = current.get("cancel_requested") or not store._session_enabled(config, job["session"])
+                consultations = store._consultations_or_none()
+                cancelled = cancelled or (job.get("initiation", "auto") == "auto"
+                                          and (consultations is None
+                                               or not store._autonomy_enabled(config, consultations, job["session"])))
                 if not cancelled:
                     current["profile"] = job["profile"]
-                    _atomic(directory / "job.json", current)
                     process = subprocess.Popen(command, cwd=workspace, env=environment,
                                                stdin=prompt, stdout=output, stderr=errors,
                                                start_new_session=True, close_fds=True)
+                    current["provider_started"] = True
+                    _atomic(directory / "job.json", current)
+                    if consultations is not None and identifier in consultations["calls"]:
+                        consultations["calls"][identifier].update(state="running", started_at=_now(), updated_at=_now())
+                        _atomic(store.state / "consultations.json", consultations)
             if cancelled:
                 store._finish(identifier, "cancelled", error="Cancelled during preflight; provider was not launched")
                 return 0
