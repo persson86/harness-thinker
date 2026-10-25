@@ -75,6 +75,7 @@ Use `harness/operations/<op>.md` como playbook canônico:
 - `handoff` — compacta o estado de uma tarefa longa em bloco copiável para retomar em nova sessão ou outro agente; não gera página nem log.
 - `one-page` — página de contexto para colegas lerem em dois minutos: tese, filtro da sala, hipóteses por lente; mostra na tela, rascunho em `drafts/`, exporta só quando pedido; não gera página nem log.
 - `product-view`: visão de produto e negócio para material profissional: problema/oportunidade, direção e proposta de valor considerando o papel atual do usuário; `/thinker-product-view`, análise na conversa sem escrita por padrão.
+- `rea`: pedidos naturais para entender um repo, investigar um sistema ou explicar uma funcionalidade seguem `harness/operations/rea.md`; `/thinker-rea` é a entrada explícita. A pergunta determina profundidade; consulta pontual admite resposta direta, ferramentas especializadas são opcionais e investigar não instala dependências nem altera o alvo por inferência.
 - `memory` — Claude-only, memória viva em `~/.claude/projects/<este-vault>/memory/`.
 
 ## Índice e log

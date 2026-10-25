@@ -36,6 +36,8 @@ Pedidos de One Page, one-pager ou material de contexto para colegas seguem a ski
 
 ## Deltas Codex
 
+Pedidos para entender um repositório, investigar um sistema ou explicar uma funcionalidade seguem a skill `thinker-rea` e `harness/operations/rea.md`. A pergunta determina evidências e profundidade; consulta pontual admite resposta direta. Ferramentas especializadas são opcionais; investigar não instala dependências nem altera o alvo por inferência.
+
 Pedidos de `thinker-product-view` ou de orientação com visão de produto e negócio seguem a skill `thinker-product-view` e `harness/operations/product-view.md`: problema/oportunidade, direção e proposta de valor considerando o papel atual do usuário. Análise na conversa por padrão, sem ingestão ou escrita automática; material para colegas segue One Page quando pedido.
 
 Codex não executa MEMORY nem escreve em `.claude/memory/`; isso é snapshot do Claude Code. Persistência de preferência do Codex depende deste adaptador e de decisão explícita do usuário.

@@ -6,6 +6,7 @@ Este adaptador registra o estado atual do Claude Code. Nesta fase, ele e preserv
 
 - `CLAUDE.md`: constituicao do agente Claude.
 - `.claude/commands/`: playbooks acionados por slash commands.
+- `/thinker-rea` e pedidos naturais para entender repositórios, sistemas ou funcionalidades: `harness/operations/rea.md`, compartilhado com a skill Codex `thinker-rea`. Consultas simples admitem resposta direta; profundidade e evidência seguem a pergunta.
 - `.claude/hooks/`: enforcement mecanico.
 - `.claude/settings.json`: wiring de permissoes e hooks.
 - `.claude/scripts/build-index.py`: gerador e verificador do indice.

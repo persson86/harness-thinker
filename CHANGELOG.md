@@ -1,5 +1,11 @@
 # Changes
 
+## 7.23.0-rc.13 - 2026-10-25 (laboratory candidate)
+
+- **REA.** Shared software-investigation method for natural requests to understand a repository, system or feature. Evidence is selected by the claim being supported, combining source, configuration, artifact identity and observed execution as needed. Implementation, runtime behavior and historical intent remain distinct; the question controls depth and stopping.
+- **Claude Code and Codex.** `/thinker-rea` and `$thinker-rea` use `harness/operations/rea.md`, with natural-language routing in both adapters and implicit invocation enabled in Codex metadata. Specialized tools are optional; investigation does not install dependencies, mutate targets or publish knowledge by implication.
+- **Validation.** Installation checks cover both entrypoints, byte parity, ignore migration and tracked-skill preservation. Behavioral cases cover stale documentation, incomplete web observations, mismatched versions, proportionality and host discovery; successful cases do not by themselves establish incremental quality or automatic activation in every host session.
+
 ## 7.23.0-rc.12 - 2026-10-23 (laboratory candidate)
 
 - **Product View.** `thinker-product-view` adds a shared operation for professional material: formulate a problem or opportunity, read business value and constraints, recommend a direction with alternatives and revision conditions, and derive the user's next contribution. Role and priorities come from the target vault at runtime; no personal profile or client data is shipped.

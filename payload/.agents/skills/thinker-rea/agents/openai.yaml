@@ -1,0 +1,6 @@
+interface:
+  display_name: "REA: investigação de software"
+  short_description: "Entender sistemas e funcionalidades com evidências"
+  default_prompt: "Use $thinker-rea para investigar este repositório, sistema ou funcionalidade e explicar seu funcionamento com evidências e limites."
+policy:
+  allow_implicit_invocation: true

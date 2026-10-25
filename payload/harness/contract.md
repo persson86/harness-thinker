@@ -143,6 +143,8 @@ Operacoes comuns: `ingest`, `inbox`, `query`, `review`, `lint`, `update`, `feed`
 
 `product-view` orienta entendimento de problema/oportunidade, direcao de produto e negocio e proposta de valor a partir de material profissional e do papel atual do usuario. A analise aparece na conversa por padrao, sem escrita, ingestao ou nova operacao no log. Rascunho solicitado vai para `drafts/product-view/`, exportacao solicitada para `output/product-view-<slug>/`; conhecimento duravel e material compartilhavel seguem suas operacoes proprias.
 
+`rea` investiga repositorios, sistemas e funcionalidades existentes conforme a pergunta e as evidencias disponiveis. A analise aparece na conversa por padrao, sem pagina, log ou indice automaticos. Texto solicitado vai para `drafts/rea/`; capturas, relatorios e outros artefatos gerados vao para `output/rea-<slug>/`. Investigacao nao amplia autorizacao para instalar ferramentas, alterar o alvo, reconstruir ou publicar; autorizacoes existentes continuam validas no escopo concedido.
+
 ## Gates de Encerramento
 
 Antes de concluir operacao que muda conhecimento duravel:

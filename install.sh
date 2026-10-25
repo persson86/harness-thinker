@@ -157,7 +157,7 @@ scaffold_vault() {
 # nem trocar o .gitignore que o usuário já mantém.
 ensure_generated_skills_ignored() {
   local ignore="$TARGET/.gitignore" tracked rule skill
-  local skills=("thinker-delegate" "thinker-model-eval" "thinker-one-page" "thinker-product-view")
+  local skills=("thinker-delegate" "thinker-model-eval" "thinker-one-page" "thinker-product-view" "thinker-rea")
   if [ -L "$ignore" ]; then
     echo "error: .gitignore do target não pode ser symlink." >&2
     exit 1

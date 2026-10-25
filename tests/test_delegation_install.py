@@ -9,7 +9,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILLS = ("thinker-delegate", "thinker-model-eval", "thinker-one-page", "thinker-product-view")
+SKILLS = ("thinker-delegate", "thinker-model-eval", "thinker-one-page", "thinker-product-view", "thinker-rea")
 RULES = tuple(f"/.agents/skills/{skill}/" for skill in SKILLS) + ("/output/",)
 
 
@@ -103,9 +103,15 @@ class DelegationInstallTests(unittest.TestCase):
             self.assertEqual("# custom\n", (target / ".gitignore").read_text(encoding="utf-8"))
 
     def test_update_refuses_tracked_product_view_skill_before_replacing_it(self):
-        with tempfile.TemporaryDirectory(prefix="product-view-install-") as directory:
+        self.check_tracked_skill_preserved("thinker-product-view")
+
+    def test_update_refuses_tracked_rea_skill_before_replacing_it(self):
+        self.check_tracked_skill_preserved("thinker-rea")
+
+    def check_tracked_skill_preserved(self, name):
+        with tempfile.TemporaryDirectory(prefix="skill-install-") as directory:
             target = Path(directory) / "vault"
-            relative = ".agents/skills/thinker-product-view/SKILL.md"
+            relative = f".agents/skills/{name}/SKILL.md"
             skill = target / relative
             skill.parent.mkdir(parents=True)
             skill.write_text("user-owned product view\n", encoding="utf-8")
@@ -118,9 +124,9 @@ class DelegationInstallTests(unittest.TestCase):
 
             result = self.run_install(target)
             self.assertNotEqual(0, result.returncode)
-            self.assertIn("thinker-product-view", result.stderr)
+            self.assertIn(name, result.stderr)
             self.assertEqual("user-owned product view\n", skill.read_text(encoding="utf-8"))
-            self.assertFalse((target / ".claude/commands/thinker-product-view.md").exists())
+            self.assertFalse((target / f".claude/commands/{name}.md").exists())
             self.assertEqual("# custom\n", (target / ".gitignore").read_text(encoding="utf-8"))
 
     def test_settings_merge_preserves_custom_statusline_permissions_and_hooks_twice(self):

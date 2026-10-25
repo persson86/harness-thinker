@@ -14,7 +14,7 @@ payload/           # what gets installed 1:1 into the target
   harness/         #   contract + operations/ + adapters/ + scripts/verify.sh
   .claude/         #   commands/ hooks/ scripts/build-index.py settings.json
   .grok/           #   Grok Build rules, hook shim, memory-skill shadow
-  .agents/         #   Codex skills, including One Page and Product View
+  .agents/         #   Codex skills, including One Page, Product View and REA
 templates/vault/   # scaffold for a new vault (--init)
 ```
 
@@ -28,6 +28,12 @@ For a harness change: run `bash tests/run.sh`, increment `VERSION`, document the
 commit the reviewed paths, create `v<VERSION>`, push branch and tag, then update the
 target with `install.sh TARGET --update`. Verify target `harness/.version`, manifest,
 vault health and local/remote SHA parity. Publishing vault knowledge is a separate scope.
+
+## 7.23.0-rc.13: Software investigation for Claude Code and Codex
+
+Ask naturally to understand a repository, investigate a system or explain a feature. `/thinker-rea` in Claude Code and `$thinker-rea` in Codex use [one investigation method](payload/harness/operations/rea.md), with natural-language routing in both adapters and implicit invocation enabled in Codex metadata. The question determines scope, evidence and depth; a narrow question can receive a short answer.
+
+The method connects findings to source, configuration, versioned artifacts or execution observations and separates implementation, behavior and historical intent. REA, Repomix and specialized analysis engines are optional tools, not installed dependencies. Analysis appears in the conversation by default and does not imply target changes, setup or publication. [Behavioral cases](payload/harness/evals/rea.md) cover evidence limits and proportionality; host discovery and incremental benefit require separate observation.
 
 ## 7.23.0-rc.12: Product and business direction
 

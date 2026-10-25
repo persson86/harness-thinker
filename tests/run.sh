@@ -61,6 +61,12 @@ run test -f "$V1/.claude/commands/thinker-product-view.md"
 assert_rc "init instala comando thinker-product-view Claude" 0
 run cmp "$REPO/payload/harness/operations/product-view.md" "$V1/harness/operations/product-view.md"
 assert_rc "init instala playbook comum product-view sem alterar bytes" 0
+run cmp "$REPO/payload/.agents/skills/thinker-rea/SKILL.md" "$V1/.agents/skills/thinker-rea/SKILL.md"
+assert_rc "init instala skill REA Codex sem alterar bytes" 0
+run cmp "$REPO/payload/.claude/commands/thinker-rea.md" "$V1/.claude/commands/thinker-rea.md"
+assert_rc "init instala entrada REA Claude sem alterar bytes" 0
+run cmp "$REPO/payload/harness/operations/rea.md" "$V1/harness/operations/rea.md"
+assert_rc "init instala playbook comum REA sem alterar bytes" 0
 run test -x "$V1/harness/scripts/one-page-count.sh"
 assert_rc "init deixa contador one-page executável" 0
 printf -- '# T: x\n\nUma duas três.\n\n| | |\n|---|---|\n| **A** | quatro |\n\n```\n[caixa] -> [outra]\n```\n- [ ] cinco — seis\n\n## Fontes\n| fora | da | conta |\n' > "$TMP/one-page.md"
