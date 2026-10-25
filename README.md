@@ -31,6 +31,10 @@ reviewed paths, create `v<VERSION>`, push branch and tag, then update each targe
 `install.sh TARGET --update`. Verify target `harness/.version`, manifest, vault health
 and local/remote SHA parity. Publishing vault knowledge is a separate scope.
 
+## 7.23.4: Reviewers read the repository
+
+`delegate.py submit --repo PATH` lets a collaborator read the live repository instead of a pasted diff. Codex can run commands and tests and write reproductions only in its disposable workspace, with no network and no writes to the repository; Claude reads with file tools only. Reviewers also search the web and read the vault by default, except `ai-memory/`, `drafts/reviewer/` and `drafts/delegation/`. Their briefs carry the problem, the proposed solution and the definitions behind the tests, never the orchestrator's reasoning or another model's answer, so the review stays as unbiased as possible. The default compaction window is now 500K tokens.
+
 ## 7.23.3: Delegation heartbeat
 
 Codex delegations now stream reasoning headlines while the model works. The supervisor records live progress in the job and `board` shows it (events, age of the last one, current step). A silent Codex stream is stopped after 300 s as stalled (`--stall-after`); the overall deadline defaults to 1200 s for Codex and 600 s for Claude and Grok, so slow but active reviews (Astra on large diffs) finish instead of timing out at 300 s.

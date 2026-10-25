@@ -10,7 +10,7 @@
       "Edit(./raw/**)"
     ]
   },
-  "autoCompactWindow": 300000,
+  "autoCompactWindow": 500000,
   "hooks": {
     "UserPromptSubmit": [
       {

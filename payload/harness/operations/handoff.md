@@ -12,7 +12,7 @@ O resultado do handoff nao e conhecimento duravel do vault: nao cria pagina, nao
 
 Nunca dispara sozinho: e sempre invocacao manual.
 
-No Claude Code, a compactacao automatica do harness ocorre em 300 mil tokens de contexto. Em tarefa longa com estado que um resumo pode perder (correcoes, decisoes, restricoes de autorizacao), o handoff ou um checkpoint da operacao `task` antes desse ponto preserva o que a compactacao resume.
+No Claude Code, a compactacao automatica do harness ocorre em 500 mil tokens de contexto (metade da janela de 1M). Em tarefa longa com estado que um resumo pode perder (correcoes, decisoes, restricoes de autorizacao), o handoff ou um checkpoint da operacao `task` antes desse ponto preserva o que a compactacao resume.
 
 ## Principio
 

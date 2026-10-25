@@ -188,14 +188,14 @@ class DelegationInstallTests(unittest.TestCase):
             result = self.run_install(target)
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
             settings = json.loads((target / ".claude/settings.json").read_text(encoding="utf-8"))
-            self.assertEqual(300000, settings["autoCompactWindow"])
+            self.assertEqual(500000, settings["autoCompactWindow"])
             [grupo] = settings["hooks"]["SessionStart"]
             self.assertEqual("compact", grupo["matcher"])
             self.assertIn("post-compact.sh", grupo["hooks"][0]["command"])
             self.assertTrue(os.access(target / ".claude/hooks/post-compact.sh", os.X_OK))
 
     def test_update_preserves_local_compaction_window_and_does_not_duplicate_hook(self):
-        for local in (500000, "auto"):
+        for local in (400000, "auto"):
             with self.subTest(local=local), tempfile.TemporaryDirectory(prefix="delegation-install-") as directory:
                 target = Path(directory) / "vault"
                 settings = target / ".claude/settings.json"

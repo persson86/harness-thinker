@@ -110,6 +110,13 @@ def parser():
     brief.add_argument("--brief", help="MD/texto de instrução preparado pelo principal, dentro do vault")
     brief.add_argument("--prompt", help="Instrução curta; prefira --brief para textos longos")
     submit.add_argument("--file", action="append", default=[], help="Arquivo de contexto selecionado; repetível")
+    submit.add_argument("--repo", action="append", default=[],
+                        help="Repositório aberto para leitura do colaborador (Codex lê e roda comandos sem escrever nele; "
+                             "Claude lê); repetível, até 5")
+    submit.add_argument("--web", action=argparse.BooleanOptionalAction, default=None,
+                        help="Busca na web (Codex, Claude); padrão ligado para --consult-role reviewer")
+    submit.add_argument("--vault-read", action=argparse.BooleanOptionalAction, default=None,
+                        help="Leitura do vault, sem ai-memory/ e drafts/reviewer/; padrão ligado para --consult-role reviewer")
     submit.add_argument("--reason", required=True, help="Motivo curto da delegação")
     submit.add_argument("--consult-role", choices=["advisor", "reviewer"], help="Papel da consulta; distinto do papel de run")
     submit.add_argument("--delivery", help="ID estável da entrega para orçamento por papel")
@@ -378,6 +385,9 @@ def public_job(job):
             "run_id", "stage", "role", "parent_job", "handoff", "diagnostic", "routing", "retry_reason",
             "consult_role", "delivery", "initiation")
     result = {key: job[key] for key in keys if key in job}
+    for key in ("read_paths", "web"):
+        if (job.get("profile") or {}).get(key):
+            result[key] = job["profile"][key]
     if "progress" in job:
         result["progress"] = progress_view(job["progress"])
     result["profile"] = {key: job.get("profile", {}).get(key) for key in
@@ -645,6 +655,13 @@ def dispatch(store, args):
                                   ". Use o principal ou explicite benefício e trabalho independente/revisão crítica.")
         # Probe in a neutral existing directory: live vault integrations are not worker integrations.
         profile.update(adapters.probe(profile, cwd=str(Path(os.environ.get("TMPDIR", "/tmp")).resolve())))
+        grok = profile.get("provider") == "grok"
+        if grok and (args.repo or args.web or args.vault_read):
+            raise DelegationError("Leitura de repositório, vault e web não são suportados no Grok; escolha Codex ou Claude.")
+        # Reviewer reaches outside the brief by default; Grok keeps the closed route it has always had.
+        reviewer = args.consult_role == "reviewer" and not grok
+        web = args.web if args.web is not None else reviewer
+        vault_read = args.vault_read if args.vault_read is not None else reviewer
         task = store._source(args.brief)["text"] if args.brief else args.prompt
         context_paths = [*args.file, *([args.brief] if args.brief else [])]
         selected_run = run_id(store, args.run, sid) if args.run else None
@@ -652,7 +669,8 @@ def dispatch(store, args):
         return public_job(store.submit(sid, profile, task, context_paths=context_paths,
                                        timeout=args.timeout if args.timeout is not None else
                                        (1200 if adapters.streams_progress(profile) else 600),
-                                       stall_after=args.stall_after, model_source=profile["model_source"],
+                                       stall_after=args.stall_after, read_paths=args.repo, web=web, vault_read=vault_read,
+                                       model_source=profile["model_source"],
                                        reason=args.reason, task_type=args.task,
                                        run_id=selected_run, stage=args.stage, role=args.role,
                                        parent_job=selected_parent, handoff=args.handoff,

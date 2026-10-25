@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import sys
 import tempfile
+import json
 import unittest
 from unittest.mock import patch
 
@@ -287,6 +288,76 @@ class CodexProgressTests(unittest.TestCase):
         self.assertIn('model_reasoning_summary="detailed"', command)
         self.assertIn("hide_agent_reasoning=false", command)
         self.assertEqual("-", command[-1])
+
+
+
+class ReadPathTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.repo = str(Path(self.temporary.name).resolve())
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def build(self, provider, **extra):
+        profile = {"provider": provider, "model": "m-1", "effort": "high", **extra}
+        with patch.object(a, "executable", return_value="/bin/" + provider), \
+                patch.object(a, "_prepare_grok", return_value={}, create=True):
+            return a.build_command(profile, self.repo, self.repo + "/prompt.txt")
+
+    def test_codex_reads_and_runs_but_writes_only_in_workspace_without_network(self):
+        plain = self.build("codex")
+        self.assertIn("read-only", plain)
+        self.assertIn("shell_tool", plain)
+        command = self.build("codex", read_paths=[self.repo])
+        self.assertIn("workspace-write", command)
+        self.assertNotIn("read-only", command)
+        self.assertIn("sandbox_workspace_write.network_access=false", command)
+        for feature in ("shell_tool", "unified_exec", "code_mode_host"):
+            self.assertNotIn(feature, command)
+        for feature in ("apps", "browser_use", "multi_agent", "plugins", "code_mode"):
+            self.assertIn(feature, command)
+
+    def test_claude_gets_file_tools_confined_to_added_dirs(self):
+        command = self.build("claude", read_paths=[self.repo])
+        self.assertEqual("Read,Grep,Glob", command[command.index("--tools") + 1])
+        self.assertEqual(self.repo, command[command.index("--add-dir") + 1])
+        self.assertIn("--restricted", command)
+        self.assertNotIn("Bash", " ".join(command))
+
+    def test_invalid_paths_and_grok_are_refused(self):
+        for paths in (["relativo"], [self.repo + "/nao-existe"], [], "x", [self.repo] * (a.MAX_READ_PATHS + 1)):
+            with self.subTest(paths=paths), self.assertRaises(a.AdapterError):
+                a.validate_profile({"provider": "codex", "model": "m", "effort": "high", "read_paths": paths})
+        with self.assertRaises(a.AdapterError):
+            a.validate_profile({"provider": "grok", "model": "m", "effort": "high", "read_paths": [self.repo]})
+
+    def test_web_opens_search_without_shell_or_network_sandbox(self):
+        self.assertIn('web_search="disabled"', self.build("codex"))
+        command = self.build("codex", web=True)
+        self.assertIn('web_search="live"', command)
+        self.assertIn("read-only", command)  # web alone opens no shell
+        self.assertIn("shell_tool", command)
+        claude = self.build("claude", web=True)
+        self.assertEqual("WebSearch,WebFetch", claude[claude.index("--tools") + 1])
+        self.assertEqual(a.SYSTEM_WEB, claude[claude.index("--system-prompt") + 1])
+        both = self.build("claude", web=True, read_paths=[self.repo])
+        self.assertEqual("Read,Grep,Glob,WebSearch,WebFetch", both[both.index("--tools") + 1])
+        self.assertEqual("Read,Grep,Glob,WebSearch,WebFetch", both[both.index("--allowedTools") + 1])
+        self.assertEqual("", self.build("claude")[self.build("claude").index("--tools") + 1])
+        for bad in ({"provider": "grok", "web": True}, {"provider": "codex", "web": "sim"}):
+            with self.subTest(bad=bad), self.assertRaises(a.AdapterError):
+                a.validate_profile({"model": "m", "effort": "high", **bad})
+
+    def test_claude_denies_hidden_paths(self):
+        hidden = self.repo + "/ai-memory"
+        command = self.build("claude", read_paths=[self.repo], hidden_paths=[hidden])
+        settings = json.loads(command[command.index("--settings") + 1])
+        self.assertEqual(["Read(/" + hidden + "/**)"], settings["permissions"]["deny"])
+        self.assertTrue(settings["permissions"]["deny"][0].startswith("Read(//"))
+        self.assertTrue(settings["disableAllHooks"])
+        with self.assertRaises(a.AdapterError):
+            a.validate_profile({"provider": "claude", "model": "m", "effort": "high", "hidden_paths": ["relativo"]})
 
 
 if __name__ == "__main__":

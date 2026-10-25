@@ -459,6 +459,67 @@ def parse_result(profile, stdout, stderr, returncode):
         self.assertNotIn("title", self.store.get(identifier)["progress"])
         self.assertNotIn("private step", (self.state / "jobs" / identifier / "job.json").read_text())
 
+    def test_repository_read_is_recorded_and_announced_with_definitions_contract(self):
+        self.enable()
+        repo = self.root / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init", "-q", str(repo)], check=True)
+        job = self.submit(read_paths=[str(repo), str(repo)])
+        stored = self.store.get(job["id"])
+        self.assertEqual([str(repo.resolve())], stored["profile"]["read_paths"])
+        prompt = (self.state / "jobs" / job["id"] / "workspace/prompt.txt").read_text(encoding="utf-8")
+        self.assertIn(str(repo.resolve()), prompt)
+        self.assertIn("not a Git checkout", prompt)  # no commit yet: HEAD unavailable
+        self.assertIn("Derive your checks from the stated definitions", prompt)
+        self.assertIn("Never modify the repositories", prompt)
+        plain = self.submit()
+        self.assertNotIn("read_paths", self.store.get(plain["id"])["profile"])
+        self.assertNotIn("Repositories open", (self.state / "jobs" / plain["id"] / "workspace/prompt.txt").read_text())
+        with self.assertRaises(self.runtime.DelegationError):
+            self.submit(read_paths=[str(self.root / "missing")])
+        self.wait(job["id"])
+        self.wait(plain["id"])
+
+    def test_reviewer_reads_vault_and_web_but_not_the_orchestrators_dialogue(self):
+        self.enable()
+        job = self.submit(web=True, vault_read=True)
+        profile = self.store.get(job["id"])["profile"]
+        vault = str(self.store.vault)
+        self.assertEqual(vault, profile["read_paths"][0])
+        self.assertTrue(profile["web"])
+        self.assertEqual([vault + "/ai-memory", vault + "/drafts/reviewer", vault + "/drafts/delegation"],
+                         profile["hidden_paths"])
+        prompt = (self.state / "jobs" / job["id"] / "workspace/prompt.txt").read_text(encoding="utf-8")
+        self.assertIn("the user's second brain", prompt)
+        self.assertIn("Do not open ai-memory, drafts/reviewer, drafts/delegation", prompt)
+        self.assertIn("You may search the web", prompt)
+        web_only = self.submit(web=True)
+        web_prompt = (self.state / "jobs" / web_only["id"] / "workspace/prompt.txt").read_text(encoding="utf-8")
+        self.assertIn("Derive your checks from the stated definitions", web_prompt)
+        self.assertNotIn("read_paths", self.store.get(web_only["id"])["profile"])
+        self.wait(job["id"])
+        self.wait(web_only["id"])
+
+    def test_retry_keeps_the_vault_exclusions_and_the_vault_takes_no_repo_slot(self):
+        self.enable()
+        repos = []
+        for n in range(5):
+            repo = self.store.vault.parent / f"repo{n}"
+            repo.mkdir(exist_ok=True)
+            repos.append(str(repo))
+        job = self.wait(self.submit(read_paths=repos, vault_read=True)["id"])
+        self.assertEqual(6, len(job["profile"]["read_paths"]))
+        again = self.store.retry(job["id"])
+        prompt = (self.state / "jobs" / again["id"] / "workspace/prompt.txt").read_text(encoding="utf-8")
+        self.assertIn("Do not open ai-memory", prompt)
+        self.assertIn("the user's second brain", prompt)
+        self.assertEqual(job["profile"]["read_paths"], self.store.get(again["id"])["profile"]["read_paths"])
+        self.wait(again["id"])
+        extra = self.store.vault.parent / "repo5"
+        extra.mkdir(exist_ok=True)
+        with self.assertRaisesRegex(self.runtime.DelegationError, "At most 5 repositories"):
+            self.submit(read_paths=repos + [str(extra)])
+
     def test_deadline_is_classified(self):
         self.enable()
         self.profile["delay"] = 2

@@ -22,7 +22,7 @@ Nao alterar `CLAUDE.md`, `.claude/settings.json`, `.claude/commands/` ou `.claud
 - Protecao de `raw/`: `protect-raw.sh` em `PreToolUse`.
 - Tracking de paginas novas: `track-ingest.sh` em `PostToolUse`.
 - Gate de encerramento: `check-ingest.sh` em `Stop`.
-- Compactação: `autoCompactWindow` (300 mil tokens) em `.claude/settings.json`; sem ele, modelos de 1M nativo só compactam perto de 967 mil. Valor local prevalece no update; `--autocompact` ou `CLAUDE_CODE_AUTO_COMPACT_WINDOW` sobrescrevem por sessão.
+- Compactação: `autoCompactWindow` (500 mil tokens, metade da janela de 1M) em `.claude/settings.json`; sem ele, modelos de 1M nativo só compactam perto de 967 mil. Valor local prevalece no update; `--autocompact` ou `CLAUDE_CODE_AUTO_COMPACT_WINDOW` sobrescrevem por sessão.
 - Pós-compactação: `post-compact.sh` em `SessionStart` (matcher `compact`) lembra que o resumo é memória, não fonte nem autorização ampliada. Não lê transcript nem aciona nada.
 - Indice gerado: `.claude/scripts/build-index.py generate`.
 - Checagem de sincronia: `.claude/scripts/build-index.py check`.
