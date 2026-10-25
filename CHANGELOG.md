@@ -1,5 +1,10 @@
 # Changes
 
+## 7.23.2 - 2026-10-25
+
+- **Consultation link.** `delegate.py consult link ID --agent-id AGENT` records, once and without relinking, the host agent that serves a native Advisor or Reviewer consultation; `consult finish --agent-id` covers hosts that only expose the ID on return. `board --json` exposes the ID, so a monitor can tag the subagent itself instead of guessing by parent, model and start time. The Claude, Codex and Grok adapters, the vault instructions and `consult.md` add the step right after the spawn.
+- **Validation.** Consultation tests cover link only after `start` and only by the admitting session, path-like IDs refused, idempotent repeat, refusal to relink another agent (also through `finish`), `finish --agent-id` when link was skipped, and the ID in `board --json`. Agents Monitor 3.3.1, released alongside, reads the field; consultations recorded before this version keep the inferred tag.
+
 ## 7.23.1 - 2026-10-25
 
 - **Release helper.** `harness/scripts/release.py` runs the deterministic Git steps of the release operation for any repository (`--repo`, `--remote`, `--branch`, `--tag-prefix`), with JSON output: `check` (HEAD at the branch tip, fetch, behind/ahead, pending paths, next version, new version above every published tag, tag absent locally and remotely), `next-version`, `tag` (annotated, HEAD at the branch tip), `push` (fast-forward only, full refs, `push.followTags=false`, then remote verification) and `verify`. It edits no files, runs no tests and reinstalls nothing.

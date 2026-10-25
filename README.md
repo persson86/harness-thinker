@@ -31,6 +31,10 @@ reviewed paths, create `v<VERSION>`, push branch and tag, then update each targe
 `install.sh TARGET --update`. Verify target `harness/.version`, manifest, vault health
 and local/remote SHA parity. Publishing vault knowledge is a separate scope.
 
+## 7.23.2: Consultation link
+
+After spawning a native Advisor or Reviewer, the Orchestrator records the host agent with `delegate.py consult link ID --agent-id AGENT` (or `--agent-id` on `finish`). The board then names the agent that served each consultation, and Agents Monitor tags that subagent directly instead of inferring the link.
+
 ## 7.23.1: Release helper
 
 The release operation now has a deterministic Git helper, `python3 harness/scripts/release.py --repo REPO check|tag|push|verify`, usable on any repository: it checks the branch and remote, proposes the next version, creates the annotated tag, pushes branch and tag by full refs without following other tags, and verifies both refs on the remote. Recipes can declare an acceptance gate (a real test with the installed version) that runs before tagging. [Evaluation cases](payload/harness/evals/release.md) cover trigger and judgment; the helper has its own tests.
