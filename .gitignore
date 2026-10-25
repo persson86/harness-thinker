@@ -5,3 +5,6 @@ docs/
 
 __pycache__/
 *.py[cod]
+
+# Alvos de release desta máquina (paths pessoais)
+RELEASE.local.md

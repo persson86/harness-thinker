@@ -8,6 +8,7 @@ Este adaptador registra o estado atual do Claude Code. Nesta fase, ele e preserv
 - `.claude/commands/`: playbooks acionados por slash commands.
 - `/thinker-advisor` e `/thinker-reviewer`, ou necessidade concreta reconhecida pelo Orquestrador: `harness/operations/advisor.md`, `reviewer.md` e política comum `consult.md`. Autonomia vem ligada e respeita toggle e orçamento; pedidos explícitos não a religam. Antes de cada consulta nativa use `consult admit/start`, depois do retorno `consult finish`. A CLI não intercepta a ferramenta Agent do host; controle nativo cooperativo, sem promessa de bloqueio técnico universal. Use o host para cancelamento e reporte apenas o que foi confirmado. Reviewer de fallback (Codex indisponível): ferramenta Agent com subagente novo e `model` explícito (Fable, Opus ou outro); nunca `subagent_type: fork`, que herda a conversa, nem `SendMessage` a agente existente.
 - `/thinker-rea` e pedidos naturais para entender repositórios, sistemas ou funcionalidades: `harness/operations/rea.md`, compartilhado com a skill Codex `thinker-rea`. Consultas simples admitem resposta direta; profundidade e evidência seguem a pergunta.
+- `/thinker-release` e pedidos de release ou nova versão de qualquer projeto: `harness/operations/release.md`, compartilhado com a skill Codex `thinker-release`. Pedido explícito autoriza a sequência completa; menção implícita só mostra o plano.
 - `.claude/hooks/`: enforcement mecanico.
 - `.claude/settings.json`: wiring de permissoes e hooks.
 - `.claude/scripts/build-index.py`: gerador e verificador do indice.

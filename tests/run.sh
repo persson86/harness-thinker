@@ -67,6 +67,12 @@ run cmp "$REPO/payload/.claude/commands/thinker-rea.md" "$V1/.claude/commands/th
 assert_rc "init instala entrada REA Claude sem alterar bytes" 0
 run cmp "$REPO/payload/harness/operations/rea.md" "$V1/harness/operations/rea.md"
 assert_rc "init instala playbook comum REA sem alterar bytes" 0
+run cmp "$REPO/payload/.agents/skills/thinker-release/SKILL.md" "$V1/.agents/skills/thinker-release/SKILL.md"
+assert_rc "init instala skill release Codex sem alterar bytes" 0
+run cmp "$REPO/payload/.claude/commands/thinker-release.md" "$V1/.claude/commands/thinker-release.md"
+assert_rc "init instala entrada release Claude sem alterar bytes" 0
+run cmp "$REPO/payload/harness/operations/release.md" "$V1/harness/operations/release.md"
+assert_rc "init instala playbook comum release sem alterar bytes" 0
 for consultation in advisor reviewer; do
   run cmp "$REPO/payload/.agents/skills/thinker-$consultation/SKILL.md" "$V1/.agents/skills/thinker-$consultation/SKILL.md"
   assert_rc "init instala skill $consultation Codex sem alterar bytes" 0

@@ -24,10 +24,16 @@ templates/vault/   # scaffold for a new vault (--init)
 
 Maintain the source repository, never its installed target. Keep the source clone
 outside the vault; the vault is a separate target.
-For a harness change: run `bash tests/run.sh`, increment `VERSION`, document the change,
-commit the reviewed paths, create `v<VERSION>`, push branch and tag, then update the
-target with `install.sh TARGET --update`. Verify target `harness/.version`, manifest,
-vault health and local/remote SHA parity. Publishing vault knowledge is a separate scope.
+Releases follow [`RELEASE.md`](RELEASE.md) and the shared
+[release operation](payload/harness/operations/release.md): run `bash tests/run.sh`,
+bump the last number in `VERSION` (minor and major only on request; no pre-release suffixes), document the change, commit the
+reviewed paths, create `v<VERSION>`, push branch and tag, then update each target with
+`install.sh TARGET --update`. Verify target `harness/.version`, manifest, vault health
+and local/remote SHA parity. Publishing vault knowledge is a separate scope.
+
+## 7.23.0: Release operation
+
+Ask for a release of any versioned project — or use `/thinker-release` in Claude Code and `$thinker-release` in Codex — and the agent follows [one release sequence](payload/harness/operations/release.md): pre-check, plan, version and docs, tests, commit, tag, push of branch and tag, reinstall and verification. Each repository describes its specifics in a `RELEASE.md` recipe; machine-specific targets go in a git-ignored `RELEASE.local.md`. Every release bumps the last version number; minor and major only on request, and no pre-release suffixes. An explicit request runs the whole sequence after showing the plan; a passing mention only shows the plan.
 
 ## 7.23.0-rc.14: Advisor, Reviewer and autonomy controls
 

@@ -9,7 +9,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILLS = ("thinker-delegate", "thinker-model-eval", "thinker-one-page", "thinker-product-view", "thinker-rea", "thinker-advisor", "thinker-reviewer")
+SKILLS = ("thinker-delegate", "thinker-model-eval", "thinker-one-page", "thinker-product-view", "thinker-rea", "thinker-advisor", "thinker-reviewer", "thinker-release")
 RULES = tuple(f"/.agents/skills/{skill}/" for skill in SKILLS) + ("/output/",)
 
 
@@ -113,6 +113,9 @@ class DelegationInstallTests(unittest.TestCase):
 
     def test_update_refuses_tracked_reviewer_skill_before_replacing_it(self):
         self.check_tracked_skill_preserved("thinker-reviewer")
+
+    def test_update_refuses_tracked_release_skill_before_replacing_it(self):
+        self.check_tracked_skill_preserved("thinker-release")
 
     def test_reinstall_preserves_autonomy_off_and_does_not_start_consultations(self):
         with tempfile.TemporaryDirectory(prefix="consultation-install-") as directory:

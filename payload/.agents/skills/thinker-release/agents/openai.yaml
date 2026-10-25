@@ -1,0 +1,6 @@
+interface:
+  display_name: "Release: nova versão de projeto"
+  short_description: "Testar, versionar, publicar e reinstalar"
+  default_prompt: "Use $thinker-release para publicar a nova versão deste projeto seguindo a receita do repositório."
+policy:
+  allow_implicit_invocation: true

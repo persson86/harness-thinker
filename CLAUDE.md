@@ -8,7 +8,7 @@ Este é o **repo-fonte** do harness. **Não é um vault** — não há `wiki/`, 
 - **Nunca editar a cópia instalada num vault.** Edite aqui e rode `./install.sh <vault> --update`. O fluxo inverso é drift — o `verify.sh` no vault o detecta via `harness/.manifest`.
 - **Categorias são config do vault**, não do harness: vivem em `vault.config.json` no repo de dados. O `build-index.py` as lê de lá; nunca hardcode categorias no script.
 - **Sem dado pessoal no payload.** Este repo é público/genérico: nada de nomes próprios, paths absolutos de máquina, clientes ou referências a páginas específicas de um vault. Identidade do usuário é lida em runtime da memória; categorias, do config.
-- **Bump de `VERSION`** a cada mudança de payload que valha rastrear; o installer grava essa versão em `harness/.version` no target.
+- **Release segue `RELEASE.md`** (receita deste repo) e a operação `payload/harness/operations/release.md`: cada release sobe o último número de `VERSION` (minor e major só a pedido), sem `-rc`; o installer grava essa versão em `harness/.version` no target. Alvos desta máquina ficam em `RELEASE.local.md`, fora do git.
 - **Testar antes de publicar:** `bash tests/run.sh` — smoke tests em mktemp cobrindo
   install (`--init`/adotar), `build-index.py` (`check`/`gate`/`health`) e os hooks com
   JSON sintético. Toda mudança de payload deve passar a suíte; casos novos entram lá.

@@ -145,6 +145,8 @@ Operacoes comuns: `ingest`, `inbox`, `query`, `review`, `lint`, `update`, `feed`
 
 `rea` investiga repositorios, sistemas e funcionalidades existentes conforme a pergunta e as evidencias disponiveis. A analise aparece na conversa por padrao, sem pagina, log ou indice automaticos. Texto solicitado vai para `drafts/rea/`; capturas, relatorios e outros artefatos gerados vao para `output/rea-<slug>/`. Investigacao nao amplia autorizacao para instalar ferramentas, alterar o alvo, reconstruir ou publicar; autorizacoes existentes continuam validas no escopo concedido.
 
+`release` publica nova versao de um projeto versionado fora do vault, conforme a receita `RELEASE.md` do repositorio. Nao gera pagina, log ou indice. Publicar conhecimento do vault continua com o helper e o runbook do vault.
+
 ## Gates de Encerramento
 
 Antes de concluir operacao que muda conhecimento duravel:

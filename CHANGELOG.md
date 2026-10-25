@@ -1,5 +1,12 @@
 # Changes
 
+## 7.23.0 - 2026-10-25
+
+- **Release operation.** `/thinker-release` (Claude Code) and `$thinker-release` (Codex, implicit invocation allowed) share `harness/operations/release.md`, for any versioned project: pre-check, plan, version and docs, tests on the final tree, commit, annotated tag, push of branch and tag by full refs without following other tags, reinstall from a tree identical to the tag, remote verification and report. An explicit request authorizes the whole sequence after the plan; an implicit mention only shows the plan; a requested push of an unversioned delivered change shows the release plan first. Vault knowledge publishing stays with the vault helper.
+- **Version policy.** Every release bumps the last number (`X.Y.Z` → `X.Y.(Z+1)`), a new skill included; minor and major only on explicit request. No pre-release suffixes: this release closes the 7.23.0 candidate series (rc.1–rc.14). Published tags never move; a fix after push is a new version.
+- **Per-project recipe.** Each repository declares tests, version files, docs, remote/branch, reinstall, verification and rollback in `RELEASE.md`; machine-specific targets live in a git-ignored `RELEASE.local.md`. Without a recipe, the agent proposes one derived from the repository and uses it after confirmation. This repository now ships its own `RELEASE.md`.
+- **Validation.** Installation checks cover both entrypoints, byte parity, ignore migration and tracked-skill preservation. An independent review (Codex) before this release led to tests after the version bump, full-ref pushes with `push.followTags=false`, reinstall from a clean worktree when the clone has pending changes, and branch/tag parity checked on the remote. The git sequence itself has no automated test; trigger behavior (explicit vs. implicit) was not evaluated with behavioral cases.
+
 ## 7.23.0-rc.14 - 2026-10-25 (laboratory candidate)
 
 - **Advisor and Reviewer.** Two Codex skills and Claude commands share role-specific briefs and one consultation policy. The Orchestrator retains responsibility; advice uses the same provider natively, independent review another provider. Model selection is contextual, without an obligatory higher-ranked Advisor. Consultation does not authorize writes, publication or further delegation.
