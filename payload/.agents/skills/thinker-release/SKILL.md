@@ -1,6 +1,6 @@
 ---
 name: thinker-release
-description: Publicar uma nova versão de qualquer projeto versionado pela sequência testes, versão e documentação, commit, tag, push, reinstalação e verificação. Use quando o usuário pedir release, nova versão, publicar ou lançar uma versão, ou quando a conversa falar de versão nova de passagem. Menção implícita só apresenta o plano; commit, tag e push exigem pedido explícito. Publicação de conhecimento do vault segue o helper do vault.
+description: Publicar uma nova versão de qualquer projeto versionado pela sequência versão e documentação, testes, commit, tag, push, reinstalação e verificação. Use quando o usuário pedir release, nova versão, publicar ou lançar uma versão, ou quando a conversa falar de versão nova de passagem. Menção implícita só apresenta o plano; commit, tag e push exigem pedido explícito. Commit, push ou "publica" do próprio vault não é release e segue o helper do vault.
 ---
 
 # Release de projeto

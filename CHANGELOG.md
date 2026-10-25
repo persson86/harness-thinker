@@ -1,5 +1,13 @@
 # Changes
 
+## 7.23.1 - 2026-10-25
+
+- **Release helper.** `harness/scripts/release.py` runs the deterministic Git steps of the release operation for any repository (`--repo`, `--remote`, `--branch`, `--tag-prefix`), with JSON output: `check` (HEAD at the branch tip, fetch, behind/ahead, pending paths, next version, new version above every published tag, tag absent locally and remotely), `next-version`, `tag` (annotated, HEAD at the branch tip), `push` (fast-forward only, full refs, `push.followTags=false`, then remote verification) and `verify`. It edits no files, runs no tests and reinstalls nothing.
+- **Acceptance gate.** A recipe may require a real test with the installed version before tagging; reinstall and the gate then follow the commit, and tag and push wait for it. A gate that depends on the user stops the release until they answer.
+- **Disambiguation.** "Publish", "push" or "sobe" in a vault session without a versioned project in focus is vault publishing; with one in focus, it is a release; otherwise the agent asks. The Claude command and Codex skill descriptions say so and now list the sequence in its real order (version and docs before tests).
+- **Evaluation cases.** `harness/evals/release.md` covers explicit and implicit requests, commit only, push without a version, ambiguous "publica", missing recipe, out-of-scope changes, failing tests, acceptance gate and a requested version below the last tag.
+- **Validation.** Fifteen helper tests on isolated bare remotes: `push.followTags=true` with a stray annotated tag, tag not at HEAD, non-fast-forward, unpushed release, version policy enforced in `tag` and `push` (lower or pre-release refused), lightweight tag refused, first release to a remote without the branch, diverged local tag, empty version file and numeric pre-release ordering. The external review timed out; a same-provider fallback reviewer (reduced independence) reproduced six defects in throwaway repositories, all fixed before release. The behavioral cases were not run.
+
 ## 7.23.0 - 2026-10-25
 
 - **Release operation.** `/thinker-release` (Claude Code) and `$thinker-release` (Codex, implicit invocation allowed) share `harness/operations/release.md`, for any versioned project: pre-check, plan, version and docs, tests on the final tree, commit, annotated tag, push of branch and tag by full refs without following other tags, reinstall from a tree identical to the tag, remote verification and report. An explicit request authorizes the whole sequence after the plan; an implicit mention only shows the plan; a requested push of an unversioned delivered change shows the release plan first. Vault knowledge publishing stays with the vault helper.

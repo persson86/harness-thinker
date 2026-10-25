@@ -31,6 +31,10 @@ reviewed paths, create `v<VERSION>`, push branch and tag, then update each targe
 `install.sh TARGET --update`. Verify target `harness/.version`, manifest, vault health
 and local/remote SHA parity. Publishing vault knowledge is a separate scope.
 
+## 7.23.1: Release helper
+
+The release operation now has a deterministic Git helper, `python3 harness/scripts/release.py --repo REPO check|tag|push|verify`, usable on any repository: it checks the branch and remote, proposes the next version, creates the annotated tag, pushes branch and tag by full refs without following other tags, and verifies both refs on the remote. Recipes can declare an acceptance gate (a real test with the installed version) that runs before tagging. [Evaluation cases](payload/harness/evals/release.md) cover trigger and judgment; the helper has its own tests.
+
 ## 7.23.0: Release operation
 
 Ask for a release of any versioned project — or use `/thinker-release` in Claude Code and `$thinker-release` in Codex — and the agent follows [one release sequence](payload/harness/operations/release.md): pre-check, plan, version and docs, tests, commit, tag, push of branch and tag, reinstall and verification. Each repository describes its specifics in a `RELEASE.md` recipe; machine-specific targets go in a git-ignored `RELEASE.local.md`. Every release bumps the last version number; minor and major only on request, and no pre-release suffixes. An explicit request runs the whole sequence after showing the plan; a passing mention only shows the plan.

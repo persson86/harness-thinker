@@ -6,6 +6,7 @@ Follows `payload/harness/operations/release.md`. Machine-specific targets and ex
 - **Tests:** `bash tests/run.sh` on the final tree (version and docs already bumped) must end with zero failures.
 - **Docs:** a `## X.Y.Z - YYYY-MM-DD` entry at the top of `CHANGELOG.md`, stating what changed and what was not validated. A `## X.Y.Z: <title>` section in `README.md` after *Release discipline* when installation, usage, commands or visible behavior change; update the layout block when payload directories change. No personal data in any of them.
 - **Commit:** reviewed paths only, message `feat: <summary> (X.Y.Z)` (or `fix:`/`docs:` as appropriate).
+- **Git steps:** `python3 payload/harness/scripts/release.py check|tag|push|verify` (same helper the vault installs) does the pre-check, annotated tag `vX.Y.Z — <summary>`, full-ref push and remote verification.
 - **Tag:** `git tag -a vX.Y.Z -m "vX.Y.Z — <summary>"` on the release commit.
 - **Remote:** `origin`, branch `main`. Push the branch, then the tag, by full refs and with `push.followTags=false`.
 - **Reinstall:** for each target in `RELEASE.local.md`, `./install.sh <target> --update` from a tree identical to the tag: this clone when it has no pending changes, otherwise a clean `git worktree add <tmp> vX.Y.Z` (the installer reads the working tree). The installer refuses tracked collisions with generated skills; resolve them in the target, never by editing the installed copy.

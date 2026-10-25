@@ -8,6 +8,7 @@ Publicar uma nova versão de um projeto versionado — harness, aplicativo, bibl
 - **Menção implícita** (a conversa conclui uma mudança que pede versão nova, ou o usuário fala de versão ou release de passagem): apresente o plano com o que está pendente e pare. Nada de commit, tag ou push sem pedido explícito.
 - **Push pedido num projeto com receita:** se os commits a enviar mudam o que é entregue e a versão não foi incrementada, apresente o plano de release antes do push. Push sem versão deixa instalações divergindo do que foi publicado.
 - Commit isolado continua sendo só commit. Publicar conhecimento do vault segue o helper e o runbook do vault; não é release.
+- "Publica", "sobe" ou "faz o push" sem projeto versionado em foco, numa sessão do vault, é publicação do vault. Com um projeto versionado em foco, é release. Na dúvida, pergunte qual dos dois.
 
 ## Política de versão
 
@@ -25,19 +26,29 @@ Cada repositório declara em `RELEASE.md`, na raiz:
 - comando de teste;
 - documentação a atualizar (changelog, README) e formato das mensagens de commit e de tag;
 - remoto e branch de publicação;
-- como reinstalar ou implantar, como verificar a instalação e como voltar à versão anterior.
+- como reinstalar ou implantar, como verificar a instalação e como voltar à versão anterior;
+- gate de aceitação antes da tag, quando o projeto exige teste real com a versão instalada (por exemplo, gravar e transcrever um trecho curto). Nesse caso a reinstalação e o gate vêm logo depois do commit, e tag e push só depois que o gate passar. Gate que depende do usuário para a release até ele responder.
 
 Paths absolutos, nomes de máquina e alvos pessoais ficam em `RELEASE.local.md`, ignorado pelo git, quando o repositório é público ou compartilhado. Sem `RELEASE.md`, derive uma proposta do repositório (arquivo de versão, testes, changelog, installer, scripts de build), mostre ao usuário e use só depois de confirmada; a receita nova entra no commit da release.
 
 ## Sequência
 
-Nos comandos, `<remoto>` e `<branch>` são os da receita.
+Nos comandos, `<remoto>` e `<branch>` são os da receita. Os passos de git têm um helper determinístico com saída JSON, `python3 harness/scripts/release.py` (no root do vault Thinker), que vale para qualquer repositório via `--repo`, `--remote`, `--branch` e `--tag-prefix`:
+
+```bash
+python3 harness/scripts/release.py --repo REPO check --version-file VERSION   # ou --current X.Y.Z; --bump minor|major só a pedido
+python3 harness/scripts/release.py --repo REPO tag --version X.Y.Z --message "vX.Y.Z — <resumo>"
+python3 harness/scripts/release.py --repo REPO push --version X.Y.Z           # já verifica o remoto
+python3 harness/scripts/release.py --repo REPO verify --version X.Y.Z
+```
+
+Saída `0` é ok, `1` traz `problems` e `2` é recusa (`error`). O helper não edita arquivos, não roda testes nem reinstala; isso continua com o agente e a receita. Se ele não estiver disponível, os comandos git abaixo são o equivalente.
 
 1. **Pré-checagem, sem escrever.** Confirme repositório, remoto e branch, com `HEAD` na ponta da branch de publicação. Rode `git fetch <remoto>`; se o local estiver atrás ou divergente, pare. Liste o working tree e separe o que entra na release do que é alheio; o alheio fica fora do commit e é mencionado. Liste os commits em `<remoto>/<branch>..HEAD`; commit fora do pedido exige pergunta. Confira a versão atual, a maior tag publicada e que a tag nova ainda não existe no local nem no remoto.
 2. **Plano.** Versão atual → nova; o que muda (commits e arquivos); testes; documentação; alvos de reinstalação; como voltar atrás. Curto, para leitura em segundos.
 3. **Versão e documentação.** Incremente o número. Acrescente a entrada do changelog com data, o que mudou e o que não foi validado. Atualize o README quando mudarem instalação, uso, comandos ou comportamento visível; se o projeto mantém uma seção por versão no README, siga o padrão dele.
 4. **Testes** da receita sobre a árvore final, já com versão e documentação. Falha interrompe a release; não ajuste teste para passar.
-5. **Commit** só dos caminhos revisados, com pathspec explícito e a mensagem no formato do projeto, citando a versão. Confira `git show --stat HEAD`.
+5. **Commit** só dos caminhos revisados, com pathspec explícito e a mensagem no formato do projeto, citando a versão. Confira `git show --stat HEAD`. Se a receita declarar gate de aceitação, reinstale agora a partir deste commit e rode o gate; só siga para a tag depois que ele passar.
 6. **Tag** anotada no commit da release: `git tag -a vX.Y.Z -m "vX.Y.Z — <resumo>"`. Antes do push, `git rev-parse HEAD`, `git rev-parse <branch>` e `git rev-parse vX.Y.Z^{}` precisam ser o mesmo SHA.
 7. **Push** da branch e depois da tag, por refs completas e sem levar outras tags: `git -c push.followTags=false push <remoto> refs/heads/<branch>:refs/heads/<branch>` e `git push <remoto> refs/tags/vX.Y.Z`. Nunca `--tags` nem force push. Push recusado interrompe a release; não faça rebase nem force para passar.
 8. **Reinstalação** em cada alvo da receita, a partir de uma árvore idêntica à tag. Se o clone tiver qualquer alteração pendente, instale de um worktree limpo (`git worktree add <tmp> vX.Y.Z`, depois `git worktree remove <tmp>`); installers costumam ler o working tree, não o commit. Outros clones do mesmo repositório declarados na receita recebem fast-forward quando limpos; sujos ou divergentes, avise.
@@ -56,3 +67,4 @@ Nos comandos, `<remoto>` e `<branch>` são os da receita.
 - Release é gatilho de irreversibilidade: com mudança material, peça a revisão crítica antes do push conforme o escalonamento de `delegate.md` e `consult.md`, respeitando autonomia, orçamento e admissão. Uma revisão por entrega.
 - Testes, versão e documentação não provam a qualidade em uso; o relato diz o que foi observado depois da instalação.
 - Não gera página, entrada em `wiki/log.md` nem índice.
+- Casos de avaliação em `harness/evals/release.md`, carregados ao avaliar a operação, não a cada uso.

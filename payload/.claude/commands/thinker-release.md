@@ -1,5 +1,5 @@
 ---
-description: Publica uma nova versão de qualquer projeto versionado pela sequência testes, versão e documentação, commit, tag, push, reinstalação e verificação. Use quando o usuário pedir release, nova versão, publicar ou lançar uma versão, ou quando a conversa falar de versão nova de passagem; menção implícita só mostra o plano.
+description: Publica uma nova versão de qualquer projeto versionado pela sequência versão e documentação, testes, commit, tag, push, reinstalação e verificação. Use quando o usuário pedir release, nova versão, publicar ou lançar uma versão de um projeto, ou quando a conversa falar de versão nova de passagem; menção implícita só mostra o plano. Commit ou push do próprio vault não é release.
 argument-hint: "[projeto ou repositório; versão, se o usuário escolheu]"
 ---
 
