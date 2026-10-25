@@ -19,7 +19,7 @@ O agente e o mantenedor da wiki pessoal. O usuario le a wiki; o agente escreve, 
 
 ## Configuracao do Vault
 
-Categorias sao configuracao do vault, nao do harness: vivem em `vault.config.json` (`categories` como lista `[slug, display, escopo]`, mais `subsharded`, `fast_spheres`, `inbox_dir`). Leia o config no inicio de sessao.
+Categorias sao configuracao do vault, nao do harness: vivem em `vault.config.json` (`categories` como lista `[slug, display, escopo]`, mais `subsharded`, `monthly_sources`, `fast_spheres`, `inbox_dir`). Leia o config no inicio de sessao.
 
 `vault.config.json` tolera chaves desconhecidas e omitidas (merge raso com default neutro); nenhuma chave nova precisa virar obrigatoria so por existir. Chave opcional: `transcript.review_tool_dir` — diretorio da ferramenta CLI `review_turns.py` usada pela operacao TRANSCRIPT para tocar/inspecionar trechos de `.analysis.jsonl`. Ausente = a operacao apenas lista `mm:ss`+trilha sem sugerir comando de escuta.
 
@@ -115,6 +115,7 @@ O indice e gerado, nao editado a mao.
 - Root: `wiki/index.md`
 - Shards: `wiki/[categoria]/_index.md`
 - Sub-shards por tipo em esferas grandes: `wiki/[categoria]/_index-[type].md`
+- Fontes por mes em esferas listadas em `monthly_sources` (so vale se a esfera tambem estiver em `subsharded`): `wiki/[categoria]/_index-source-AAAA-MM.md`. O mes vem da data no inicio do slug, senao de `created:`, senao `sem-data`.
 - Implementacao: `.claude/scripts/build-index.py`
 
 Para refletir paginas novas, removidas ou alteracoes de `summary:`, rode `python3 .claude/scripts/build-index.py generate`. Para validar sincronia, rode `python3 .claude/scripts/build-index.py check`.

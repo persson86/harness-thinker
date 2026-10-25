@@ -34,7 +34,7 @@ Para achar paginas por pessoa, tema ou conceito, comece por `search` com 2 a 6 t
 ## Execucao
 
 1. Use o root como mapa das esferas e ponteiro para shards.
-2. Abra apenas os shards que o topico toca; em esfera subsharded, siga so o sub-shard relevante.
+2. Abra apenas os shards que o topico toca; em esfera subsharded, siga so o sub-shard relevante (fontes por mes: so o(s) mes(es) do periodo).
 3. Se profundo, leia as paginas mais relevantes na integra.
 4. Incorpore conhecimento do vault com citacoes `[[wikilink]]`.
 5. Se o vault nao cobre o tema, declare brevemente e siga com conhecimento externo separado.

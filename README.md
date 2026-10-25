@@ -31,6 +31,10 @@ reviewed paths, create `v<VERSION>`, push branch and tag, then update each targe
 `install.sh TARGET --update`. Verify target `harness/.version`, manifest, vault health
 and local/remote SHA parity. Publishing vault knowledge is a separate scope.
 
+## 7.23.5: Review by literal, sources by month
+
+`build-index.py review <slug> --literal "<text>"` (repeatable) lists pages that repeat a distinctive string of a corrected claim without linking to it, next to the wikilink and `sources:` references; the review operation now always pairs it with `search` for paraphrases. A vault can split a large sources sub-shard by month with `"monthly_sources": ["<category>"]` in `vault.config.json` (the category must also be in `subsharded`). `thresholds` no longer asks to evaluate FTS5 when search already uses it.
+
 ## 7.23.4: Reviewers read the repository
 
 `delegate.py submit --repo PATH` lets a collaborator read the live repository instead of a pasted diff. Codex can run commands and tests and write reproductions only in its disposable workspace, with no network and no writes to the repository; Claude reads with file tools only. Reviewers also search the web and read the vault by default, except `ai-memory/`, `drafts/reviewer/` and `drafts/delegation/`. Their briefs carry the problem, the proposed solution and the definitions behind the tests, never the orchestrator's reasoning or another model's answer, so the review stays as unbiased as possible. The default compaction window is now 500K tokens.
@@ -416,7 +420,7 @@ The release also fixes the existing calendar gate for “minha próxima agenda�
 
 Corrections now have an explicit REVIEW workflow: trace the affected assertion and candidate dependencies, preserve historical context, and update both body and summary within the user's authorization. Approval to save is distinct from evidence supporting a claim; a source note is an editorial representation, not necessarily the original artifact.
 
-Optional `knowledge_status`, `as_of` and `superseded_by` metadata make historical context visible in generated indexes and search. Existing pages remain compatible; missing metadata does not imply current truth. `build-index.py review <slug>` lists direct references from wikilinks and `sources:` as review candidates, not corroboration. `stale` also considers insights across categories and skips explicitly historical/superseded pages.
+Optional `knowledge_status`, `as_of` and `superseded_by` metadata make historical context visible in generated indexes and search. Existing pages remain compatible; missing metadata does not imply current truth. `build-index.py review <slug>` lists direct references from wikilinks and `sources:` as review candidates, not corroboration; `--literal TEXT` adds pages that repeat a string without linking. `stale` also considers insights across categories and skips explicitly historical/superseded pages.
 
 QUERY and DEEP adapt to exploration, critique, decision and execution. They propose saving when useful instead of ending every exchange with a publication question. Personal voice remains vault-owned in `vault-heuristics.md`.
 

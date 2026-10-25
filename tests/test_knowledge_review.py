@@ -38,8 +38,10 @@ class KnowledgeReviewTests(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("\n".join(lines), encoding="utf-8")
 
-    def invoke(self, *args):
+    def invoke(self, *args, **extra_env):
         env = {**os.environ, "CLAUDE_PROJECT_DIR": str(self.root)}
+        env.pop("THINKER_SEARCH_ENGINE", None)
+        env.update(extra_env)
         return subprocess.run(["python3", str(SCRIPT), *args], env=env,
                               text=True, capture_output=True, check=False)
 
@@ -124,6 +126,131 @@ class KnowledgeReviewTests(unittest.TestCase):
         subshard = (self.root / "wiki/fast/_index-concept.md").read_text(encoding="utf-8")
         self.assertIn("[[historical]] — Resumo **[histórico; estado posterior: current]**", subshard)
         self.assertEqual(self.invoke("check").returncode, 0)
+
+    def configure(self, **changes):
+        config = json.loads((self.root / "vault.config.json").read_text(encoding="utf-8"))
+        config.update(changes)
+        (self.root / "vault.config.json").write_text(json.dumps(config), encoding="utf-8")
+
+    def set_created(self, rel, created):
+        path = self.root / "wiki" / rel
+        text = path.read_text(encoding="utf-8").replace("created: 2020-01-01\n", created)
+        path.write_text(text, encoding="utf-8")
+
+    def wiki_hashes(self):
+        return {str(p): hashlib.sha256(p.read_bytes()).hexdigest()
+                for p in sorted((self.root / "wiki").rglob("*.md"))}
+
+    def test_monthly_sources_split_by_slug_date_then_created(self):
+        self.configure(subsharded=["fast"], monthly_sources=["fast"])
+        self.page("fast/2026-09-10-reuniao.md", typ="source", knowledge_status="historical", superseded_by="current")
+        self.page("fast/2026-10-01-outra.md", typ="source")
+        self.page("fast/2026-01-sem-dia.md", typ="source")
+        self.page("fast/fonte-sem-data-no-slug.md", typ="source")
+        self.set_created("fast/fonte-sem-data-no-slug.md", "created: 2026-08-05\n")
+        self.page("fast/fonte-sem-data-alguma.md", typ="source")
+        self.set_created("fast/fonte-sem-data-alguma.md", "")
+        self.page("fast/pessoa.md", typ="entity")
+        self.assertEqual(self.invoke("generate").returncode, 0)
+        wiki = self.root / "wiki/fast"
+        self.assertFalse((wiki / "_index-source.md").exists())
+        for month in ("2026-10", "2026-09", "2026-08", "2026-01", "sem-data"):
+            self.assertTrue((wiki / ("_index-source-%s.md" % month)).exists(), month)
+        self.assertIn("[[fonte-sem-data-no-slug]]", (wiki / "_index-source-2026-08.md").read_text(encoding="utf-8"))
+        self.assertIn("[[fonte-sem-data-alguma]]", (wiki / "_index-source-sem-data.md").read_text(encoding="utf-8"))
+        september = (wiki / "_index-source-2026-09.md").read_text(encoding="utf-8")
+        self.assertIn("# Fast — Fontes — 2026-09", september)
+        self.assertIn("[[2026-09-10-reuniao]] — Resumo **[histórico; estado posterior: current]**", september)
+        thin = (wiki / "_index.md").read_text(encoding="utf-8")
+        self.assertIn("- **Fontes** `5 páginas`, por mês:", thin)
+        order = [thin.index("_index-source-%s.md" % m) for m in ("2026-10", "2026-09", "2026-08", "2026-01", "sem-data")]
+        self.assertEqual(order, sorted(order))
+        self.assertIn("_index-entity.md", thin)
+        before = self.wiki_hashes()
+        self.assertEqual(self.invoke("generate").returncode, 0)
+        self.assertEqual(self.wiki_hashes(), before)
+        self.assertEqual(self.invoke("check").returncode, 0)
+
+    def test_monthly_sources_removed_from_config_is_drift_until_generate(self):
+        self.configure(subsharded=["fast"], monthly_sources=["fast"])
+        self.page("fast/2026-09-10-reuniao.md", typ="source")
+        self.assertEqual(self.invoke("generate").returncode, 0)
+        self.configure(monthly_sources=[])
+        check = self.invoke("check")
+        self.assertEqual(check.returncode, 1)
+        self.assertIn("fast/_index-source-2026-09.md (deveria sumir)", check.stdout)
+        self.assertIn("fast/_index-source.md (ausente)", check.stdout)
+        self.assertEqual(self.invoke("generate").returncode, 0)
+        self.assertFalse((self.root / "wiki/fast/_index-source-2026-09.md").exists())
+        self.assertEqual(self.invoke("check").returncode, 0)
+
+    def test_monthly_sources_outside_subsharded_is_ignored(self):
+        self.configure(monthly_sources=["fast"])
+        self.page("fast/2026-09-10-reuniao.md", typ="source")
+        self.assertEqual(self.invoke("generate").returncode, 0)
+        self.assertEqual(sorted(p.name for p in (self.root / "wiki/fast").glob("_index*.md")), ["_index.md"])
+        self.assertIn("[[2026-09-10-reuniao]]", (self.root / "wiki/fast/_index.md").read_text(encoding="utf-8"))
+
+    def test_thresholds_watch_the_biggest_month(self):
+        self.configure(subsharded=["fast"], monthly_sources=["fast"])
+        for i in range(160):
+            self.page("fast/2026-%s-%02d-fonte-%03d.md" % ("09" if i % 2 else "10", i % 28 + 1, i), typ="source")
+        self.assertEqual(self.invoke("generate").returncode, 0)
+        split = self.invoke("thresholds")
+        self.assertEqual(split.returncode, 0, split.stdout)
+        for i in range(0, 160, 2):
+            src = self.root / ("wiki/fast/2026-10-%02d-fonte-%03d.md" % (i % 28 + 1, i))
+            src.rename(src.with_name(src.name.replace("2026-10-", "2026-09-")))
+        self.assertEqual(self.invoke("generate").returncode, 0)
+        crowded = self.invoke("thresholds")
+        self.assertEqual(crowded.returncode, 1)
+        self.assertIn("sub-shard fast/_index-source-2026-09.md", crowded.stdout)
+
+    def test_thresholds_page_count_only_trips_without_fts5(self):
+        cats = ["c%d" % i for i in range(6)]
+        self.configure(categories=[[c, c.upper(), "escopo"] for c in cats], fast_spheres=[], inbox_dir="c0/inbox")
+        for n in range(801):
+            self.page("%s/p%03d.md" % (cats[n % 6], n))
+        self.assertEqual(self.invoke("generate").returncode, 0)
+        fts = self.invoke("thresholds")
+        self.assertEqual(fts.returncode, 0, fts.stdout)
+        self.assertIn("busca já em FTS5/BM25; contagem só informativa", fts.stdout)
+        self.assertNotIn("avaliar FTS5", fts.stdout)
+        legacy = self.invoke("thresholds", THINKER_SEARCH_ENGINE="legacy")
+        self.assertEqual(legacy.returncode, 1)
+        self.assertIn("total 801 páginas (> 800) com busca legado forçado → avaliar FTS5", legacy.stdout)
+
+    def test_review_literal_finds_unlinked_restatements_without_writing(self):
+        self.page("fast/target.md", body="A versão vigente é v9.0.0.")
+        self.page("fast/linked.md", body="Ver [[target]]: a versão é v8.3.2.")
+        self.page("fast/unlinked.md", body="Linha um\nA versão é V8.3.2 desde junho.")
+        self.page("slow/historical.md", body="Em junho era v8.3.2.", knowledge_status="historical")
+        self.page("slow/regex-trap.md", body="Nada de v8x3y2 aqui.")
+        self.page("slow/accent.md", body="Revisão em São Paulo.")
+        for n in range(30):
+            self.page("slow/many-%02d.md" % n, body="também v8.3.2")
+        self.page("slow/target.md")
+        self.assertEqual(self.invoke("review", "target", "--literal", "v8.3.2").returncode, 2)
+        (self.root / "wiki/slow/target.md").unlink()
+        before = self.wiki_hashes()
+        review = self.invoke("review", "target", "--literal", "v8.3.2", "--literal", "sao paulo")
+        self.assertEqual(review.returncode, 0, review.stdout)
+        self.assertEqual(self.wiki_hashes(), before)
+        out = review.stdout
+        self.assertIn('[[linked]] (fast; sem status declarado) — wikilink no corpo; literal "v8.3.2" (linha 12)', out)
+        self.assertEqual(out.count("[[linked]]"), 1)
+        self.assertIn('[[unlinked]] (fast; sem status declarado) — literal "v8.3.2" (linha 13)', out)
+        self.assertIn('[[historical]] (slow; histórico) — literal "v8.3.2"', out)
+        self.assertIn('[[accent]] (slow; sem status declarado) — literal "sao paulo"', out)
+        self.assertNotIn("[[regex-trap]]", out)
+        self.assertEqual(sum(out.count("[[many-%02d]]" % n) for n in range(30)), 30)
+        self.assertIn("complemente com `search`", out)
+
+    def test_review_literal_requires_a_value(self):
+        self.page("fast/target.md")
+        self.assertEqual(self.invoke("review", "target", "--literal").returncode, 2)
+        self.assertEqual(self.invoke("review", "target", "--literal", "  ").returncode, 2)
+        self.assertEqual(self.invoke("review", "--literal", "x").returncode, 2)
 
 
 if __name__ == "__main__":

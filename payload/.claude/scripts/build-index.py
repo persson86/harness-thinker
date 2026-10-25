@@ -10,7 +10,8 @@ Estrutura two-tier: root fino (wiki/index.md) + um shard por categoria
 o(s) shard(s) da(s) categoria(s) relevante(s). Categorias em SUBSHARDED
 (gatilho Fase 3: shard > SHARD_LINE_LIMIT) têm shard fino que aponta para
 sub-shards por tipo (wiki/[cat]/_index-[type].md) — um nível a mais, mesmo
-princípio.
+princípio. Categorias em MONTHLY_SOURCES (subconjunto de SUBSHARDED) dividem
+ainda as fontes por mês (wiki/[cat]/_index-source-AAAA-MM.md).
 
 Subcomandos:
   generate             Escreve o root + os shards a partir do frontmatter.
@@ -33,15 +34,19 @@ Subcomandos:
   search "<termos>"    Recall ranqueado por BM25 (SQLite FTS5 em memória; title>
                        summary>tags=body), ignorando palavras funcionais soltas;
                        frases entre aspas são exatas e --all exige todos os termos.
-  review <slug>         Referências diretas candidatas a revisão (wikilinks no
-                       corpo e `sources:`), sem inferir correção automática.
+  review <slug> [--literal TEXTO]...
+                       Candidatas a revisão: referências diretas (wikilinks no
+                       corpo e `sources:`) e, com --literal (repetível), páginas
+                       que contêm o trecho literal (sem caixa/acento), com a
+                       linha. Sem limite de resultados; não infere correção.
   graph                Saúde do grafo: publicadas vs. inbox, ilhas e links quebrados.
   stale [--days N]     Entidades/conceitos com `updated:` antigo (default 90d)
                        em esferas de movimento rápido, mais insights em qualquer
                        esfera; ignora inbox, histórico e superado — insumo DREAM.
                        Informacional, exit 0 sempre.
   thresholds           Avisa se gatilhos adiados (Fase 3) dispararam: shard
-                       > 150 linhas (sub-shard) ou > 800 páginas (FTS5).
+                       > 150 linhas (sub-shard) ou > 800 páginas sem FTS5
+                       disponível na busca (com FTS5, a contagem só informa).
   migrate [--dry-run]  (one-shot, Fase 1) Insere `summary:` no frontmatter a
                        partir de um index.md monolítico legado. Inerte após o
                        cutover (o root não tem entradas por página).
@@ -72,6 +77,7 @@ _DEFAULT_CONFIG = {
         ["ideas", "Ideas", "Raw inbox plus generated insights."],
     ],
     "subsharded": [],
+    "monthly_sources": [],
     "fast_spheres": [],
     "inbox_dir": "ideas/inbox",
 }
@@ -103,13 +109,20 @@ SCOPE = {slug: scope for slug, _disp, scope in CATEGORIES}
 # Mecanismo EXPLÍCITO, não automático — evita flapping na fronteira do limite.
 SUBSHARDED = set(_CFG["subsharded"])
 
+# Categorias subsharded cujas fontes se dividem por mês (_index-source-AAAA-MM.md).
+# Opt-in explícito como SUBSHARDED; fora dele a chave é ignorada. Mês = prefixo de
+# data do slug (data do evento), senão `created:`, senão "sem-data".
+MONTHLY_SOURCES = set(_CFG.get("monthly_sources") or []) & SUBSHARDED
+SLUG_MONTH_RE = re.compile(r"^(\d{4}-\d{2})(?:-\d{2})?(?:-|$)")
+NO_DATE_MONTH = "sem-data"
+
 TYPE_ORDER = ["concept", "entity", "source", "insight", "inbox"]
 TYPE_LABEL = {"concept": "Conceitos", "entity": "Entidades", "source": "Fontes",
               "insight": "Insights", "inbox": "Inbox"}
 
 # Gatilhos adiados na Fase 3 (ver reestruturacao-index-spec) — vigiados por `thresholds`.
 SHARD_LINE_LIMIT = 150   # shard maior que isto → sub-shard da categoria por tipo
-TOTAL_PAGE_LIMIT = 800   # vault maior que isto → avaliar camada FTS5
+TOTAL_PAGE_LIMIT = 800   # vault maior que isto, com busca sem FTS5 → avaliar FTS5
 # Avisos de forma (7.22.0): não bloqueiam e não mudam o código de saída.
 HUB_BYTES_LIMIT = 40 * 1024     # página-hub vigente maior que isto → revisar vigente × histórico
 SUMMARY_CHARS_LIMIT = 600       # summary maior que isto → revisão editorial, nunca truncar
@@ -257,12 +270,18 @@ def misplaced_entries():
     return sorted(found)
 
 
+def page_month(slug, fm_lines):
+    """Mês da página para sub-shard mensal: data do slug, senão `created:`."""
+    match = SLUG_MONTH_RE.match(slug) or SLUG_MONTH_RE.match((fm_get(fm_lines, "created") or "") + "-")
+    return match.group(1) if match else NO_DATE_MONTH
+
+
 def collect(pages=None):
     """Coleta o frontmatter para indexação.
 
     Retorna (by_cat, skipped, inbox_summary, unknown):
       by_cat        {cat_slug: [(slug, summary, type, status, as_of,
-                    superseded_by)]} das páginas indexáveis.
+                    superseded_by, month)]} das páginas indexáveis.
       skipped       páginas (não-inbox) sem frontmatter ou sem summary.
       inbox_summary páginas em inbox/ que TÊM summary mas não são indexadas por
                     localização — candidatas a promoção (avisadas no generate).
@@ -290,7 +309,8 @@ def collect(pages=None):
         if cat in by_cat:
             status, as_of, superseded_by = knowledge_status(res[0])
             by_cat[cat].append((slug_of(p), summ, fm_get(res[0], "type"),
-                                status, as_of, superseded_by))
+                                status, as_of, superseded_by,
+                                page_month(slug_of(p), res[0])))
         else:
             unknown.append(os.path.relpath(p, VAULT))
     return by_cat, skipped, inbox_summary, unknown
@@ -299,9 +319,24 @@ def collect(pages=None):
 # ---------- render (determinístico, sem timestamp) ----------
 def group_by_type(items):
     by_type = {}
-    for slug, summ, typ, status, as_of, superseded_by in items:
+    for slug, summ, typ, status, as_of, superseded_by, _month in items:
         by_type.setdefault(typ or "", []).append((slug, summ, status, as_of, superseded_by))
     return by_type
+
+
+def sources_by_month(items):
+    """{mês: [entradas]} das fontes, para categorias em MONTHLY_SOURCES."""
+    by_month = {}
+    for slug, summ, typ, status, as_of, superseded_by, month in items:
+        if typ == "source":
+            by_month.setdefault(month, []).append((slug, summ, status, as_of, superseded_by))
+    return by_month
+
+
+def month_order(by_month):
+    """Mais recente primeiro; "sem-data" por último."""
+    dated = sorted((m for m in by_month if m != NO_DATE_MONTH), reverse=True)
+    return dated + ([NO_DATE_MONTH] if NO_DATE_MONTH in by_month else [])
 
 
 def type_order(by_type):
@@ -324,19 +359,28 @@ def render_shard(disp, items):
     return "\n".join(out).rstrip() + "\n"
 
 
-def render_thin_shard(disp, items):
+def render_thin_shard(disp, items, monthly=False):
     out = ["# %s — índice" % disp, "",
            "> Shard fino gerado por `.claude/scripts/build-index.py` — não editar à mão. "
            "Entradas nos sub-shards por tipo; carregue só o(s) relevante(s).", ""]
     by_type = group_by_type(items)
     for t in type_order(by_type):
+        label = TYPE_LABEL.get(t, t or "Outros")
+        if monthly and t == "source":
+            out.append("- **%s** `%d páginas`, por mês:" % (label, len(by_type[t])))
+            by_month = sources_by_month(items)
+            for m in month_order(by_month):
+                fn = "_index-source-%s.md" % m
+                out.append("  - %s `%d páginas` → [`%s`](%s)" % (m, len(by_month[m]), fn, fn))
+            continue
         fn = "_index-%s.md" % type_slug(t)
-        out.append("- **%s** `%d páginas` → [`%s`](%s)" % (TYPE_LABEL.get(t, t or "Outros"), len(by_type[t]), fn, fn))
+        out.append("- **%s** `%d páginas` → [`%s`](%s)" % (label, len(by_type[t]), fn, fn))
     return "\n".join(out).rstrip() + "\n"
 
 
-def render_subshard(disp, t, entries):
-    out = ["# %s — %s" % (disp, TYPE_LABEL.get(t, t or "Outros")), "",
+def render_subshard(disp, t, entries, month=None):
+    title = TYPE_LABEL.get(t, t or "Outros") + (" — %s" % month if month else "")
+    out = ["# %s — %s" % (disp, title), "",
            "> Sub-shard gerado por `.claude/scripts/build-index.py` — não editar à mão.", ""]
     for slug, summ, status, as_of, superseded_by in sorted(entries):
         out.append("- [[%s]] — %s%s" % (slug, summ, status_badge(status, as_of, superseded_by)))
@@ -348,16 +392,23 @@ def shard_files(slug, disp, items):
     if not items:
         return {}
     if slug in SUBSHARDED:
-        files = {"_index.md": render_thin_shard(disp, items)}
+        monthly = slug in MONTHLY_SOURCES
+        files = {"_index.md": render_thin_shard(disp, items, monthly)}
         by_type = group_by_type(items)
         for t in type_order(by_type):
+            if monthly and t == "source":
+                by_month = sources_by_month(items)
+                for m in month_order(by_month):
+                    files["_index-source-%s.md" % m] = render_subshard(disp, t, by_month[m], m)
+                continue
             files["_index-%s.md" % type_slug(t)] = render_subshard(disp, t, by_type[t])
         return files
     return {"_index.md": render_shard(disp, items)}
 
 
 def stale_shards(cat_dir, expected):
-    """_index*.md presentes na pasta mas não esperados (type sumiu, cat saiu/entrou no SUBSHARDED)."""
+    """_index*.md presentes na pasta mas não esperados (type ou mês sumiu, cat saiu/entrou
+    em SUBSHARDED ou MONTHLY_SOURCES)."""
     if not os.path.isdir(cat_dir):
         return []
     return [fn for fn in os.listdir(cat_dir)
@@ -582,11 +633,15 @@ def cmd_thresholds():
             tripped.append("sub-shard %s: %d linhas (> %d) → avaliar divisão adicional da esfera" % (name, n, SHARD_LINE_LIMIT))
         else:
             tripped.append("shard %s: %d linhas (> %d) → adicionar '%s' a SUBSHARDED + generate [Fase 3]" % (name, n, SHARD_LINE_LIMIT, slug))
-    if total > TOTAL_PAGE_LIMIT:
-        tripped.append("total %d páginas (> %d) → avaliar FTS5 [Fase 3]" % (total, TOTAL_PAGE_LIMIT))
+    backend = search_backend()
+    if total > TOTAL_PAGE_LIMIT and backend != "fts5":
+        tripped.append("total %d páginas (> %d) com busca %s → avaliar FTS5 [Fase 3]" % (total, TOTAL_PAGE_LIMIT, backend))
     biggest = max(lines, key=lines.get) if lines else "-"
     print("[thresholds] gatilhos adiados da Fase 3 (ver reestruturacao-index-spec)")
-    print("  páginas indexadas: %d / %d (gatilho FTS5)" % (total, TOTAL_PAGE_LIMIT))
+    if backend == "fts5":
+        print("  páginas indexadas: %d (busca já em FTS5/BM25; contagem só informativa)" % total)
+    else:
+        print("  páginas indexadas: %d / %d (gatilho FTS5; busca: %s)" % (total, TOTAL_PAGE_LIMIT, backend))
     print("  maior (sub-)shard: %s = %d / %d linhas (gatilho sub-shard)" % (biggest, lines.get(biggest, 0), SHARD_LINE_LIMIT))
     if tripped:
         print("  ⚠ GATILHO(S) DISPARADO(S):")
@@ -775,6 +830,22 @@ def _search_pages():
     return pages
 
 
+def search_backend():
+    """Motor que `search` usaria: "fts5", "legado forçado" ou "legado (sem FTS5)".
+    Diz qual mecanismo roda, não a qualidade da recuperação."""
+    if os.environ.get("THINKER_SEARCH_ENGINE") == "legacy":
+        return "legado forçado"
+    import sqlite3
+    db = sqlite3.connect(":memory:")
+    try:
+        db.execute("CREATE VIRTUAL TABLE probe USING fts5(body)")
+    except sqlite3.OperationalError:
+        return "legado (sem FTS5)"
+    finally:
+        db.close()
+    return "fts5"
+
+
 def _search_fts(pages, clauses, require_all):
     """Ranking BM25 do SQLite FTS5 em memória; None se o SQLite não tiver FTS5."""
     if os.environ.get("THINKER_SEARCH_ENGINE") == "legacy":
@@ -859,8 +930,24 @@ def cmd_search(query, require_all=False):
     return 0
 
 
-def cmd_review(target_slug):
-    """Mostra dependências candidatas que referenciam DIRETAMENTE uma página.
+def literal_hits(text, literals):
+    """[(literal, nº da linha)] dos trechos literais presentes no texto, sem
+    caixa/acento e com espaços normalizados; pontuação conta como digitada."""
+    hits = []
+    lines = text.splitlines()
+    for literal in literals:
+        needle = _normalize_search(literal)
+        for n, line in enumerate(lines, 1):
+            if needle in _normalize_search(line):
+                hits.append((literal, n))
+                break
+    return hits
+
+
+def cmd_review(target_slug, literals=()):
+    """Mostra dependências candidatas de uma página: referências DIRETAS
+    (wikilink no corpo, `sources:`) e, com `literals`, páginas que repetem um
+    trecho literal da afirmação revisada sem linkar para ela.
 
     A relação é apenas contexto para revisão: não prova que o conteúdo esteja
     errado, não escolhe sucessor e não modifica páginas.
@@ -896,13 +983,20 @@ def cmd_review(target_slug):
                 break
         if target_slug in fm_list(fm, "sources"):
             reasons.append("sources no frontmatter")
+        for literal, line in literal_hits(text, literals):
+            reasons.append("literal \"%s\" (linha %d)" % (literal, line))
         if reasons:
             status, as_of, superseded_by = knowledge_status(fm)
             references.append((page_category(p), slug_of(p), status_label(status, as_of, superseded_by), reasons))
 
     print("[review] [[%s]] — status: %s" %
           (target_slug, status_label(*target_status)))
-    print("  referências diretas candidatas a dependência/contexto: %d" % len(references))
+    if literals:
+        print("  candidatas por referência direta ou literal (%s): %d" %
+              (", ".join('"%s"' % lit for lit in literals), len(references)))
+        print("  literal não acha paráfrase: complemente com `search`; equivalência é julgamento.")
+    else:
+        print("  referências diretas candidatas a dependência/contexto: %d" % len(references))
     print("  sinalização de contexto; não prova ou correção automática.")
     for cat, slug, status, reasons in sorted(references):
         print("      - [[%s]] (%s; %s) — %s" % (slug, cat, status, "; ".join(reasons)))
@@ -1175,10 +1269,18 @@ def main():
         query_args = [arg for arg in args[1:] if arg != "--all"]
         return cmd_search(" ".join(query_args), require_all=require_all)
     if args[0] == "review":
-        if len(args) != 2:
-            print("uso: build-index.py review <slug>")
+        rest, literals = args[1:], []
+        while "--literal" in rest:
+            i = rest.index("--literal")
+            if i + 1 >= len(rest) or not _normalize_search(rest[i + 1]):
+                print("uso: build-index.py review <slug> [--literal TEXTO]...")
+                return 2
+            literals.append(rest[i + 1])
+            del rest[i:i + 2]
+        if len(rest) != 1:
+            print("uso: build-index.py review <slug> [--literal TEXTO]...")
             return 2
-        return cmd_review(args[1])
+        return cmd_review(rest[0], literals)
     if args[0] == "graph":
         return cmd_graph()
     if args[0] == "thresholds":
