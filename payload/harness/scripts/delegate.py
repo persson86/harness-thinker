@@ -14,7 +14,7 @@ import uuid
 
 sys.dont_write_bytecode = True
 from thinker_delegation import adapters, board, routing, native, quota_observe
-from thinker_delegation.runtime import DelegationStore, DelegationError, _atomic, _read
+from thinker_delegation.runtime import DelegationStore, DelegationError, _atomic, _read, progress_view
 from thinker_delegation.git_publish import prepare_plan, execute_plan, PublicationError, _load_plan
 
 LABELS = {"queued": "na fila", "running": "em andamento", "completed": "concluído",
@@ -115,7 +115,10 @@ def parser():
     submit.add_argument("--delivery", help="ID estável da entrega para orçamento por papel")
     submit.add_argument("--initiation", choices=["auto", "explicit"], default="auto",
                         help="explicit exige pedido real do usuário; não religa autonomia")
-    submit.add_argument("--timeout", type=float, default=300)
+    submit.add_argument("--timeout", type=float,
+                        help="Prazo total em segundos; padrão 1200 com heartbeat (Codex), 600 sem")
+    submit.add_argument("--stall-after", type=float, default=300,
+                        help="Encerra como stalled o Codex sem evento por N s; 0 desliga")
     submit.add_argument("--retry-reason", help="Diagnóstico e mudança que justificam nova tentativa após falha")
     submit.add_argument("--run", help="Run ao qual este job pertence")
     submit.add_argument("--stage", type=int, help="Etapa linear do run, começando em 1")
@@ -375,6 +378,8 @@ def public_job(job):
             "run_id", "stage", "role", "parent_job", "handoff", "diagnostic", "routing", "retry_reason",
             "consult_role", "delivery", "initiation")
     result = {key: job[key] for key in keys if key in job}
+    if "progress" in job:
+        result["progress"] = progress_view(job["progress"])
     result["profile"] = {key: job.get("profile", {}).get(key) for key in
                          ("provider", "model", "effort", "model_source", "cli_version", "isolation")}
     if job.get("result"):
@@ -645,7 +650,9 @@ def dispatch(store, args):
         selected_run = run_id(store, args.run, sid) if args.run else None
         selected_parent = job_id(store, args.parent_job, sid) if args.parent_job else None
         return public_job(store.submit(sid, profile, task, context_paths=context_paths,
-                                       timeout=args.timeout, model_source=profile["model_source"],
+                                       timeout=args.timeout if args.timeout is not None else
+                                       (1200 if adapters.streams_progress(profile) else 600),
+                                       stall_after=args.stall_after, model_source=profile["model_source"],
                                        reason=args.reason, task_type=args.task,
                                        run_id=selected_run, stage=args.stage, role=args.role,
                                        parent_job=selected_parent, handoff=args.handoff,

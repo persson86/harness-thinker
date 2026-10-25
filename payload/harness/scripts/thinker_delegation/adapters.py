@@ -156,7 +156,9 @@ def build_command(profile, workspace, prompt_path):
                    "model_reasoning_effort=" + json.dumps(effort), "--sandbox", "read-only",
                    "--ephemeral", "--skip-git-repo-check", "--color", "never", "--json",
                    "--cd", str(workspace), "--config", 'web_search="disabled"',
-                   "--config", 'forced_login_method="chatgpt"']
+                   "--config", 'forced_login_method="chatgpt"',
+                   # Reasoning headlines stream while the model thinks: the supervisor's heartbeat.
+                   "--config", 'model_reasoning_summary="detailed"', "--config", "hide_agent_reasoning=false"]
         for feature in ("shell_tool", "unified_exec", "apps", "browser_use", "computer_use",
                         "multi_agent", "multi_agent_v2", "hooks", "plugins", "memories",
                         "skill_search", "image_generation", "code_mode", "code_mode_host"):
@@ -277,6 +279,30 @@ def parse_result(profile, stdout, stderr, returncode):
         raise AdapterError("Campo de limitações inválido.")
     result["text"] = result["text"].strip()
     return result
+
+
+def streams_progress(profile):
+    """Providers whose stream emits events while the model works (heartbeat for stall detection)."""
+    return isinstance(profile, dict) and profile.get("provider") == "codex"
+
+
+def progress_event(profile, line):
+    """Kind of one stream line and, for reasoning, its short headline. Never the body."""
+    if not streams_progress(profile):
+        return None
+    try:
+        event = json.loads(line)
+    except (ValueError, TypeError):
+        return {"kind": "invalid", "title": None}
+    if not isinstance(event, dict):
+        return {"kind": "invalid", "title": None}
+    item = event.get("item") if isinstance(event.get("item"), dict) else {}
+    kind = item.get("type") or event.get("type") or "event"
+    title = None
+    if item.get("type") == "reasoning" and isinstance(item.get("text"), str):
+        headlines = re.findall(r"\*\*(.{1,120}?)\*\*", item["text"])
+        title = headlines[-1].strip()[:80] if headlines else None  # the latest step
+    return {"kind": str(kind)[:40], "title": title}
 
 
 def diagnose_failure(profile, stdout, stderr, returncode):

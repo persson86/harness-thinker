@@ -348,6 +348,124 @@ def parse_result(profile, stdout, stderr, returncode):
         self.store.cancel(job["id"])
         self.assertEqual("cancelled", self.wait(job["id"])["state"])
 
+    STREAM_ADAPTER = FAKE_ADAPTER + '''
+def streams_progress(profile): return bool(profile.get("stream"))
+def progress_event(profile, line):
+    event = json.loads(line)
+    return {"kind": event.get("kind", "line"), "title": event.get("title")}
+def build_command(profile, workspace, prompt_path):
+    code = ("import json,sys,time\\n"
+            "for i in range(3):\\n"
+            "    print(json.dumps({'kind': 'reasoning', 'title': 'passo %d' % i}), flush=True); time.sleep(0.3)\\n"
+            "time.sleep(" + repr(profile.get("silence", 0)) + ")\\n"
+            "print(json.dumps({'kind': 'final', 'text': 'A reviewable proposal'}), flush=True)\\n")
+    return [sys.executable, "-c", code]
+def parse_result(profile, stdout, stderr, returncode):
+    last = json.loads(stdout.strip().splitlines()[-1])
+    return {"text": last["text"], "model_reported": profile["model"], "usage": None, "session_id": None, "limitations": []}
+'''
+
+    def use_stream_adapter(self):
+        (self.root / "fake-runtime" / "adapters.py").write_text(self.STREAM_ADAPTER, encoding="utf-8")
+        self.profile["stream"] = True
+
+    def test_progress_is_recorded_without_reasoning_text_at_finish(self):
+        self.use_stream_adapter()
+        self.enable()
+        self.profile["silence"] = 2  # long enough for the 1 s poll to publish while running
+        identifier = self.submit()["id"]
+        seen = None
+        deadline = time.monotonic() + 8
+        while time.monotonic() < deadline:
+            job = self.store.get(identifier)
+            if job.get("state") == "running" and (job.get("progress") or {}).get("title"):
+                seen = job["progress"]
+                break
+            if job.get("state") in self.runtime.TERMINAL:
+                break
+            time.sleep(0.05)
+        self.assertIsNotNone(seen, "live progress with headline while running")
+        self.assertTrue(seen["heartbeat"])
+        view = next(job for job in self.store.board_jobs() if job["id"] == identifier)
+        self.assertGreaterEqual(view["progress"]["events"], 1)
+        job = self.wait(identifier)
+        self.assertEqual("completed", job["state"])
+        self.assertEqual(4, job["progress"]["events"])
+        self.assertEqual({"reasoning": 3, "final": 1}, job["progress"]["kinds"])
+        self.assertNotIn("title", job["progress"])
+        self.assertNotIn("title", next(j for j in self.store.board_jobs() if j["id"] == identifier)["progress"])
+        self.assertNotIn("passo", json.dumps(job["progress"]))
+
+    def test_silent_heartbeat_stream_stops_as_stalled_before_deadline(self):
+        self.use_stream_adapter()
+        self.enable()
+        self.profile["silence"] = 6
+        job = self.wait(self.submit(timeout=60, stall_after=1)["id"], timeout=15)
+        self.assertEqual("timed_out", job["state"])
+        self.assertEqual("stalled", job["diagnostic"]["classification"])
+        self.assertEqual(3, job["diagnostic"]["progress"]["events"])
+        self.assertLess(job["diagnostic"]["progress"]["max_gap_s"], 2)
+
+    def test_progress_view_drops_malformed_fields(self):
+        view = self.runtime.progress_view({"events": "9", "last_event_s": float("nan"), "kinds": {"x": -1, "ok": 2},
+                                           "title": 7, "heartbeat": "yes"})
+        self.assertEqual({"events": 0, "first_event_s": None, "last_event_s": None, "max_gap_s": None,
+                          "heartbeat": False, "kinds": {"ok": 2}}, view)
+        self.assertIsNone(self.runtime.progress_view("x"))
+
+    def tracker(self, stall_after=1):
+        class Adapter:
+            @staticmethod
+            def streams_progress(profile): return True
+            @staticmethod
+            def progress_event(profile, line): return json.loads(line)
+        path = self.root / "stream.out"
+        path.write_bytes(b"")
+        return self.runtime._Progress(Adapter, {}, path, stall_after), path
+
+    def test_stall_check_rereads_before_declaring_silence(self):
+        tracker, path = self.tracker()
+        path.write_text('{"kind": "reasoning", "title": "A"}\n')
+        tracker.poll(0.5)
+        with path.open("a") as stream:
+            stream.write('{"kind": "reasoning", "title": "B"}\n')
+        self.assertFalse(tracker.poll(1.2))  # inside the 1 s read interval: not read yet
+        self.assertFalse(tracker.stalled(5.0))  # forced reread finds B written just now
+        self.assertEqual(("B", 5.0), (tracker.title, tracker.last))
+        self.assertTrue(tracker.stalled(6.5))
+
+    def test_unsaved_event_stays_pending_and_final_fragment_counts(self):
+        tracker, path = self.tracker()
+        path.write_text('{"kind": "reasoning", "title": "A"}\n{"kind": "final"}')
+        self.assertTrue(tracker.poll(0))
+        self.assertTrue(tracker.dirty)
+        self.assertEqual(1, tracker.events)
+        tracker.poll(3, final=True)
+        self.assertEqual(2, tracker.events)
+        self.assertEqual({"reasoning": 1, "final": 1}, tracker.kinds)
+
+    def test_zero_threshold_turns_stall_off(self):
+        tracker, _ = self.tracker(stall_after=0)
+        self.assertFalse(tracker.stalled(10_000))
+        self.assertFalse(tracker.public(live=False)["heartbeat"])
+
+    def test_title_is_dropped_on_any_terminal_path(self):
+        self.enable()
+        self.profile["delay"] = 3
+        identifier = self.submit()["id"]
+        self.wait(identifier, "running")
+        self.store._progress(identifier, {"events": 1, "title": "private step"})
+        self.store._finish(identifier, "failed", error="supervisor exception")
+        self.assertNotIn("title", self.store.get(identifier)["progress"])
+        self.assertNotIn("private step", (self.state / "jobs" / identifier / "job.json").read_text())
+
+    def test_deadline_is_classified(self):
+        self.enable()
+        self.profile["delay"] = 2
+        job = self.wait(self.submit(timeout=0.1)["id"])
+        self.assertEqual("deadline", job["diagnostic"]["classification"])
+        self.assertFalse(job["progress"]["heartbeat"])
+
     def test_off_cancels_only_this_session_or_store(self):
         self.enable()
         self.store.set_session("host-b", True)

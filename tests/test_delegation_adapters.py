@@ -261,5 +261,33 @@ class AdapterTests(unittest.TestCase):
             self.assertNotIn("TOKEN-SECRET", json.dumps(result))
 
 
+
+
+class CodexProgressTests(unittest.TestCase):
+    PROFILE = {"provider": "codex", "model": "gpt-6-astra", "effort": "high"}
+
+    def test_reasoning_headline_is_latest_step_and_body_is_never_returned(self):
+        line = json.dumps({"type": "item.completed", "item": {"type": "reasoning",
+                           "text": "**Lendo o diff** detalhe privado **Conferindo a cota** mais detalhe"}})
+        self.assertEqual({"kind": "reasoning", "title": "Conferindo a cota"}, a.progress_event(self.PROFILE, line))
+        message = json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": "**Achado** corpo"}})
+        self.assertEqual({"kind": "agent_message", "title": None}, a.progress_event(self.PROFILE, message))
+        self.assertEqual({"kind": "turn.completed", "title": None},
+                         a.progress_event(self.PROFILE, json.dumps({"type": "turn.completed"})))
+        self.assertEqual("invalid", a.progress_event(self.PROFILE, "nao json")["kind"])
+
+    def test_only_codex_streams_progress(self):
+        self.assertTrue(a.streams_progress(self.PROFILE))
+        self.assertFalse(a.streams_progress({"provider": "claude"}))
+        self.assertIsNone(a.progress_event({"provider": "claude"}, "{}"))
+
+    def test_codex_command_requests_reasoning_headlines(self):
+        with patch.object(a, "executable", return_value="/bin/codex"):
+            command = a.build_command(dict(self.PROFILE), "/tmp", "/tmp/prompt.txt")
+        self.assertIn('model_reasoning_summary="detailed"', command)
+        self.assertIn("hide_agent_reasoning=false", command)
+        self.assertEqual("-", command[-1])
+
+
 if __name__ == "__main__":
     unittest.main()

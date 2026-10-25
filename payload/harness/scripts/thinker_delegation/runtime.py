@@ -26,6 +26,8 @@ import uuid
 TERMINAL = {"completed", "failed", "cancelled", "timed_out", "interrupted"}
 ACTIVE = {"queued", "running"}
 MAX_INPUT = 256 * 1024
+STALL_AFTER = 300  # seconds without a stream event before a heartbeat provider counts as stalled
+PROGRESS_WRITE_S = 2
 MAX_OUTPUT = 2 * 1024 * 1024
 MAX_FILES = 24
 CONTEXT_SUFFIXES = {".md", ".txt", ".json"}
@@ -850,7 +852,7 @@ class DelegationStore:
                model_source="session", retry_of=None, reason="", task_type="review",
                run_id=None, stage=None, role=None, parent_job=None, handoff=None,
                retry_reason=None, routing=None, consult_role=None, delivery=None,
-               initiation="auto", principal_provider=None):
+               initiation="auto", principal_provider=None, stall_after=STALL_AFTER):
         _require_parent()
         _identifier(session)
         if not self.status(session)["enabled"]:
@@ -859,6 +861,8 @@ class DelegationStore:
             raise DelegationError("Task must contain 1 to 32768 UTF-8 bytes")
         if type(timeout) not in (int, float) or not 0.1 <= timeout <= 86400:
             raise DelegationError("Timeout must be between 0.1 and 86400 seconds")
+        if type(stall_after) not in (int, float) or not math.isfinite(stall_after) or not 0 <= stall_after <= 86400:
+            raise DelegationError("Stall threshold must be between 0 (off) and 86400 seconds")
         if not isinstance(profile, dict) or not isinstance(profile.get("model"), str) or not profile["model"].strip():
             raise DelegationError("An explicit resolved model profile is required")
         try:
@@ -878,7 +882,7 @@ class DelegationStore:
                "session": session, "vault": str(self.vault), "profile": profile,
                "model_source": _short(model_source, 100), "reason": _short(reason),
                "task_type": _short(task_type, 100),
-               "task": task, "snapshot": snapshot, "timeout": timeout,
+               "task": task, "snapshot": snapshot, "timeout": timeout, "stall_after": stall_after,
                "state": "queued", "created_at": _now(), "updated_at": _now(),
                "created_epoch": time.time(), "retry_of": retry_of,
                "request_fingerprint": request_fingerprint,
@@ -1034,6 +1038,7 @@ class DelegationStore:
                   "cancel_requested", "consult_role", "delivery", "initiation")
         view = {field: job.get(field) for field in fields}
         view["model_reported"], view["model_reported_source"] = reported_view(job)
+        view["progress"] = progress_view(job.get("progress"))
         return view
 
     def _stale(self, job):
@@ -1060,6 +1065,7 @@ class DelegationStore:
                 fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
                 return job
+            _drop_live_title(job)
             job.update(state="interrupted", updated_at=_now(), finished_at=_now(),
                        error="Supervisor exited unexpectedly; child termination is unverified. Retry is explicit.",
                        transport_success=False, validation="unavailable")
@@ -1289,6 +1295,14 @@ class DelegationStore:
                            initiation=initiation,
                            principal_provider=principal_provider if principal_provider is not None else job.get("principal_provider"))
 
+    def _progress(self, identifier, progress):
+        with self._lock():
+            job = self._get_locked(identifier)
+            if job["state"] != "running":
+                return
+            job["progress"] = progress
+            _atomic(self.state / "jobs" / identifier / "job.json", job)
+
     def _finish(self, identifier, state, **fields):
         with self._lock():
             job = self._get_locked(identifier)
@@ -1299,6 +1313,7 @@ class DelegationStore:
                 fields.setdefault("validation", "unavailable")
             job.update(fields)
             job.update(state=state, updated_at=_now(), finished_at=_now())
+            _drop_live_title(job)
             _atomic(self.state / "jobs" / identifier / "job.json", job)
             consultations = self._consultations_or_none()
             if consultations is not None and identifier in consultations["calls"]:
@@ -1572,6 +1587,107 @@ def _terminate(process):
         process.wait(timeout=5)
 
 
+class _Progress:
+    """Live heartbeat read from the provider stream while the job runs.
+
+    Keeps counts and timings (seconds since launch); the latest reasoning headline is
+    shown only while running and dropped from the final record.
+    """
+
+    def __init__(self, adapters, profile, path, stall_after=STALL_AFTER):
+        reader = getattr(adapters, "progress_event", None)
+        supported = getattr(adapters, "streams_progress", None)
+        self.read_event = reader if callable(reader) else None
+        self.supported = bool(self.read_event and callable(supported) and supported(profile))
+        self.stall_after = stall_after if type(stall_after) in (int, float) and stall_after > 0 else None
+        self.dirty = False
+        self.profile, self.path = profile, path
+        self.offset, self.pending = 0, b""
+        self.events, self.first, self.last, self.max_gap = 0, None, None, 0.0
+        self.kinds, self.title = {}, None
+        self.checked, self.saved = None, None
+
+    def poll(self, elapsed, force=False, final=False):
+        """Read appended lines at most once per second; True when new events arrived.
+
+        `final` also counts a last record written without a newline (stream closed).
+        """
+        if not force and not final and self.checked is not None and elapsed - self.checked < 1:
+            return False
+        self.checked = elapsed
+        try:
+            with self.path.open("rb") as stream:
+                stream.seek(self.offset)
+                chunk = stream.read(MAX_OUTPUT)
+        except OSError:
+            chunk = b""
+        self.offset += len(chunk)
+        lines = (self.pending + chunk).split(b"\n")
+        self.pending = lines.pop()
+        if final and self.pending.strip():
+            lines.append(self.pending)
+            self.pending = b""
+        fresh = False
+        for line in lines:
+            if not line.strip():
+                continue
+            event = self.read_event(self.profile, line) if self.supported else None
+            gap = elapsed - (self.last if self.last is not None else 0.0)
+            self.max_gap = max(self.max_gap, gap)
+            self.first = elapsed if self.first is None else self.first
+            self.last, self.events, fresh = elapsed, self.events + 1, True
+            kind = (event or {}).get("kind") or "line"
+            if kind in self.kinds or len(self.kinds) < 20:
+                self.kinds[kind] = self.kinds.get(kind, 0) + 1
+            if (event or {}).get("title"):
+                self.title = event["title"]
+        self.dirty = self.dirty or fresh
+        return fresh
+
+    def stalled(self, elapsed):
+        """Silent past the threshold, confirmed by a fresh read so a just-written event counts."""
+        if not self.supported or self.stall_after is None:
+            return False
+        if elapsed - (self.last if self.last is not None else 0.0) <= self.stall_after:
+            return False
+        self.poll(elapsed, force=True)
+        return elapsed - (self.last if self.last is not None else 0.0) > self.stall_after
+
+    def public(self, live):
+        value = {"events": self.events, "first_event_s": _round(self.first), "last_event_s": _round(self.last),
+                 "max_gap_s": _round(self.max_gap), "kinds": dict(self.kinds),
+                 "heartbeat": self.supported and self.stall_after is not None}
+        if live:
+            value["title"] = self.title
+        return value
+
+
+def _drop_live_title(job):
+    """The reasoning headline is live-only: no terminal record keeps it, whatever the path."""
+    if isinstance(job.get("progress"), dict):
+        job["progress"].pop("title", None)
+
+
+def progress_view(value):
+    """Typed copy of a job's progress for display; anything malformed is dropped, not trusted."""
+    if not isinstance(value, dict):
+        return None
+    number = lambda item: item if type(item) in (int, float) and math.isfinite(item) and item >= 0 else None
+    events = value.get("events")
+    kinds = value.get("kinds") if isinstance(value.get("kinds"), dict) else {}
+    view = {"events": events if type(events) is int and events >= 0 else 0,
+            "first_event_s": number(value.get("first_event_s")), "last_event_s": number(value.get("last_event_s")),
+            "max_gap_s": number(value.get("max_gap_s")), "heartbeat": value.get("heartbeat") is True,
+            "kinds": {str(k)[:40]: n for k, n in list(kinds.items())[:20] if type(n) is int and n >= 0}}
+    if isinstance(value.get("title"), str):
+        view["title"] = value["title"][:80]
+    return view
+
+
+def _round(value):
+    return None if value is None else round(value, 1)
+
+
 def _stream_diagnostics(output_path, error_path, returncode, complete):
     """Persist bounded metadata only; provider bytes are deleted by the worker."""
     def describe(path):
@@ -1693,16 +1809,25 @@ def _work_owned(store, identifier, directory):
                 store._finish(identifier, "cancelled", error="Cancelled during preflight; provider was not launched")
                 return 0
             started = time.monotonic()
-            outcome = None
+            outcome = classification = None
+            tracker = _Progress(adapters, job["profile"], output_path, job.get("stall_after", STALL_AFTER))
             while process.poll() is None:
                 with store._lock():
                     current = store._get_locked(identifier)
                     config = store._config()
                     cancelled = current.get("cancel_requested") or not store._session_enabled(config, job["session"])
+                elapsed = time.monotonic() - started
+                tracker.poll(elapsed)
+                if tracker.dirty and (tracker.saved is None or elapsed - tracker.saved >= PROGRESS_WRITE_S):
+                    store._progress(identifier, tracker.public(live=True))
+                    tracker.saved, tracker.dirty = elapsed, False
                 if cancelled:
                     outcome = "cancelled"
-                elif time.monotonic() - started > job["timeout"]:
-                    outcome = "timed_out"
+                elif elapsed > job["timeout"]:
+                    outcome, classification = "timed_out", "deadline"
+                elif tracker.stalled(elapsed):
+                    # Provider stream silent too long: a hang, not slow reasoning.
+                    outcome, classification = "timed_out", "stalled"
                 elif output_path.stat().st_size + error_path.stat().st_size > MAX_OUTPUT:
                     outcome = "failed"
                 if outcome:
@@ -1710,10 +1835,20 @@ def _work_owned(store, identifier, directory):
                     break
                 time.sleep(0.05)
             returncode = process.wait()
+            tracker.poll(time.monotonic() - started, final=True)
+
+        def finish(state, **fields):
+            return store._finish(identifier, state, progress=tracker.public(live=False), **fields)
+
         if outcome:
             diagnostic = _stream_diagnostics(output_path, error_path, returncode, False)
-            store._finish(identifier, outcome, returncode=returncode, diagnostic=diagnostic,
-                          error="Cancelled, deadline elapsed, or output limit exceeded")
+            diagnostic["progress"] = tracker.public(live=False)
+            if classification:
+                diagnostic["classification"] = classification
+            finish(outcome, returncode=returncode, diagnostic=diagnostic,
+                   error={"deadline": "Deadline elapsed while the provider was still running",
+                          "stalled": "Provider stream silent for %g s; stopped as stalled" % tracker.stall_after}.get(
+                       classification, "Cancelled or output limit exceeded"))
             return 0
         with store._lock():
             current = store._get_locked(identifier)
@@ -1721,13 +1856,13 @@ def _work_owned(store, identifier, directory):
             cancelled = current.get("cancel_requested") or not store._session_enabled(config, job["session"])
         if cancelled:
             diagnostic = _stream_diagnostics(output_path, error_path, returncode, True)
-            store._finish(identifier, "cancelled", returncode=returncode, diagnostic=diagnostic,
-                          error="Cancellation requested before result publication")
+            finish("cancelled", returncode=returncode, diagnostic=diagnostic,
+                   error="Cancellation requested before result publication")
             return 0
         if output_path.stat().st_size + error_path.stat().st_size > MAX_OUTPUT:
             diagnostic = _stream_diagnostics(output_path, error_path, returncode, True)
-            store._finish(identifier, "failed", returncode=returncode, diagnostic=diagnostic,
-                          error="Output limit exceeded")
+            finish("failed", returncode=returncode, diagnostic=diagnostic,
+                   error="Output limit exceeded")
             return 0
         stdout = output_path.read_text(encoding="utf-8", errors="replace")
         stderr = error_path.read_text(encoding="utf-8", errors="replace")
@@ -1736,8 +1871,8 @@ def _work_owned(store, identifier, directory):
                                       "provider_command_failed")
             diagnostic = _stream_diagnostics(output_path, error_path, returncode, True)
             diagnostic["classification"] = code
-            store._finish(identifier, "failed", returncode=returncode, diagnostic=diagnostic,
-                          error_code=code, error=message)
+            finish("failed", returncode=returncode, diagnostic=diagnostic,
+                   error_code=code, error=message)
             return 0
         try:
             result = adapters.parse_result(job["profile"], stdout, stderr, returncode)
@@ -1746,14 +1881,14 @@ def _work_owned(store, identifier, directory):
                                       "invalid_provider_output")
             diagnostic = _stream_diagnostics(output_path, error_path, returncode, True)
             diagnostic["classification"] = code
-            store._finish(identifier, "failed", transport_success=True, validation="invalid",
-                          returncode=returncode, diagnostic=diagnostic,
-                          error_code=code, error=message)
+            finish("failed", transport_success=True, validation="invalid",
+                   returncode=returncode, diagnostic=diagnostic,
+                   error_code=code, error=message)
             return 0
         valid = isinstance(result, dict) and isinstance(result.get("text"), str) and bool(result["text"].strip())
         if not valid:
-            store._finish(identifier, "failed", transport_success=True, validation="invalid",
-                          returncode=returncode, error="Provider returned no nonempty textual proposal")
+            finish("failed", transport_success=True, validation="invalid",
+                   returncode=returncode, error="Provider returned no nonempty textual proposal")
             return 0
         # Keep only the public normalization contract, never raw provider events.
         normalized = {"text": result["text"], "model_reported": result.get("model_reported"),
@@ -1768,9 +1903,9 @@ def _work_owned(store, identifier, directory):
         if result.get("stream_schema"):
             normalized["stream_schema"] = result["stream_schema"]
         json.dumps(normalized, allow_nan=False)
-        store._finish(identifier, "completed", transport_success=True, validation="valid",
-                      result=normalized, returncode=returncode,
-                      diagnostic=_stream_diagnostics(output_path, error_path, returncode, True))
+        finish("completed", transport_success=True, validation="valid",
+               result=normalized, returncode=returncode,
+               diagnostic=_stream_diagnostics(output_path, error_path, returncode, True))
         return 0
     except Exception as exc:
         if process is not None:

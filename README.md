@@ -31,6 +31,10 @@ reviewed paths, create `v<VERSION>`, push branch and tag, then update each targe
 `install.sh TARGET --update`. Verify target `harness/.version`, manifest, vault health
 and local/remote SHA parity. Publishing vault knowledge is a separate scope.
 
+## 7.23.3: Delegation heartbeat
+
+Codex delegations now stream reasoning headlines while the model works. The supervisor records live progress in the job and `board` shows it (events, age of the last one, current step). A silent Codex stream is stopped after 300 s as stalled (`--stall-after`); the overall deadline defaults to 1200 s for Codex and 600 s for Claude and Grok, so slow but active reviews (Astra on large diffs) finish instead of timing out at 300 s.
+
 ## 7.23.2: Consultation link
 
 After spawning a native Advisor or Reviewer, the Orchestrator records the host agent with `delegate.py consult link ID --agent-id AGENT` (or `--agent-id` on `finish`). The board then names the agent that served each consultation, and Agents Monitor tags that subagent directly instead of inferring the link.

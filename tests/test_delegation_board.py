@@ -401,5 +401,24 @@ class BoardCLITests(unittest.TestCase):
             self.assertNotIn("Traceback", result.stderr)
 
 
+
+
+class ProgressNoteTests(unittest.TestCase):
+    def test_running_job_shows_events_age_and_headline(self):
+        note = board.progress_note({"events": 12, "last_event_s": 90.0, "title": "Conferindo a cota"}, 100)
+        self.assertEqual("12 eventos · último há 10s · Conferindo a cota", note)
+
+    def test_without_events_there_is_no_note(self):
+        self.assertEqual("", board.progress_note({"events": 0}, 10))
+        self.assertEqual("", board.progress_note(None, 10))
+
+    def test_board_row_uses_its_seconds_for_running_notes(self):
+        row = {"state": "running", "seconds": 100, "timeout": 1200,
+               "progress": {"events": 3, "last_event_s": 95, "title": "Lendo o diff"}}
+        self.assertEqual("3 eventos · último há 5s · Lendo o diff", board.execution_of(row)[3])
+        late = {"state": "running", "seconds": 1300, "timeout": 1200}
+        self.assertIn("passou do timeout", board.execution_of(late)[3])
+
+
 if __name__ == "__main__":
     unittest.main()

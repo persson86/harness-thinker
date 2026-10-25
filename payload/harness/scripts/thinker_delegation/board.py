@@ -179,12 +179,28 @@ def execution_of(job):
         else:
             note = "transporte"
     elif state == "running":
-        seconds = elapsed(job)
+        # Linhas do board já trazem "seconds"; sem started_at, elapsed() devolveria None.
+        seconds = job["seconds"] if "seconds" in job else elapsed(job)
         if job.get("timeout") and seconds and seconds > job["timeout"]:
             note = "passou do timeout; aguardando o supervisor encerrar"
+        else:
+            note = progress_note(job.get("progress"), seconds)
     elif state in ACTIVE and job.get("cancel_requested"):
         note = "cancelamento solicitado"
     return symbol, label, color, note
+
+
+def progress_note(progress, seconds):
+    """Andamento real vindo do stream do provedor: eventos, idade do último e o que pensa agora."""
+    if not isinstance(progress, dict) or not progress.get("events"):
+        return ""
+    parts = ["%d eventos" % progress["events"]]
+    last = progress.get("last_event_s")
+    if isinstance(last, (int, float)) and isinstance(seconds, (int, float)) and seconds >= last:
+        parts.append("último há %s" % clock(seconds - last))
+    if progress.get("title"):
+        parts.append(clean(progress["title"]))
+    return " · ".join(parts)
 
 
 def agent_of(job):
@@ -258,6 +274,7 @@ def payload(store, session, all_sessions=False, limit=10, native_reports=None,
                      "transport_success": job.get("transport_success"),
                      "delivery": delivery_of(job), "feedback": job.get("feedback"),
                      "seconds": elapsed(job), "timeout": job.get("timeout"),
+                     "progress": job.get("progress"),
                      "run_id": job.get("run_id"), "stage": job.get("stage"),
                      "role": job.get("role"), "retry_of": job.get("retry_of"),
                      "cancel_requested": job.get("cancel_requested"),
