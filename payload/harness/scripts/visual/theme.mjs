@@ -7,6 +7,7 @@ export const FONTS = { sans: 2, code: 3, hand: 5 };
 export const NEUTRAL_THEME = {
   name: "neutral",
   font: "hand",
+  fontSize: 20,
   roughness: 1,
   strokeWidth: 2,
   corners: "round",
@@ -31,6 +32,7 @@ export function resolveTheme(partial = {}) {
   for (const k of ["node", "decision", "edge", "guide"]) t[k] = { ...NEUTRAL_THEME[k], ...(partial[k] || {}) };
   t.classes = { ...(partial.classes || {}) };
   if (!(t.font in FONTS)) throw new Error(`tema: font deve ser ${Object.keys(FONTS).join("|")}, veio ${t.font}`);
+  if (!(Number.isInteger(t.fontSize) && t.fontSize >= 10 && t.fontSize <= 64)) throw new Error(`tema: fontSize deve ser inteiro entre 10 e 64, veio ${JSON.stringify(t.fontSize)}`);
   if (![0, 1, 2].includes(t.roughness)) throw new Error(`tema: roughness deve ser 0, 1 ou 2, veio ${t.roughness}`);
   if (!["round", "sharp"].includes(t.corners)) throw new Error(`tema: corners deve ser round|sharp, veio ${t.corners}`);
   const colors = [t.background, t.text, ...["node", "decision", "edge", "guide"].flatMap((k) => Object.values(t[k]))];

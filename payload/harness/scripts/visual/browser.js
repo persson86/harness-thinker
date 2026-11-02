@@ -13,7 +13,7 @@ window.thinkerVisual = async ({ source, theme, fonts }) => {
   }
   await document.fonts.ready;
   const themed = injectClasses(source, theme);
-  const { elements, files } = await parseMermaidToExcalidraw(themed);
+  const { elements, files } = await parseMermaidToExcalidraw(themed, { themeVariables: { fontSize: `${theme.fontSize}px` } });
   applyTheme(elements, theme, explicitStyles(themed));
   const converted = convertToExcalidrawElements(elements, { regenerateIds: false });
   return {

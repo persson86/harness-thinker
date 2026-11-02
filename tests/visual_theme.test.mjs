@@ -24,6 +24,12 @@ test("resolveTheme recusa fonte, cor e nome de classe inválidos", () => {
   assert.throws(() => resolveTheme({ node: { fill: "azul" } }), /cor inválida/);
   assert.throws(() => resolveTheme({ classes: { "1x": { fill: "#fff" } } }), /classe/);
   assert.throws(() => resolveTheme({ roughness: 3 }), /roughness/);
+  assert.throws(() => resolveTheme({ fontSize: 8 }), /fontSize/);
+  assert.throws(() => resolveTheme({ fontSize: 65 }), /fontSize/);
+  assert.throws(() => resolveTheme({ fontSize: 20.5 }), /fontSize/);
+  assert.throws(() => resolveTheme({ fontSize: "28" }), /veio "28"/);
+  assert.equal(resolveTheme({ fontSize: 64 }).fontSize, 64);
+  assert.equal(resolveTheme({ fontSize: 28 }).fontSize, 28);
 });
 
 test("diagramType ignora front matter e comentários", () => {

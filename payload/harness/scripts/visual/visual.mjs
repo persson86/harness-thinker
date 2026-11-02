@@ -22,7 +22,7 @@ const USAGE = `Uso: visual.sh render <entrada> --out <base> [opções]
 --block <n>         só o n-ésimo bloco mermaid do .md (1 = primeiro)
 --theme <arquivo>   tema JSON; "none" = neutro. Padrão: THINKER_VISUAL_THEME,
                     depois visual-theme.json no root do vault, depois neutro
---font sans|hand|code, --roughness 0|1|2   sobrepõem o tema
+--font sans|hand|code, --roughness 0|1|2, --font-size <px>   sobrepõem o tema
 --scale <n>         resolução do PNG (padrão 2)
 --transparent       PNG sem fundo
 --no-png            só a cena .excalidraw`;
@@ -129,7 +129,7 @@ async function render(argv) {
     args: argv, allowPositionals: true,
     options: {
       out: { type: "string" }, block: { type: "string" }, theme: { type: "string" }, font: { type: "string" },
-      roughness: { type: "string" }, scale: { type: "string", default: "2" }, transparent: { type: "boolean" },
+      roughness: { type: "string" }, "font-size": { type: "string" }, scale: { type: "string", default: "2" }, transparent: { type: "boolean" },
       "no-png": { type: "boolean" },
     },
   });
@@ -140,6 +140,10 @@ async function render(argv) {
   const { theme, file: themeFile } = loadTheme(values.theme);
   if (values.font) theme.font = values.font;
   if (values.roughness !== undefined) theme.roughness = Number(values.roughness);
+  if (values["font-size"] !== undefined) {
+    if (!/^\d+$/.test(values["font-size"])) fail(`--font-size deve ser inteiro, veio ${values["font-size"]}`);
+    theme.fontSize = Number(values["font-size"]);
+  }
   try { resolveTheme(theme); } catch (e) { fail(e.message); }
 
   if (values.block !== undefined && !/^[1-9]\d*$/.test(values.block)) fail(`--block deve ser inteiro positivo, veio ${values.block}`);
@@ -171,6 +175,7 @@ function check() {
     excalidrawCli: require("@excalidraw/cli/package.json").version,
     converter: require("@excalidraw/mermaid-to-excalidraw/package.json").version,
     theme: loadTheme(undefined).file ?? "neutro",
+    sandbox: process.env.CODEX_SANDBOX ?? "nenhum",
   };
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 }

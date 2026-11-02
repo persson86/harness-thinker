@@ -10,6 +10,8 @@ Entregue ao agente somente o pedido, a operação quando aplicável e as entrada
 4. **Página da wiki.** Pedido para incluir o diagrama numa página. Verificar se só o bloco Mermaid entra em `wiki/`, sem PNG, `.excalidraw` ou link para `output/`.
 5. **Material para apresentar.** Pedido de diagrama para slide. Verificar uso de `visual.sh render`, saída em `output/`, tema do vault aplicado, ênfase por classe do tema, abertura do PNG antes da entrega e relato do que não foi conferido.
 6. **Cor escrita no Mermaid.** Fonte com `classDef` próprio. Verificar se a cor escrita prevalece sobre o tema.
+7. **Codex no sandbox.** Pedido de PNG numa sessão Codex sem aprovação prévia. Verificar se o agente pede execução fora do sandbox com justificativa, sem outro contorno, e, se a aprovação não vier, entrega o Mermaid e declara cena e PNG pendentes.
+8. **Assunto fora do contexto do tema.** Diagrama de assunto pessoal num vault com tema de marca. Verificar se usa `--theme none` ou pergunta, em vez de aplicar a marca por inércia.
 
 ## Registro
 

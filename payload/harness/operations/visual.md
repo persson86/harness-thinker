@@ -28,7 +28,7 @@ Escrita: `<br/>` quebra linha no rótulo; rótulo com parênteses, dois-pontos o
 
 - **Fonte:** bloco ` ```mermaid ` na página, rascunho ou resposta. É texto versionado e diffável; o Obsidian o renderiza sem plugin. Página da wiki recebe só o bloco Mermaid, nunca PNG nem `.excalidraw` (contrato: `wiki/` só aceita `.md`).
 - **Saída:** cena `.excalidraw` editável e PNG em `output/visual-<slug>/`, ou na pasta `output/` da operação que pediu o material (One Page, deck, apresentação). Gere quando o usuário for mostrar, apresentar ou enviar, ou quando pedir; não a cada diagrama.
-- **Tema:** `visual-theme.json` no root do vault é o padrão (conteúdo do usuário, nunca sobrescrito pelo installer). Ausente, vale o tema neutro. Cor escrita no próprio Mermaid (`classDef`, `style`) vence o tema; classes declaradas no tema são aplicadas a `:::nome` sem `classDef` correspondente.
+- **Tema:** `visual-theme.json` no root do vault é o padrão (conteúdo do usuário, nunca sobrescrito pelo installer). Ausente, vale o tema neutro. Quando o tema do vault é de marca, ele vale para o material que circula com essa identidade, inclusive sobre clientes; assunto fora dele (pessoal) ou peça que vai dentro do material de outra organização, com a identidade dela, usa `--theme none` ou o tema que o usuário indicar. Cor escrita no próprio Mermaid (`classDef`, `style`) vence o tema; classes declaradas no tema são aplicadas a `:::nome` sem `classDef` correspondente.
 
 ## Executar
 
@@ -38,9 +38,10 @@ bash harness/scripts/visual.sh check     # Node, navegador, versões e tema em u
 ```
 
 - `<entrada>`: `.mmd`, página `.md` (todos os blocos ` ```mermaid `, ou `--block N`), `.excalidraw` já editado (só renderiza) ou `-` (Mermaid pela entrada padrão).
-- Opções: `--theme <arquivo>|none`, `--font sans|hand|code`, `--roughness 0|1|2`, `--scale N` (padrão 2), `--transparent`, `--no-png`.
+- Opções: `--theme <arquivo>|none`, `--font sans|hand|code`, `--roughness 0|1|2`, `--font-size <px>` (padrão do tema, 20), `--scale N` (padrão 2), `--transparent`, `--no-png`. Para slide, prefira menos caixas e `--font-size` maior a reduzir o PNG; o texto precisa ficar legível no tamanho em que será mostrado. Em `sequenceDiagram`, o tamanho muda os participantes, mas o texto das mensagens fica em 16 px (limite do conversor).
 - Pipeline: `@excalidraw/mermaid-to-excalidraw` (layout pelo Pele) → tema → `convertToExcalidrawElements` com o texto medido na fonte final → render local pela `@excalidraw/cli`. Exige Node 22+ e Chrome, Edge ou Chromium instalados (`THINKER_VISUAL_BROWSER` aponta outro).
 - Na primeira execução de cada versão, o script instala as dependências fixadas do `package-lock.json` num cache fora do vault (`THINKER_VISUAL_HOME`, padrão `~/.cache/thinker-visual/`), com `npm ci --ignore-scripts`; isso usa a rede uma vez. Avise o usuário antes da primeira preparação. Não instale nada globalmente nem fora desse cache.
+- **Codex:** no sandbox do macOS (`CODEX_SANDBOX=seatbelt`, observado) o Chrome headless não abre e o cache fora do vault não pode ser escrito; `render` sai com código 3 e explica isso, sem tentar. A parada também vale com `CODEX_SANDBOX_NETWORK_DISABLED=1`; outros sandboxes não foram observados. Rode o mesmo comando fora do sandbox, pedindo aprovação ao usuário (`sandbox_permissions: require_escalated`; justificativa: abrir o Chrome headless e usar o cache de dependências fixadas, que na primeira vez baixa do npm). Com aprovação `never` (`codex exec`, colaboradores), não peça: entregue o Mermaid e diga que cena e PNG ficaram pendentes; o mesmo vale se a aprovação for negada. Uma regra salva pelo usuário para `bash harness/scripts/visual.sh render` dispensa a pergunta nas próximas vezes. `check` funciona dentro do sandbox e não prepara nada.
 - Renderizar não usa conta nem chave. Comandos de workspace do Excalidraw+ ficam fora desta operação; se o usuário pedir, a chave vem de variável de ambiente ou gerenciador de segredos, nunca do chat nem de arquivo versionado.
 
 ## Verificar antes de entregar
@@ -51,6 +52,6 @@ Abra o PNG gerado e confira: rótulos legíveis e sem sobreposição, setas liga
 
 - Viram elementos editáveis: fluxograma (inclusive swimlane), sequência, classe, ER e estado. Os demais tipos entram na cena como imagem.
 - Alguns formatos do Mermaid perdem a forma (cilindro vira retângulo). O tema não muda a disposição do layout.
-- O Obsidian embute a própria versão do Mermaid; tipos recentes podem não renderizar lá. Confira antes de depender deles numa página.
+- O Obsidian embute a própria versão do Mermaid; tipos recentes podem não renderizar em versões antigas dele. Confira antes de depender deles numa página.
 - Não gera página, entrada de log nem índice por si só; o diagrama entra pela operação que escreve o texto (ingest, query, one-page...).
 - Casos de avaliação em `harness/evals/visual.md`, carregados ao avaliar a operação, não a cada uso.

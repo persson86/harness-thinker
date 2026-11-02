@@ -9,6 +9,9 @@
 # com `npm ci --ignore-scripts`, e gera o bundle do navegador. Nada é instalado
 # globalmente; nenhuma chave de API é usada.
 #
+# No sandbox do Codex (CODEX_SANDBOX definido), render sai com código 3 e pede
+# execução fora do sandbox com aprovação; check só relata.
+#
 # Uso: bash harness/scripts/visual.sh render <entrada> --out <base> [opções]
 #      bash harness/scripts/visual.sh check
 #      bash harness/scripts/visual.sh --help
@@ -18,7 +21,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC="$HERE/visual"
 VAULT="$(cd "$HERE/../.." && pwd)"
 
-usage() { sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,18p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 case "${1:-}" in
   ""|-h|--help|help) usage; exit 0 ;;
@@ -42,8 +45,31 @@ cache_ok() {
     && [ -f "$1/node_modules/@excalidraw/cli/package.json" ] && [ -f "$1/node_modules/playwright-core/package.json" ]
 }
 
+sandbox="${CODEX_SANDBOX:-}"
+# Sem CODEX_SANDBOX, a rede desligada pelo Codex também indica sandbox (Linux).
+[ -z "$sandbox" ] && [ "${CODEX_SANDBOX_NETWORK_DISABLED:-}" = "1" ] && sandbox="network-disabled"
+
+# check não prepara nada: sem cache, só relata (funciona dentro do sandbox).
+if [ "$1" = "check" ] && ! cache_ok "$run"; then
+  RUN="$run" SANDBOX="${sandbox:-nenhum}" node -e 'console.log(JSON.stringify({ node: process.versions.node,
+    cache: `ausente em ${process.env.RUN}; o primeiro render prepara (usa a rede uma vez)`, sandbox: process.env.SANDBOX }, null, 2))'
+  exit 0
+fi
+
+# O sandbox do Codex (seatbelt no macOS) impede o Chrome headless de abrir e a
+# escrita do cache fora do vault. Falhar cedo, com a saída que o agente precisa.
+if [ "$1" = "render" ] && [ -n "$sandbox" ] && [ "${THINKER_VISUAL_ALLOW_SANDBOX:-0}" != "1" ]; then
+  {
+    echo "visual: o sandbox do Codex ($sandbox) bloqueia o Chrome headless e a escrita do cache fora do vault."
+    echo "visual: rode o mesmo comando fora do sandbox, com aprovação do usuário (no Codex: sandbox_permissions=require_escalated; justificativa: abrir o Chrome headless e usar o cache de dependências fixadas, que na primeira vez baixa do npm)."
+    echo "visual: com aprovação 'never' (codex exec, colaboradores), não peça: entregue o Mermaid e diga que a cena e o PNG ficaram pendentes."
+  } >&2
+  exit 3
+fi
+
 if ! cache_ok "$run"; then
-  mkdir -p "$home"
+  mkdir -p "$home" 2>/dev/null && [ -w "$home" ] \
+    || { echo "visual: sem permissão de escrita no cache $home (defina THINKER_VISUAL_HOME para outro diretório)." >&2; exit 1; }
   # Exclusão mútua por mkdir (atômico): uma preparação por versão de cada vez.
   # Trava com mais de 15 min é tratada como abandonada.
   lock="$home/.lock-$key"

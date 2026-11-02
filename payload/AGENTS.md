@@ -38,6 +38,8 @@ Pedidos de One Page, one-pager ou material de contexto para colegas seguem a ski
 
 Pedidos de diagrama, fluxo, mapa de sistema ou representação visual, e mecanismos difíceis de seguir só em texto, seguem a skill `thinker-visual` e `harness/operations/visual.md`. Mermaid no texto é a fonte (na wiki, só o bloco); cena Excalidraw e PNG no tema `visual-theme.json` vão para `output/` via `harness/scripts/visual.sh` quando o material for mostrado ou enviado.
 
+No Codex, o sandbox impede o Chrome headless e o cache de dependências: `visual.sh render` sai com código 3. Rode-o fora do sandbox pedindo aprovação (`sandbox_permissions: require_escalated`, com a justificativa de abrir o Chrome headless e usar o cache fixado, que na primeira vez baixa do npm). Com aprovação `never` (`codex exec`, colaboradores) ou aprovação negada, entregue o Mermaid e diga que cena e PNG ficaram pendentes; não contorne o sandbox de outra forma.
+
 ## Deltas Codex
 
 Pedidos para entender um repositório, investigar um sistema ou explicar uma funcionalidade seguem a skill `thinker-rea` e `harness/operations/rea.md`. A pergunta determina evidências e profundidade; consulta pontual admite resposta direta. Ferramentas especializadas são opcionais; investigar não instala dependências nem altera o alvo por inferência.

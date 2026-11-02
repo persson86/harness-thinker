@@ -96,6 +96,28 @@ assert_rc "visual.sh --help sai 0 sem preparar dependências" 0
 assert_out "visual.sh --help mostra uso" "render <entrada>"
 run bash "$V1/harness/scripts/visual.sh" desenha
 assert_rc "visual.sh recusa comando desconhecido" 2
+run env THINKER_VISUAL_HOME="$TMP/visual-empty" bash "$V1/harness/scripts/visual.sh" check
+assert_rc "visual.sh check sem cache só relata" 0
+assert_out "visual.sh check sem cache aponta preparação no primeiro render" "o primeiro render prepara"
+run test -e "$TMP/visual-empty"
+assert_rc "visual.sh check sem cache não cria nada" 1
+printf 'flowchart LR\n  A-->B\n' > "$TMP/sandbox.mmd"
+run env CODEX_SANDBOX=seatbelt THINKER_VISUAL_HOME="$TMP/visual-empty" bash "$V1/harness/scripts/visual.sh" render "$TMP/sandbox.mmd" --out "$TMP/sandbox-out/d"
+assert_rc "visual.sh no sandbox do Codex sai com 3 sem tentar" 3
+assert_out "visual.sh no sandbox pede execução fora dele com aprovação" "require_escalated"
+assert_out "visual.sh no sandbox orienta entregar o Mermaid" "entregue o Mermaid"
+run test -e "$TMP/visual-empty"
+assert_rc "visual.sh no sandbox não cria cache" 1
+run env -u CODEX_SANDBOX CODEX_SANDBOX_NETWORK_DISABLED=1 THINKER_VISUAL_HOME="$TMP/visual-empty" bash "$V1/harness/scripts/visual.sh" render "$TMP/sandbox.mmd" --out "$TMP/sandbox-out/d"
+assert_rc "visual.sh com rede desligada pelo Codex também para com 3" 3
+run env -u CODEX_SANDBOX THINKER_VISUAL_HOME="$TMP/visual-empty" bash "$V1/harness/scripts/visual.sh" check
+run python3 -c "import json,sys; d=json.loads(sys.argv[1]); assert d['sandbox']=='nenhum' and '.' in d['node']" "$OUT"
+assert_rc "visual.sh check sem cache devolve JSON válido" 0
+mkdir -p "$TMP/visual-ro" && chmod 555 "$TMP/visual-ro"
+run env -u CODEX_SANDBOX -u CODEX_SANDBOX_NETWORK_DISABLED THINKER_VISUAL_HOME="$TMP/visual-ro" bash "$V1/harness/scripts/visual.sh" render "$TMP/sandbox.mmd" --out "$TMP/sandbox-out/d"
+assert_rc "visual.sh com cache sem escrita falha na hora" 1
+assert_out "visual.sh com cache sem escrita explica a causa" "sem permissão de escrita"
+chmod 755 "$TMP/visual-ro"
 run test -e "$V1/harness/scripts/visual/node_modules"
 assert_rc "instalação não traz node_modules para harness/" 1
 run grep -q '"overrides"' "$V1/harness/scripts/visual/package.json"

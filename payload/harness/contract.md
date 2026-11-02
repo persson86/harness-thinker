@@ -25,7 +25,7 @@ Categorias sao configuracao do vault, nao do harness: vivem em `vault.config.jso
 
 `vault-heuristics.md` e opcional no root do vault. Conteudo do usuario, nunca sobrescrito pelo installer. Quando existir, orienta decisoes de julgamento (priorizacao, recomendacao, arquitetura de pagina, trade-offs) e prevalece sobre defaults do harness.
 
-`visual-theme.json` e opcional no root do vault. Conteudo do usuario, nunca sobrescrito pelo installer. Define o tema dos diagramas gerados por `harness/scripts/visual.sh` (fonte, traco, cores por papel e classes de enfase); ausente, vale o tema neutro do harness.
+`visual-theme.json` e opcional no root do vault. Conteudo do usuario, nunca sobrescrito pelo installer. Define o tema dos diagramas gerados por `harness/scripts/visual.sh` (fonte, tamanho de fonte, traco, cantos, cores por papel e classes de enfase); ausente, vale o tema neutro do harness.
 
 Se uma fonte tocar multiplas categorias: pagina na principal, cross-links nas secundarias somente quando as paginas existirem.
 
