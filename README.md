@@ -31,6 +31,10 @@ reviewed paths, create `v<VERSION>`, push branch and tag, then update each targe
 `install.sh TARGET --update`. Verify target `harness/.version`, manifest, vault health
 and local/remote SHA parity. Publishing vault knowledge is a separate scope.
 
+## 7.23.8: Visual cache and sandbox fixes
+
+`visual.sh` fails at once, with the cause, when the cache directory cannot be written, `check` reports the Codex sandbox consistently, and the test suite also passes when run from inside Codex.
+
 ## 7.23.7: Visual in Codex
 
 In Codex, `visual.sh render` needs to run outside the sandbox, because headless Chrome and the dependency cache are blocked inside it. The script now says so (exit 3) and the Codex instructions ask the user to approve running it outside; without approval the agent delivers the Mermaid and says the PNG is pending. `visual.sh check` no longer installs anything, and `--font-size` (or `fontSize` in the theme) makes diagrams legible on slides.

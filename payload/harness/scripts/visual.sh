@@ -68,13 +68,17 @@ if [ "$1" = "render" ] && [ -n "$sandbox" ] && [ "${THINKER_VISUAL_ALLOW_SANDBOX
 fi
 
 if ! cache_ok "$run"; then
-  mkdir -p "$home" 2>/dev/null && [ -w "$home" ] \
+  # Prova real de escrita (criar e remover), não só o bit -w: cobre diretório sem travessia.
+  probe="$home/.probe.$$"
+  { mkdir -p "$home" && mkdir "$probe" && rmdir "$probe"; } 2>/dev/null \
     || { echo "visual: sem permissão de escrita no cache $home (defina THINKER_VISUAL_HOME para outro diretório)." >&2; exit 1; }
   # Exclusão mútua por mkdir (atômico): uma preparação por versão de cada vez.
   # Trava com mais de 15 min é tratada como abandonada.
   lock="$home/.lock-$key"
   waited=0
   until mkdir "$lock" 2>/dev/null; do
+    # Só espera se a trava existe de fato; outra falha de mkdir é erro, não concorrência.
+    [ -d "$lock" ] || { echo "visual: não consegui criar a trava $lock" >&2; exit 1; }
     if [ -n "$(find "$lock" -maxdepth 0 -mmin +15 2>/dev/null)" ]; then rm -rf "$lock"; continue; fi
     [ "$waited" -eq 0 ] && echo "visual: outra execução está preparando o cache; aguardando..." >&2
     waited=$((waited + 1))
@@ -102,4 +106,5 @@ if ! cache_ok "$run"; then
 fi
 
 export THINKER_VAULT="${THINKER_VAULT:-$VAULT}"
+export THINKER_VISUAL_SANDBOX="${sandbox:-nenhum}"
 exec node "$run/visual.mjs" "$@"

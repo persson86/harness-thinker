@@ -110,14 +110,21 @@ run test -e "$TMP/visual-empty"
 assert_rc "visual.sh no sandbox não cria cache" 1
 run env -u CODEX_SANDBOX CODEX_SANDBOX_NETWORK_DISABLED=1 THINKER_VISUAL_HOME="$TMP/visual-empty" bash "$V1/harness/scripts/visual.sh" render "$TMP/sandbox.mmd" --out "$TMP/sandbox-out/d"
 assert_rc "visual.sh com rede desligada pelo Codex também para com 3" 3
-run env -u CODEX_SANDBOX THINKER_VISUAL_HOME="$TMP/visual-empty" bash "$V1/harness/scripts/visual.sh" check
+run env -u CODEX_SANDBOX -u CODEX_SANDBOX_NETWORK_DISABLED THINKER_VISUAL_HOME="$TMP/visual-empty" bash "$V1/harness/scripts/visual.sh" check
 run python3 -c "import json,sys; d=json.loads(sys.argv[1]); assert d['sandbox']=='nenhum' and '.' in d['node']" "$OUT"
 assert_rc "visual.sh check sem cache devolve JSON válido" 0
+run env -u CODEX_SANDBOX CODEX_SANDBOX_NETWORK_DISABLED=1 THINKER_VISUAL_HOME="$TMP/visual-empty" bash "$V1/harness/scripts/visual.sh" check
+assert_out "visual.sh check sem cache reconhece a rede desligada do Codex" '"sandbox": "network-disabled"'
 mkdir -p "$TMP/visual-ro" && chmod 555 "$TMP/visual-ro"
 run env -u CODEX_SANDBOX -u CODEX_SANDBOX_NETWORK_DISABLED THINKER_VISUAL_HOME="$TMP/visual-ro" bash "$V1/harness/scripts/visual.sh" render "$TMP/sandbox.mmd" --out "$TMP/sandbox-out/d"
 assert_rc "visual.sh com cache sem escrita falha na hora" 1
 assert_out "visual.sh com cache sem escrita explica a causa" "sem permissão de escrita"
 chmod 755 "$TMP/visual-ro"
+mkdir -p "$TMP/visual-nox" && chmod 600 "$TMP/visual-nox"
+run env -u CODEX_SANDBOX -u CODEX_SANDBOX_NETWORK_DISABLED THINKER_VISUAL_HOME="$TMP/visual-nox" bash "$V1/harness/scripts/visual.sh" render "$TMP/sandbox.mmd" --out "$TMP/sandbox-out/d"
+assert_rc "visual.sh com cache sem travessia falha na hora" 1
+assert_out "visual.sh com cache sem travessia explica a causa" "sem permissão de escrita"
+chmod 755 "$TMP/visual-nox"
 run test -e "$V1/harness/scripts/visual/node_modules"
 assert_rc "instalação não traz node_modules para harness/" 1
 run grep -q '"overrides"' "$V1/harness/scripts/visual/package.json"
@@ -138,6 +145,8 @@ if [ "${THINKER_VISUAL_LIVE:-0}" = "1" ]; then
   assert_rc "visual ao vivo: classe do tema chega à cena" 0
   run test -s "$TMP/live-out/d.png"
   assert_rc "visual ao vivo: PNG gerado" 0
+  run env -u CODEX_SANDBOX CODEX_SANDBOX_NETWORK_DISABLED=1 THINKER_VISUAL_HOME="$TMP/visual-cache" bash "$V1/harness/scripts/visual.sh" check
+  assert_out "visual ao vivo: check com cache reconhece a rede desligada do Codex" '"sandbox": "network-disabled"'
   printf '# p\n\n```mermaid\nflowchart LR\n A-->B\n```\n\n```mermaid\nflowchart LR\n C-->D\n```\n' > "$TMP/live.md"
   for b in 0 abc 1.5 3; do
     run env THINKER_VISUAL_HOME="$TMP/visual-cache" bash "$V1/harness/scripts/visual.sh" render "$TMP/live.md" --out "$TMP/live-out/b" --block "$b" --no-png

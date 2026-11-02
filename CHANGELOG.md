@@ -1,5 +1,13 @@
 # Changes
 
+## 7.23.8 - 2026-11-02
+
+- **Cache permission, for real.** `visual.sh` now proves it can write to the cache directory by creating and removing a probe directory before taking the lock, instead of trusting the `-w` bit; a directory without traversal (`chmod 600`) used to pass the check and then wait on the lock as if another run held it. Inside the lock loop, a failed `mkdir` with no lock present is an error, not concurrency.
+- **One sandbox reading.** The wrapper passes its sandbox detection to the Node side (`THINKER_VISUAL_SANDBOX`), so `check` reports the same value with and without a cache (`network-disabled` when only `CODEX_SANDBOX_NETWORK_DISABLED=1` is set; before, the cached path said `nenhum` while `render` stopped).
+- **Tests that run inside Codex.** The no-sandbox scenarios unset both Codex markers, so the suite no longer fails when it inherits `CODEX_SANDBOX_NETWORK_DISABLED=1`; new cases cover `check` with that marker with and without a cache, and a cache without traversal failing at once with the cause.
+- **Review.** Found by the Astra Reviewer (Codex) on the published 7.23.7, which also checked the official Codex rules documentation: a saved `allow` rule runs the command outside the sandbox without asking again. Not observed in a live session.
+- **Validation.** `THINKER_VISUAL_LIVE=1 bash tests/run.sh`: 179 ok; `CODEX_SANDBOX_NETWORK_DISABLED=1 bash tests/run.sh`: 168 ok, both with zero failures before the version bump; the final run is recorded in the release.
+
 ## 7.23.7 - 2026-11-02
 
 - **Visual in Codex.** Inside the Codex sandbox (`CODEX_SANDBOX` set) headless Chrome cannot start and the dependency cache outside the vault cannot be written; observed with `codex sandbox` in `workspace-write` on macOS (`browserType.launch` closed, `mkdir ... Operation not permitted`). `visual.sh render` now stops there with exit 3 (also when only `CODEX_SANDBOX_NETWORK_DISABLED=1` is set, as a Linux sandbox may do; not observed) and says what to do: run the same command outside the sandbox with the user's approval (`sandbox_permissions: require_escalated`, mentioning that the first run downloads from npm), or, with approval policy `never` (`codex exec`, collaborators) or a denied approval, deliver the Mermaid and say the scene and PNG are pending. `THINKER_VISUAL_ALLOW_SANDBOX=1` skips the stop for sandboxes that allow both. `AGENTS.md`, the Codex adapter and the `thinker-visual` skill say the same; no other workaround.

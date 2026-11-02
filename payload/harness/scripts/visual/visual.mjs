@@ -175,7 +175,7 @@ function check() {
     excalidrawCli: require("@excalidraw/cli/package.json").version,
     converter: require("@excalidraw/mermaid-to-excalidraw/package.json").version,
     theme: loadTheme(undefined).file ?? "neutro",
-    sandbox: process.env.CODEX_SANDBOX ?? "nenhum",
+    sandbox: process.env.THINKER_VISUAL_SANDBOX ?? process.env.CODEX_SANDBOX ?? "nenhum",
   };
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 }
