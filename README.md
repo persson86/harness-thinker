@@ -14,7 +14,7 @@ payload/           # what gets installed 1:1 into the target
   harness/         #   contract + operations/ + adapters/ + scripts/verify.sh
   .claude/         #   commands/ hooks/ scripts/build-index.py settings.json
   .grok/           #   Grok Build rules, hook shim, memory-skill shadow
-  .agents/         #   Codex skills, including One Page, Product View and REA
+  .agents/         #   Codex skills, including One Page, Product View, REA and Visual
 templates/vault/   # scaffold for a new vault (--init)
 ```
 
@@ -30,6 +30,12 @@ bump the last number in `VERSION` (minor and major only on request; no pre-relea
 reviewed paths, create `v<VERSION>`, push branch and tag, then update each target with
 `install.sh TARGET --update`. Verify target `harness/.version`, manifest, vault health
 and local/remote SHA parity. Publishing vault knowledge is a separate scope.
+
+## 7.23.6: Diagrams with Mermaid and Excalidraw
+
+Ask for a diagram, or let the agent draw one when a mechanism is hard to follow in text: `/thinker-visual` in Claude Code and `$thinker-visual` in Codex follow [one operation](payload/harness/operations/visual.md), with a table of which diagram answers which question, including causal loops for systems. Mermaid stays in the text; wiki pages get only the Mermaid block.
+
+To show or send it, `bash harness/scripts/visual.sh render <file.mmd|page.md> --out output/visual-<slug>/<name>` writes an editable `.excalidraw` scene and a PNG in the vault theme (`visual-theme.json` at the vault root, optional; neutral otherwise). It needs Node 22+ and an installed Chrome, Edge or Chromium. The first run of each version installs pinned dependencies into `~/.cache/thinker-visual/`, outside the vault, with `npm audit` at zero thanks to two overrides; nothing is installed globally and no Excalidraw account is needed.
 
 ## 7.23.5: Review by literal, sources by month
 

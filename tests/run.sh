@@ -83,6 +83,58 @@ for consultation in advisor reviewer; do
 done
 run cmp "$REPO/payload/harness/operations/consult.md" "$V1/harness/operations/consult.md"
 assert_rc "init instala politica comum de autonomia sem alterar bytes" 0
+for f in .agents/skills/thinker-visual/SKILL.md .claude/commands/thinker-visual.md harness/operations/visual.md \
+         harness/scripts/visual/package.json harness/scripts/visual/package-lock.json harness/scripts/visual/theme.mjs \
+         harness/scripts/visual/browser.js harness/scripts/visual/visual.mjs; do
+  run cmp "$REPO/payload/$f" "$V1/$f"
+  assert_rc "init instala $f sem alterar bytes" 0
+done
+run test -x "$V1/harness/scripts/visual.sh"
+assert_rc "init deixa visual.sh executável" 0
+run bash "$V1/harness/scripts/visual.sh" --help
+assert_rc "visual.sh --help sai 0 sem preparar dependências" 0
+assert_out "visual.sh --help mostra uso" "render <entrada>"
+run bash "$V1/harness/scripts/visual.sh" desenha
+assert_rc "visual.sh recusa comando desconhecido" 2
+run test -e "$V1/harness/scripts/visual/node_modules"
+assert_rc "instalação não traz node_modules para harness/" 1
+run grep -q '"overrides"' "$V1/harness/scripts/visual/package.json"
+assert_rc "dependências do visual mantêm overrides de segurança" 0
+if command -v node >/dev/null 2>&1; then
+  run node --test "$REPO/tests/visual_theme.test.mjs"
+  assert_rc "visual: tema, classes e cores escritas no Mermaid" 0
+  [ "$RC" -ne 0 ] || printf '%s\n' "$OUT" | grep -E '^ℹ (pass|fail)'
+else
+  echo "skip visual: node ausente; testes do tema não rodaram"
+fi
+if [ "${THINKER_VISUAL_LIVE:-0}" = "1" ]; then
+  printf 'flowchart LR\n  A[entrada] --> B{decide}\n  B -->|sim| C[saída]:::destaque\n' > "$TMP/live.mmd"
+  printf '{"name":"teste","font":"sans","classes":{"destaque":{"fill":"#112233","stroke":"#112233","text":"#ffffff"}}}' > "$TMP/live-theme.json"
+  run env THINKER_VISUAL_HOME="$TMP/visual-cache" bash "$V1/harness/scripts/visual.sh" render "$TMP/live.mmd" --out "$TMP/live-out/d" --theme "$TMP/live-theme.json"
+  assert_rc "visual ao vivo: Mermaid vira cena e PNG" 0
+  run grep -q '#112233' "$TMP/live-out/d.excalidraw"
+  assert_rc "visual ao vivo: classe do tema chega à cena" 0
+  run test -s "$TMP/live-out/d.png"
+  assert_rc "visual ao vivo: PNG gerado" 0
+  printf '# p\n\n```mermaid\nflowchart LR\n A-->B\n```\n\n```mermaid\nflowchart LR\n C-->D\n```\n' > "$TMP/live.md"
+  for b in 0 abc 1.5 3; do
+    run env THINKER_VISUAL_HOME="$TMP/visual-cache" bash "$V1/harness/scripts/visual.sh" render "$TMP/live.md" --out "$TMP/live-out/b" --block "$b" --no-png
+    assert_rc "visual ao vivo: --block $b recusado" 2
+  done
+  run env THINKER_VISUAL_HOME="$TMP/visual-cache" bash "$V1/harness/scripts/visual.sh" render "$TMP/live.md" --out "$TMP/live-out/m" --no-png
+  [ "$RC" -eq 0 ] && [ -s "$TMP/live-out/m-1.excalidraw" ] && [ -s "$TMP/live-out/m-2.excalidraw" ] \
+    && ok "visual ao vivo: dois blocos viram duas cenas" || bad "visual ao vivo: dois blocos viram duas cenas" "$OUT"
+  # Duas preparações simultâneas num cache vazio: ambas terminam.
+  ( env THINKER_VISUAL_HOME="$TMP/visual-race" bash "$V1/harness/scripts/visual.sh" render "$TMP/live.mmd" --out "$TMP/live-out/r1" --no-png >/dev/null 2>"$TMP/race1.err"; echo $? > "$TMP/race1.rc" ) &
+  ( env THINKER_VISUAL_HOME="$TMP/visual-race" bash "$V1/harness/scripts/visual.sh" render "$TMP/live.mmd" --out "$TMP/live-out/r2" --no-png >/dev/null 2>"$TMP/race2.err"; echo $? > "$TMP/race2.rc" ) &
+  wait
+  [ "$(cat "$TMP/race1.rc")" = 0 ] && [ "$(cat "$TMP/race2.rc")" = 0 ] \
+    && ok "visual ao vivo: preparações simultâneas do cache" || bad "visual ao vivo: preparações simultâneas do cache" "$(cat "$TMP/race1.err" "$TMP/race2.err")"
+  # Cache marcado como pronto mas incompleto é reconstruído.
+  for d in "$TMP"/visual-race/*/; do rm -f "$d/visual.mjs"; done
+  run env THINKER_VISUAL_HOME="$TMP/visual-race" bash "$V1/harness/scripts/visual.sh" render "$TMP/live.mmd" --out "$TMP/live-out/r3" --no-png
+  assert_rc "visual ao vivo: cache incompleto é reconstruído" 0
+fi
 run test -x "$V1/harness/scripts/one-page-count.sh"
 assert_rc "init deixa contador one-page executável" 0
 printf -- '# T: x\n\nUma duas três.\n\n| | |\n|---|---|\n| **A** | quatro |\n\n```\n[caixa] -> [outra]\n```\n- [ ] cinco — seis\n\n## Fontes\n| fora | da | conta |\n' > "$TMP/one-page.md"

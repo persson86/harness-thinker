@@ -25,6 +25,8 @@ Categorias sao configuracao do vault, nao do harness: vivem em `vault.config.jso
 
 `vault-heuristics.md` e opcional no root do vault. Conteudo do usuario, nunca sobrescrito pelo installer. Quando existir, orienta decisoes de julgamento (priorizacao, recomendacao, arquitetura de pagina, trade-offs) e prevalece sobre defaults do harness.
 
+`visual-theme.json` e opcional no root do vault. Conteudo do usuario, nunca sobrescrito pelo installer. Define o tema dos diagramas gerados por `harness/scripts/visual.sh` (fonte, traco, cores por papel e classes de enfase); ausente, vale o tema neutro do harness.
+
 Se uma fonte tocar multiplas categorias: pagina na principal, cross-links nas secundarias somente quando as paginas existirem.
 
 ## Frontmatter
@@ -145,6 +147,8 @@ Operacoes comuns: `ingest`, `inbox`, `query`, `review`, `lint`, `update`, `feed`
 `product-view` orienta entendimento de problema/oportunidade, direcao de produto e negocio e proposta de valor a partir de material profissional e do papel atual do usuario. A analise aparece na conversa por padrao, sem escrita, ingestao ou nova operacao no log. Rascunho solicitado vai para `drafts/product-view/`, exportacao solicitada para `output/product-view-<slug>/`; conhecimento duravel e material compartilhavel seguem suas operacoes proprias.
 
 `rea` investiga repositorios, sistemas e funcionalidades existentes conforme a pergunta e as evidencias disponiveis. A analise aparece na conversa por padrao, sem pagina, log ou indice automaticos. Texto solicitado vai para `drafts/rea/`; capturas, relatorios e outros artefatos gerados vao para `output/rea-<slug>/`. Investigacao nao amplia autorizacao para instalar ferramentas, alterar o alvo, reconstruir ou publicar; autorizacoes existentes continuam validas no escopo concedido.
+
+`visual` representa mecanismos com diagramas. Mermaid no texto e a fonte; em `wiki/` entra so o bloco Mermaid, nunca PNG nem `.excalidraw`. Cena e PNG gerados vao para `output/visual-<slug>/` ou para o `output/` da operacao que pediu o material. Nao gera pagina, log ou indice por si so. As dependencias do script ficam num cache fora do vault, nunca em `harness/`.
 
 `release` publica nova versao de um projeto versionado fora do vault, conforme a receita `RELEASE.md` do repositorio. Nao gera pagina, log ou indice. Publicar conhecimento do vault continua com o helper e o runbook do vault.
 

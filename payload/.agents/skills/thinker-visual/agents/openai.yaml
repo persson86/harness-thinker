@@ -1,0 +1,6 @@
+interface:
+  display_name: "VISUAL: diagramas e sistemas"
+  short_description: "Mermaid no texto, Excalidraw no tema do vault"
+  default_prompt: "Use $thinker-visual para representar este processo, sistema ou relação com o diagrama que melhor explica o mecanismo."
+policy:
+  allow_implicit_invocation: true

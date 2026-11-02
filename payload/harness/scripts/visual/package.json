@@ -1,0 +1,21 @@
+{
+  "name": "thinker-visual",
+  "private": true,
+  "type": "module",
+  "description": "Mermaid -> Excalidraw scene + PNG for the Thinker harness. Installed by visual.sh into a cache outside the vault.",
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "@excalidraw/cli": "0.2.0",
+    "@excalidraw/excalidraw": "0.18.1",
+    "@excalidraw/mermaid-to-excalidraw": "3.2.0",
+    "esbuild": "0.28.2",
+    "playwright-core": "1.63.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "overrides": {
+    "nanoid": "5.1.16",
+    "@excalidraw/mermaid-to-excalidraw": "$@excalidraw/mermaid-to-excalidraw"
+  }
+}
