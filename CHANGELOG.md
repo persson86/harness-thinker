@@ -1,5 +1,12 @@
 # Changes
 
+## 7.23.9 - 2026-11-10
+
+- **Same-model delegation.** `CLAUDE.md` said "do not delegate to your own tier: an equal subagent only adds latency", while `delegate.md` ("two equal agents can help on independent fronts") and `AGENTS.md` ("the same model without that function stays with the principal") already allowed it with a declared function. The Claude rule now matches: ordinary work and synthesis stay in-process; a subagent on the session's own model only with a declared function (isolated context, or an independent reading in a coverage sweep, preferably next to a reader on another model); repetition without a function stays with the principal.
+- **Evidence.** A blind lint test of scout subagents found that two readers on different models returned almost disjoint findings, so a second reader adds coverage through independent sampling, not reasoning. Pairs of the same model were not measured, hence the preference for a reader on another model. A vendor guide on model choice (Nov 2026) reports lead-plus-workers savings only for work that does not fit in one context window.
+- **Review.** The rule text comes from two blind readings of the same brief, one by a native Claude agent and one by the Codex Reviewer; the principal checked their file anchors before adopting it.
+- **Not validated.** Whether agents in live sessions delegate differently under the new wording; same-model reader pairs.
+
 ## 7.23.8 - 2026-11-02
 
 - **Cache permission, for real.** `visual.sh` now proves it can write to the cache directory by creating and removing a probe directory before taking the lock, instead of trusting the `-w` bit; a directory without traversal (`chmod 600`) used to pass the check and then wait on the lock as if another run held it. Inside the lock loop, a failed `mkdir` with no lock present is an error, not concurrency.

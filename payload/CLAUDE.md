@@ -46,7 +46,7 @@ O vault informa a resposta, mas não a limita: perspectivas externas podem entra
 
 Regras — relativas ao modelo da sessão, nunca a nomes de modelo:
 - Trabalho mecânico de vault sem julgamento semântico (mapear inbound links, normalizar frontmatter, extrair texto bruto) → o modelo mais barato disponível.
-- Trabalho comum → in-process. Não delegue ao próprio tier: subagente igual só adiciona latência.
+- Trabalho comum e síntese → in-process. Subagente do mesmo modelo só com função declarada: contexto isolado ou leitura independente em varredura de cobertura, de preferência ao lado de um leitor de outro modelo. Repetição sem função fica no principal.
 - Rigor analítico máximo → o modelo mais forte disponível; se o da sessão já é o mais forte, in-process com o protocolo de `deep`.
 - Ao delegar análise: passe perfil do usuário + páginas relevantes na íntegra; instrua máximo rigor, sem bajulação.
 - Profundidade máxima de spawn: 2. O pai é dono do output final e da síntese. Instruções do usuário prevalecem.
