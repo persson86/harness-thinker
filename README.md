@@ -31,6 +31,10 @@ reviewed paths, create `v<VERSION>`, push branch and tag, then update each targe
 `install.sh TARGET --update`. Verify target `harness/.version`, manifest, vault health
 and local/remote SHA parity. Publishing vault knowledge is a separate scope.
 
+## 7.23.10: People registry and quote check
+
+Identity rules move from one agent's memory into the wiki: `aliases:` on person pages and `people_section:` on pages that already list people. `build-index.py resolve <name>` returns the registered candidates and their context rules without picking one, `people-check` flags shared names without a rule, and `quotes` checks literal quotes in sources against the raw transcript. Both checks run in `verify.sh` as warnings.
+
 ## 7.23.8: Visual cache and sandbox fixes
 
 `visual.sh` fails at once, with the cause, when the cache directory cannot be written, `check` reports the Codex sandbox consistently, and the test suite also passes when run from inside Codex.

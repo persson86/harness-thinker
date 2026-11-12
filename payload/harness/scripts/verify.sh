@@ -132,6 +132,8 @@ check "grok hook shim executable" executable ".grok/hooks/shim.sh"
 # (substitui as antigas chamadas separadas de check/graph/no_missing_summary)
 check "vault health (sync + summaries + grafo)" python3 ".claude/scripts/build-index.py" health
 check "raw has no tracked changes" raw_has_no_tracked_changes
+diagnose "people registry (nome compartilhado sem regra)" python3 ".claude/scripts/build-index.py" people-check
+diagnose "citações literais no bruto (sources de 14 dias)" python3 ".claude/scripts/build-index.py" quotes --days 14
 diagnose "installed files match manifest" installed_matches_manifest
 diagnose "manifest covers installed files" manifest_covers_installed
 

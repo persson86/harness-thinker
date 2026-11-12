@@ -39,6 +39,18 @@ Subcomandos:
                        corpo e `sources:`) e, com --literal (repetível), páginas
                        que contêm o trecho literal (sem caixa/acento), com a
                        linha. Sem limite de resultados; não infere correção.
+  people [--json]      Cadastro de pessoas derivado da wiki: páginas com `aliases:`
+                       (e `disambiguation:`) e seções declaradas em `people_section:`
+                       (`### Nome (apelido) — papel` ou `- **Nome** — papel`).
+  resolve <nome> [--json]
+                       Candidatas para um nome, com locais e regras de contexto.
+                       Exit 0 = único, 1 = ambíguo, 4 = não encontrado. Não escolhe.
+  people-check         Diagnóstico: nome compartilhado sem regra e usado como tag
+                       (exit 1); tags ambíguas e candidatas a cadastro (informativo).
+  quotes [<slug>...] [--days N] [--verbose]
+                       Confere citações `*"..."*` de sources contra o bruto citado
+                       no corpo (queue/processed/... ou raw/...). Exit 1 se houver
+                       citação ausente. Aviso, não prova.
   graph                Saúde do grafo: publicadas vs. inbox, ilhas e links quebrados.
   stale [--days N]     Entidades/conceitos com `updated:` antigo (default 90d)
                        em esferas de movimento rápido, mais insights em qualquer
@@ -54,6 +66,7 @@ Subcomandos:
 Sem dependências externas — o python do sistema não tem pyyaml. Saída é função
 pura do frontmatter (sem timestamps) → idempotente.
 """
+import bisect
 import json
 import os
 import re
@@ -1141,6 +1154,691 @@ def cmd_stale(days):
     return 0
 
 
+# ---------- pessoas: cadastro canônico, resolver e diagnóstico ----------
+# O cadastro é derivado do que a wiki já escreve, sem página nova:
+#   - página com `aliases: [...]` (e `disambiguation: "..."` opcional) é uma entrada;
+#   - página com `people_section: "Pessoas"` (ou lista) expõe as entradas da seção
+#     H2 de mesmo início: `### Nome (apelido, apelido) — papel` ou, fora de um H3 de
+#     pessoa, `- **Nome (apelido)** — papel`. Uma linha `Desambiguação: ...` dentro
+#     da entrada é a regra de contexto para nomes compartilhados.
+# Nada aqui decide identidade sozinho: o resolver devolve candidatas e regras.
+# Marcador declarado no início da linha, do item ou de uma frase: "Desambiguação:"
+# ou "**Desambiguação.**". Menção em prosa ("ainda sem desambiguação") não conta.
+PEOPLE_RULE_RE = re.compile(
+    r"(?i)(?:^|[.;]\s+)\s*(?:[-*]\s+)?\**desambigua(?:ç|c)(?:ã|a)o\**\s*[:.]\**\s*(.+)")
+PEOPLE_BULLET_RE = re.compile(r"^[-*]\s+\*\*([^*]+)\*\*\s*[—–-]\s*(.*)$")
+PEOPLE_QUOTED_RE = re.compile(r"[\"“”]([^\"“”]+)[\"“”]")
+CANDIDATE_MIN_SOURCES = 5
+CANDIDATE_CAPITAL_RATIO = 0.8
+CANDIDATE_MIN_SIGNAL = 2
+PERSON_VERBS = (
+    "diz", "disse", "dizia", "pede", "pediu", "quer", "queria", "relata", "relatou",
+    "conta", "contou", "acha", "achou", "propoe", "propos", "defende", "defendeu",
+    "avisa", "avisou", "cobra", "cobrou", "sugere", "sugeriu", "confirma", "confirmou",
+    "explica", "explicou", "afirma", "afirmou", "responde", "respondeu", "pergunta",
+    "perguntou", "decide", "decidiu", "fala", "falou", "comenta", "comentou", "lembra",
+    "lembrou", "insiste", "aceita", "aceitou", "recusa", "recusou", "le", "leu",
+)
+
+
+def _fold(value):
+    """Remove acentos preservando caixa."""
+    if value.isascii():
+        return value
+    value = unicodedata.normalize("NFKD", value)
+    return "".join(ch for ch in value if not unicodedata.combining(ch))
+
+
+def _name_key(value):
+    """Chave de nome: sem caixa, acento e pontuação."""
+    return " ".join(re.sub(r"[^\w]+", " ", _fold(value).casefold()).split())
+
+
+def _first_clause(text, limit=90):
+    text = re.sub(r"\[\[([^\]|]+)\|?([^\]]*)\]\]", lambda m: m.group(2) or m.group(1), text)
+    text = text.replace("**", "").strip()
+    cut = re.split(r"(?<=[.;])\s", text, maxsplit=1)[0].rstrip(";")
+    return cut if len(cut) <= limit else cut[:limit - 1].rstrip() + "…"
+
+
+def _parse_person_label(label):
+    """'Mari (Mariana Mayer)', 'Leonardo "Léo"', 'Gabi/Gabs' → (canônico, apelidos).
+
+    Canônico é a forma com mais palavras (o nome completo quando escrito);
+    empate fica com a primeira forma escrita."""
+    label = label.strip().strip("*").strip()
+    inner = re.findall(r"\(([^)]*)\)", label)
+    base = re.sub(r"\([^)]*\)", " ", label)
+    quoted = PEOPLE_QUOTED_RE.findall(base)
+    base = PEOPLE_QUOTED_RE.sub(" ", base)
+    forms = [part.strip() for part in base.split("/") if part.strip()]
+    for chunk in inner + quoted:
+        for part in re.split(r"[,;/]", chunk):
+            part = part.strip().strip('"“”').strip()
+            if part:
+                forms.append(part)
+    forms = [" ".join(f.split()) for f in forms if _name_key(f)]
+    if not forms:
+        return None, []
+    canonical = max(forms, key=lambda f: (len(f.split()), -forms.index(f)))
+    aliases, seen = [], {_name_key(canonical)}
+    for form in forms:
+        if _name_key(form) not in seen:
+            seen.add(_name_key(form))
+            aliases.append(form)
+    return canonical, aliases
+
+
+def _person(name, aliases, where, role="", rules=()):
+    return {"name": name, "aliases": list(aliases), "where": [where],
+            "role": _first_clause(role) if role else "", "rules": list(rules)}
+
+
+def _people_sections(fm_lines):
+    raw = fm_get(fm_lines, "people_section")
+    if raw is None:
+        return []
+    listed = fm_list(fm_lines, "people_section")
+    return listed or [read_scalar(raw)]
+
+
+def _rule_text(text):
+    """Regra de contexto até o fim da frase em que ela aparece."""
+    match = PEOPLE_RULE_RE.search(text)
+    if not match:
+        return None
+    return re.split(r"(?<=[.!?])\s", match.group(1).strip(), maxsplit=1)[0]
+
+
+def _section_entries(slug, text, sections):
+    wanted = [_name_key(s) for s in sections if _name_key(s)]
+    entries, in_section, current, last_bullet, anchor = [], False, None, None, slug
+    for line in text.split("\n"):
+        if line.startswith("## "):
+            in_section = any(_name_key(line[3:]).startswith(w) for w in wanted)
+            current, last_bullet, anchor = None, None, "%s#%s" % (slug, line[3:].strip())
+            continue
+        if not in_section or not line.strip():
+            continue
+        if line.startswith("### "):
+            head = line[4:].strip()
+            parts = re.split(r"\s+[—–]\s+", head, maxsplit=1)
+            current, last_bullet, anchor = None, None, "%s#%s" % (slug, head)
+            if len(parts) == 2:
+                name, aliases = _parse_person_label(parts[0])
+                if name:
+                    current = _person(name, aliases, anchor, parts[1])
+                    entries.append(current)
+            continue
+        if current is not None:
+            rule = _rule_text(line)
+            if rule:
+                current["rules"].append(rule)
+            continue
+        if line[:1].isspace() and last_bullet is not None:
+            rule = _rule_text(line)
+            if rule:
+                last_bullet["rules"].append(rule)
+            continue
+        last_bullet = None
+        bullet = PEOPLE_BULLET_RE.match(line)
+        if not bullet:
+            continue
+        label = bullet.group(1).strip()
+        bare = re.sub(r"\([^)]*\)", "", label)
+        if (label.endswith((".", ":")) or "[[" in label or "," in bare
+                or len(bare.split()) > 4):
+            continue
+        name, aliases = _parse_person_label(label)
+        if not name:
+            continue
+        rule = _rule_text(bullet.group(2))
+        last_bullet = _person(name, aliases, anchor, bullet.group(2), [rule] if rule else [])
+        entries.append(last_bullet)
+    return entries
+
+
+def _entry_keys(entry):
+    keys = set()
+    for form in [entry["name"]] + entry["aliases"]:
+        key = _name_key(form)
+        if key:
+            keys.add(key)
+            keys.add(key.split()[0])
+            keys.add(key.split()[-1])
+    return keys
+
+
+def _merge_into(target, entry):
+    known = {_name_key(f) for f in [target["name"]] + target["aliases"]}
+    for form in [entry["name"]] + entry["aliases"]:
+        if _name_key(form) not in known:
+            known.add(_name_key(form))
+            target["aliases"].append(form)
+    target["where"] += [w for w in entry["where"] if w not in target["where"]]
+    target["rules"] += [r for r in entry["rules"] if r not in target["rules"]]
+    if not target["role"]:
+        target["role"] = entry["role"]
+
+
+def _entry_forms(entry):
+    return {_name_key(f) for f in [entry["name"]] + entry["aliases"] if _name_key(f)}
+
+
+def _same_person(i, j, raw, canon, forms, aliases, keys):
+    """Só equivalência escrita funde; coincidência de nome não é prova.
+
+    - Nome completo igual funde. Nome curto igual só funde se um apelido de uma
+      das entradas também estiver escrito na outra ("Thata (Thamary)" e a página
+      da Thata com `aliases: [Thamary]`); dois "Beto" soltos ficam separados.
+    - Nomes completos diferentes fundem quando um é apelido escrito do outro;
+      apelido em comum entre dois nomes completos não funde.
+    - Entrada curta funde por nome ou apelido em comum só quando nenhuma outra
+      pessoa responde por esse nome e quando a entrada curta não traz regra
+      própria (regra indica identidade que depende do contexto)."""
+    ci, cj = canon[i], canon[j]
+    if ci == cj:
+        return " " in ci or bool(aliases[i] & forms[j]) or bool(aliases[j] & forms[i])
+    if " " in ci and " " in cj:
+        return ci in forms[j] or cj in forms[i]
+    if any(raw[x]["rules"] for x in (i, j) if " " not in canon[x]):
+        return False
+    shared = forms[i] & forms[j]
+    if not shared:
+        return False
+    for x in range(len(raw)):
+        if x in (i, j) or canon[x] in (ci, cj):
+            continue
+        if shared & keys[x]:
+            return False
+    return True
+
+
+def people_registry(pages=None):
+    """Lista de pessoas canônicas, cada uma com nomes, locais, papel e regras.
+
+    Fusão por equivalência escrita (ver `_same_person`), independente da ordem
+    das páginas. Nome canônico do grupo: a forma com mais palavras."""
+    if pages is None:
+        pages = load_pages()
+    raw = []
+    for path, text in sorted(pages):
+        res = split_fm(text)
+        if res is None:
+            continue
+        fm, slug = res[0], slug_of(path)
+        if fm_get(fm, "aliases") is not None:
+            title = fm_get(fm, "title") or slug.replace("-", " ")
+            name = re.split(r"\s+[—–]\s+|:\s", title, maxsplit=1)[0].strip()
+            rule = fm_get(fm, "disambiguation")
+            raw.append(_person(name, [a for a in fm_list(fm, "aliases") if a],
+                               slug, "", [rule] if rule else []))
+        sections = _people_sections(fm)
+        if sections:
+            raw.extend(_section_entries(slug, text, sections))
+
+    canon = [_name_key(e["name"]) for e in raw]
+    forms = [_entry_forms(e) for e in raw]
+    aliases = [{_name_key(a) for a in e["aliases"] if _name_key(a)} for e in raw]
+    keys = [_entry_keys(e) for e in raw]
+    parent = list(range(len(raw)))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for i in range(len(raw)):
+        for j in range(i + 1, len(raw)):
+            if find(i) != find(j) and _same_person(i, j, raw, canon, forms, aliases, keys):
+                parent[find(j)] = find(i)
+
+    groups = {}
+    for idx in range(len(raw)):
+        groups.setdefault(find(idx), []).append(idx)
+    merged = []
+    for members in groups.values():
+        names = [raw[m]["name"] for m in members]
+        best = max(names, key=lambda n: (len(n.split()), names.count(n), -sorted(names).index(n)))
+        lead = next(m for m in members if raw[m]["name"] == best)
+        entry = _person(best, [], raw[lead]["where"][0], "", [])
+        entry["role"] = raw[lead]["role"]
+        entry["where"] = []
+        for m in [lead] + [m for m in members if m != lead]:
+            _merge_into(entry, raw[m])
+        entry["keys"] = sorted(_entry_keys(entry))
+        merged.append(entry)
+    return sorted(merged, key=lambda e: (_name_key(e["name"]), e["where"]))
+
+
+def resolve_name(query, registry):
+    """Nome exato, primeiro nome ou sobrenome; com várias palavras e sem acerto
+    exato, todas as palavras precisam estar numa mesma forma escrita."""
+    key = _name_key(query)
+    if not key:
+        return []
+    hits = [e for e in registry if key in e["keys"]]
+    if not hits and len(key.split()) > 1:
+        wanted = set(key.split())
+        hits = [e for e in registry
+                if any(wanted <= set(_name_key(f).split()) for f in [e["name"]] + e["aliases"])]
+    return hits
+
+
+def _entry_json(entry):
+    return {k: entry[k] for k in ("name", "aliases", "role", "where", "rules")}
+
+
+def _print_entry(entry, indent="  "):
+    role = " — %s" % entry["role"] if entry["role"] else ""
+    aliases = " (%s)" % ", ".join(entry["aliases"]) if entry["aliases"] else ""
+    print("%s- %s%s%s" % (indent, entry["name"], aliases, role))
+    print("%s    em: %s" % (indent, "; ".join(entry["where"])))
+    for rule in entry["rules"]:
+        print("%s    regra: %s" % (indent, rule))
+
+
+def cmd_people(as_json=False):
+    registry = people_registry()
+    if as_json:
+        print(json.dumps([_entry_json(e) for e in registry], ensure_ascii=False, indent=2))
+        return 0
+    print("[people] %d pessoas no cadastro (aliases: no frontmatter + people_section:)" % len(registry))
+    for entry in registry:
+        _print_entry(entry)
+    return 0
+
+
+def cmd_resolve(query, as_json=False):
+    """0 = único, 1 = ambíguo, 4 = não encontrado. Nunca escolhe entre candidatas."""
+    hits = resolve_name(query, people_registry())
+    status = "único" if len(hits) == 1 else ("ambíguo" if hits else "não encontrado")
+    if as_json:
+        print(json.dumps({"query": query, "status": status,
+                          "candidates": [_entry_json(e) for e in hits]},
+                         ensure_ascii=False, indent=2))
+    else:
+        print('[resolve] "%s" → %s%s' % (query, status, " (%d)" % len(hits) if len(hits) > 1 else ""))
+        for entry in hits:
+            _print_entry(entry)
+        if len(hits) > 1 and not any(e["rules"] for e in hits):
+            print("  sem regra de desambiguação: não atribuir por inferência; perguntar ou marcar lacuna.")
+        if not hits:
+            print("  sem entrada: nome novo, grafia de transcrição ou pessoa sem cadastro.")
+    return 0 if len(hits) == 1 else (1 if hits else 4)
+
+
+def _corpus_word_counts(pages):
+    """{chave: [ocorrências, capitalizadas, em caixa alta]} para 1 e 2 palavras."""
+    counts = {}
+    for _path, text in pages:
+        res = split_fm(text)
+        body = "\n".join(res[2][res[1] + 1:]) if res else text
+        words = re.findall(r"\w+", _fold(strip_code(body)))
+        prev = None
+        for word in words:
+            low = word.casefold()
+            cap = word[:1].isupper()
+            slot = counts.setdefault(low, [0, 0, 0])
+            slot[0] += 1
+            slot[1] += cap
+            slot[2] += len(word) > 1 and word.isupper()
+            if prev is not None:
+                pair = counts.setdefault(prev[0] + " " + low, [0, 0, 0])
+                pair[0] += 1
+                pair[1] += cap and prev[1]
+            prev = (low, cap)
+    return counts
+
+
+def _person_signal(key, counts):
+    """Vezes em que o nome age como pessoa: seguido de verbo de fala ou decisão
+    ("Romani disse", "Júlio pediu") ou depois de "segundo"."""
+    words = key.split()
+    score = sum(counts.get("%s %s" % (words[-1], verb), (0,))[0] for verb in PERSON_VERBS)
+    return score + counts.get("segundo %s" % words[0], (0,))[0]
+
+
+def cmd_people_check():
+    """Diagnóstico: nome compartilhado sem regra e usado como tag (exit 1),
+    tags ambíguas e candidatas a cadastro (informativo)."""
+    pages = load_pages()
+    registry = people_registry(pages)
+    owners = {}
+    for idx, entry in enumerate(registry):
+        for key in entry["keys"]:
+            owners.setdefault(key, []).append(idx)
+    tag_pages, source_tags, slugs = {}, {}, set()
+    for path, text in pages:
+        slug = slug_of(path)
+        slugs.add(slug)
+        res = split_fm(text)
+        if res is None:
+            continue
+        is_source = fm_get(res[0], "type") == "source"
+        for tag in set(fm_list(res[0], "tags")):
+            key = _name_key(tag.replace("-", " "))
+            tag_pages.setdefault(key, set()).add(slug)
+            if is_source:
+                source_tags.setdefault(tag, set()).add(slug)
+
+    ambiguous = sorted((k, ids) for k, ids in owners.items() if len(ids) > 1)
+    blocking = [(k, ids) for k, ids in ambiguous
+                if not any(registry[i]["rules"] for i in ids) and tag_pages.get(k)]
+    print("[people] cadastro: %d pessoas | nomes compartilhados: %d" % (len(registry), len(ambiguous)))
+    print("  NOME AMBÍGUO SEM REGRA (em uso como tag): %d" % len(blocking))
+    for key, ids in blocking:
+        print("      - %s → %s (tag em %d páginas)" % (
+            key, " | ".join(registry[i]["name"] for i in ids), len(tag_pages[key])))
+    if blocking:
+        print("      => escreva `Desambiguação: ...` na entrada ou `disambiguation:` na página")
+    ruled = [(k, ids) for k, ids in ambiguous if any(registry[i]["rules"] for i in ids)]
+    print("  nomes compartilhados com regra: %d" % len(ruled))
+    for key, ids in ruled:
+        print("      - %s → %s" % (key, " | ".join(registry[i]["name"] for i in ids)))
+    loose = [(k, ids) for k, ids in ambiguous if (k, ids) not in blocking and (k, ids) not in ruled]
+    print("  nomes compartilhados sem regra e sem uso como tag (informativo): %d" % len(loose))
+    for key, ids in loose:
+        print("      - %s → %s" % (key, " | ".join(registry[i]["name"] for i in ids)))
+    tagged = [(k, ids) for k, ids in ambiguous if tag_pages.get(k)]
+    print("  tags que nomeiam mais de uma pessoa (informativo; prefira tag de nome completo): %d" % len(tagged))
+    for key, ids in tagged:
+        print("      - %s: %d páginas" % (key, len(tag_pages[key])))
+
+    known = set(owners)
+    counts = _corpus_word_counts(pages)
+    candidates = []
+    for tag, sources in source_tags.items():
+        key = _name_key(tag.replace("-", " "))
+        if (len(sources) < CANDIDATE_MIN_SOURCES or not key or len(key.split()) > 2
+                or key in known or tag in slugs
+                or any(s.startswith(tag + "-") for s in slugs)):
+            continue
+        total, capital, upper = counts.get(key.split()[-1] if " " not in key else key, [0, 0, 0])
+        if (total >= 3 and capital / total >= CANDIDATE_CAPITAL_RATIO
+                and upper / total < 0.5 and _person_signal(key, counts) >= CANDIDATE_MIN_SIGNAL):
+            candidates.append((len(sources), tag))
+    candidates.sort(key=lambda c: (-c[0], c[1]))
+    print("  candidatas a cadastro (informativo; nome que fala ou decide, tag em >= %d sources, sem entrada): %d"
+          % (CANDIDATE_MIN_SOURCES, len(candidates)))
+    for n, tag in candidates:
+        print("      - %s: %d sources" % (tag, n))
+    return 1 if blocking else 0
+
+
+# ---------- citações literais contra o bruto ----------
+QUOTE_RE = re.compile(r"(?<![\w*])\*[\"“]([^\"”\n]{8,}?)[\"”]\*(?![\w*])")
+RAW_REF_RE = re.compile(r"((?:queue/processed|raw)/[^\s`\"'()\[\]<>,;|*{}]+(?:\{[^{}\s`]+\})?)")
+QUOTE_SPLIT_RE = re.compile(r"\s*(?:…|\.\.\.|\[\s*(?:…|\.\.\.)\s*\])\s*")
+RAW_TEXT_EXT = (".md", ".txt", ".vtt", ".srt")
+QUOTE_MIN_WORDS = 3
+QUOTE_LIGHT_RATIO = 0.6
+QUOTE_WINDOW_SLACK = 3
+QUOTE_MAX_ANCHORS = 400
+# Palavra curta a mais na citação ("tira a vontade") ainda é edição leve; negação não.
+QUOTE_NEGATIONS = {"nao", "nem", "sem", "nunca", "no", "not"}
+
+
+def _raw_stem(name):
+    for ext in (".analysis.jsonl", ".jsonl") + RAW_TEXT_EXT:
+        if name.endswith(ext):
+            return name[:-len(ext)], ext
+    return None, None
+
+
+def _dedupe_raw(paths):
+    """Uma representação por gravação: texto (.md/.txt/...) > .jsonl > .analysis.jsonl.
+    Arquivos de gravações diferentes na mesma pasta continuam todos."""
+    groups = {}
+    for path in paths:
+        stem, ext = _raw_stem(os.path.basename(path))
+        if stem is not None:
+            groups.setdefault(os.path.join(os.path.dirname(path), stem), {})[ext] = path
+    chosen = []
+    for _stem, by_ext in sorted(groups.items()):
+        pick = next((by_ext[e] for e in RAW_TEXT_EXT if e in by_ext), None)
+        chosen.append(pick or by_ext.get(".jsonl") or by_ext[".analysis.jsonl"])
+    return chosen
+
+
+def _raw_files(ref):
+    ref = ref.rstrip(".:")
+    brace = re.search(r"\{([^{}]+)\}$", ref)
+    if brace:
+        stem = ref[:brace.start()]
+        return [f for alt in brace.group(1).split(",") for f in _raw_files(stem + alt.strip())]
+    path = os.path.join(VAULT_ROOT, ref)
+    if os.path.isfile(path):
+        return [path]
+    if not os.path.isdir(path):
+        return []
+    return _dedupe_raw([os.path.join(path, n) for n in sorted(os.listdir(path))])
+
+
+def _raw_text(path):
+    try:
+        text = read_file(path)
+    except (OSError, UnicodeDecodeError):
+        return ""
+    if not path.endswith(".jsonl"):
+        return text
+    parts = []
+    for line in text.splitlines():
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(row, dict) and isinstance(row.get("text"), str):
+            parts.append(row["text"])
+    return "\n".join(parts)
+
+
+def _trigrams(words):
+    return {tuple(words[i:i + 3]) for i in range(len(words) - 2)}
+
+
+RAW_SENTINEL = "¦"   # fronteira entre arquivos: nenhuma citação atravessa
+
+
+def _word_match(quoted, raw_word):
+    return quoted == raw_word or (len(quoted) >= 4 and _one_edit(quoted, raw_word))
+
+
+class _RawCorpus:
+    """Bruto normalizado: texto para busca exata, trigramas e posições por palavra."""
+
+    def __init__(self, files):
+        self.words = []
+        for path in files:
+            if self.words:
+                self.words.append(RAW_SENTINEL)
+            self.words.extend(_name_key(_raw_text(path)).split())
+        self.text = " %s " % " ".join(self.words)
+        self.grams = _trigrams(self.words)
+        self.positions = {}
+        for i, word in enumerate(self.words):
+            self.positions.setdefault(word, []).append(i)
+
+    def in_window(self, frag_words, slack=QUOTE_WINDOW_SLACK):
+        """Palavras em ordem numa janela curta, com até `slack` palavras a mais e
+        uma letra de diferença por palavra de 4+ letras: citação condensada ou
+        grafia de transcrição corrigida. Ancora na palavra exata mais rara."""
+        n = len(frag_words)
+        present = [(len(self.positions[w]), k) for k, w in enumerate(frag_words)
+                   if w in self.positions]
+        if not present:
+            return False
+        _count, k = min(present)
+        for anchor in self.positions[frag_words[k]][:QUOTE_MAX_ANCHORS]:
+            lo = max(0, anchor - k - slack)
+            window = self.words[lo:anchor + (n - k) + slack]
+            for start, word in enumerate(window):
+                if not _word_match(frag_words[0], word):
+                    continue
+                matched = 1
+                for t in range(start + 1, min(len(window), start + n + slack)):
+                    if matched == n or window[t] == RAW_SENTINEL:
+                        break
+                    if _word_match(frag_words[matched], window[t]):
+                        matched += 1
+                if matched == n:
+                    return True
+        return False
+
+
+def _one_edit(a, b):
+    """Distância de edição <= 1 (troca, inserção ou remoção de uma letra)."""
+    if a == b:
+        return True
+    if abs(len(a) - len(b)) > 1 or len(b) < 3:
+        return False
+    if len(a) == len(b):
+        return sum(x != y for x, y in zip(a, b)) == 1
+    short, long_ = (a, b) if len(a) < len(b) else (b, a)
+    i = next((k for k in range(len(short)) if short[k] != long_[k]), len(short))
+    return short[i:] == long_[i + 1:]
+
+
+def quote_status(quote, corpus):
+    """exata | leve | parcial | ausente | curta.
+
+    Trechos separados por reticências são conferidos um a um e todos contam,
+    inclusive os curtos. Exata = todos os trechos literais e na ordem do bruto.
+    Leve = cada trecho literal ou condensado numa janela curta (`in_window`).
+    Parcial = algo do trecho está no bruto (trigramas soltos, ordem trocada)."""
+    fragments = [_name_key(f) for f in QUOTE_SPLIT_RE.split(quote)]
+    fragments = [f for f in fragments if f]
+    if sum(len(f.split()) for f in fragments) < QUOTE_MIN_WORDS:
+        return "curta"
+    grades, pos, in_order = [], 0, True
+    for frag in fragments:
+        needle = " %s " % frag
+        found = corpus.text.find(needle, pos)
+        if found >= 0:
+            grades.append(1.0)
+            pos = found + len(needle) - 1
+            continue
+        if corpus.text.find(needle) >= 0:
+            grades.append(1.0)
+            in_order = False
+            continue
+        words = frag.split()
+        if len(words) < QUOTE_MIN_WORDS:
+            grades.append(0.0)
+            continue
+        if corpus.in_window(words) or any(
+                corpus.in_window(words[:k] + words[k + 1:])
+                for k in range(len(words))
+                if len(words) > QUOTE_MIN_WORDS and len(words[k]) <= 3
+                and words[k] not in QUOTE_NEGATIONS):
+            grades.append(QUOTE_LIGHT_RATIO)
+            continue
+        grams = _trigrams(words)
+        hit = len(grams & corpus.grams) / len(grams) if grams else 0.0
+        grades.append(min(hit, QUOTE_LIGHT_RATIO / 2) if hit else 0.0)
+    if all(g == 1.0 for g in grades):
+        return "exata" if in_order else "parcial"
+    if all(g >= QUOTE_LIGHT_RATIO for g in grades):
+        return "leve"
+    return "parcial" if any(g > 0 for g in grades) else "ausente"
+
+
+def cmd_quotes(slugs=(), days=None, verbose=False):
+    """Confere `*"citação"*` contra o bruto citado no corpo (`queue/processed/...`
+    ou `raw/...`, arquivo ou pasta). Citação que não está no próprio bruto é
+    procurada no bruto das sources ligadas (`sources:` e wikilinks). Exit 1 se
+    sobrar citação ausente; sem bruto localizável, a source é só contada."""
+    import datetime
+    cutoff = None
+    if days is not None:
+        cutoff = datetime.date.today() - datetime.timedelta(days=days)
+    wanted = set(slugs)
+    pages = sorted(load_pages())
+    raw_by_slug, meta = {}, {}
+    for path, text in pages:
+        res = split_fm(text)
+        if res is None:
+            continue
+        slug = slug_of(path)
+        body = "\n".join(res[2][res[1] + 1:])
+        files = _dedupe_raw(sorted({f for ref in set(RAW_REF_RE.findall(body))
+                                    for f in _raw_files(ref)}))
+        if files:
+            raw_by_slug[slug] = tuple(files)
+        meta[slug] = (res[0], body)
+
+    cache = {}
+
+    def corpus_for(files):
+        if files not in cache:
+            cache[files] = _RawCorpus(files)
+        return cache[files]
+
+    totals = {"exata": 0, "leve": 0, "ligada": 0, "parcial": 0, "ausente": 0}
+    checked, no_raw, flagged = 0, [], []
+    for slug, (fm, body) in sorted(meta.items()):
+        if wanted and slug not in wanted:
+            continue
+        if not wanted and fm_get(fm, "type") != "source":
+            continue
+        if cutoff is not None:
+            try:
+                created = datetime.date.fromisoformat((fm_get(fm, "created") or "").strip())
+            except ValueError:
+                continue
+            if created < cutoff:
+                continue
+        quotes = QUOTE_RE.findall(body)
+        if not quotes:
+            continue
+        if slug not in raw_by_slug:
+            no_raw.append(slug)
+            continue
+        own = corpus_for(raw_by_slug[slug])
+        linked = []
+        for other in fm_list(fm, "sources") + [m.group(1).split("|")[0].split("#")[0].strip()
+                                                for m in WIKILINK_RE.finditer(strip_code(body))]:
+            files = raw_by_slug.get(other)
+            if files and files != raw_by_slug[slug] and files not in linked:
+                linked.append(files)
+        checked += 1
+        problems = []
+        for quote in quotes:
+            status = quote_status(quote, own)
+            if status == "curta":
+                continue
+            if status in ("parcial", "ausente"):
+                for files in linked:
+                    if quote_status(quote, corpus_for(files)) in ("exata", "leve"):
+                        status = "ligada"
+                        break
+            totals[status] += 1
+            if status in ("parcial", "ausente") or (verbose and status in ("leve", "ligada")):
+                problems.append((status, quote))
+        if problems:
+            flagged.append((slug, problems))
+    total = sum(totals.values())
+    window = " criadas nos últimos %d dias" % days if days is not None else ""
+    print("[quotes] sources%s com bruto localizável: %d | citações conferidas: %d" % (window, checked, total))
+    if total:
+        print("  exatas: %d | edição leve: %d | em source ligada: %d | parciais: %d | ausentes: %d (%.1f%%)" % (
+            totals["exata"], totals["leve"], totals["ligada"], totals["parcial"],
+            totals["ausente"], 100.0 * totals["ausente"] / total))
+    for slug, problems in flagged:
+        print("  - %s" % slug)
+        for status, quote in problems:
+            shown = quote if len(quote) <= 110 else quote[:109] + "…"
+            print("      %s: \"%s\"" % ("AUSENTE" if status == "ausente" else status, shown))
+    if no_raw:
+        print("  sources com citação e sem bruto localizável (informativo): %d" % len(no_raw))
+        if wanted or verbose:
+            for slug in no_raw:
+                print("      - %s" % slug)
+    print("  aviso, não prova: grafia corrigida, tradução, chat ou print explicam parte das ausências.")
+    return 1 if totals["ausente"] else 0
+
+
 # ---------- gate (Stop hook em UMA passada: summary + wikilinks + sincronia) ----------
 def cmd_gate(args):
     """Substitui as 3 chamadas python do check-ingest.sh (config + quality + check)
@@ -1281,6 +1979,29 @@ def main():
             print("uso: build-index.py review <slug> [--literal TEXTO]...")
             return 2
         return cmd_review(rest[0], literals)
+    if args[0] == "people":
+        return cmd_people("--json" in args[1:])
+    if args[0] == "resolve":
+        rest = [a for a in args[1:] if a != "--json"]
+        if not rest or not _name_key(" ".join(rest)):
+            print("uso: build-index.py resolve <nome> [--json]")
+            return 2
+        return cmd_resolve(" ".join(rest), "--json" in args[1:])
+    if args[0] == "people-check":
+        return cmd_people_check()
+    if args[0] == "quotes":
+        rest, days = list(args[1:]), None
+        if "--days" in rest:
+            i = rest.index("--days")
+            try:
+                days = int(rest[i + 1])
+            except (IndexError, ValueError):
+                print("uso: build-index.py quotes [<slug>...] [--days N] [--verbose]")
+                return 2
+            del rest[i:i + 2]
+        verbose = "--verbose" in rest
+        rest = [a for a in rest if a != "--verbose"]
+        return cmd_quotes(rest, days, verbose)
     if args[0] == "graph":
         return cmd_graph()
     if args[0] == "thresholds":

@@ -23,7 +23,7 @@ A operacao tem duas fases. O verbo do pedido define o checkpoint:
 ## Fase 1 — Analise read-only
 
 1. Ler a transcricao inteira antes de sintetizar. Se a leitura estiver incompleta, parar sem alterar vault, queue ou Git.
-2. Identificar fonte, data, participantes, contexto e trechos com atribuicao incerta ou possivel erro de transcricao. Nao normalizar nomes ou falas por inferencia silenciosa.
+2. Identificar fonte, data, participantes, contexto e trechos com atribuicao incerta ou possivel erro de transcricao. Para cada nome de pessoa, rodar `python3 .claude/scripts/build-index.py resolve <nome>`: `unico` aponta a unica entrada cadastrada, que ainda se confere com a sala (pessoa fora do cadastro pode ter o mesmo nome); `ambiguo` so se resolve pela regra de desambiguacao impressa e pelo contexto da sala, e sem regra que decida vira lacuna ou pergunta; `nao encontrado` e nome novo ou grafia de transcricao. Nao normalizar nomes ou falas por inferencia silenciosa.
 3. Se existir `[basename].analysis.jsonl`, ler antes de sintetizar. Preferir o
    `track` (mic|system) e os `quality_flags` por turno de la; `remote_unclustered`
    so sinaliza turno remoto sem separacao de falantes e nao serve de triagem
@@ -81,7 +81,8 @@ A operacao tem duas fases. O verbo do pedido define o checkpoint:
    - adicionar padrao novo sustentado por evidencia;
    - alimentar tensoes/pontos cegos, nao apenas forcas;
    - se em duvida, manter somente na source para futuro rebuild.
-7. Garantir frontmatter e `summary:`.
+7. Garantir frontmatter e `summary:`. Quando o usuario confirmar uma identidade nova ou corrigir uma atribuicao, registrar no cadastro (ver `contract.md`, "Cadastro de pessoas"): `aliases:` na pagina da pessoa ou a linha `Desambiguacao:` na entrada da secao de pessoas.
+   Conferir as citacoes da source nova com `python3 .claude/scripts/build-index.py quotes <slug>`; citacao `AUSENTE` volta ao bruto antes do log ou vira parafrase atribuida, sem aspas.
 8. Rodar `python3 .claude/scripts/build-index.py generate`.
 9. Registrar em `wiki/log.md`:
 

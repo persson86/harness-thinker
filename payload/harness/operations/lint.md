@@ -14,6 +14,8 @@ Use para health-check completo do vault.
    - `python3 .claude/scripts/build-index.py check`;
    - `python3 .claude/scripts/build-index.py thresholds`, incluindo os avisos de forma, que nao bloqueiam: pagina-hub acima de 40 KB (separar vigente e historico, ver `contract.md`, "Paginas-hub"), `summary` acima de 600 caracteres (revisao editorial, nunca truncar) e entradas do `log.md` fora da ordem descendente (anotar, nunca reordenar);
    - `bash harness/scripts/verify.sh`;
+   - `python3 .claude/scripts/build-index.py people-check`: nome compartilhado sem regra e usado como tag e P2; candidatas a cadastro sao P3, e o usuario decide quais entram;
+   - `python3 .claude/scripts/build-index.py quotes --days 30`: citacao ausente no bruto e P2 (conferir no bruto, corrigir ou virar parafrase); o resultado e aviso, nao prova;
    - `queue/` tem pendencias?;
    - `git status --porcelain` mostra conhecimento nao commitado?
 6. Reportar por prioridade:

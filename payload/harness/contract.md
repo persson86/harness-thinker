@@ -48,6 +48,18 @@ updated: YYYY-MM-DD
 
 `summary:` e obrigatorio para paginas indexaveis e e a fonte do indice gerado. Paginas no `inbox_dir` configurado nunca sao indexadas por localizacao, mesmo com `summary:`; so entram no indice ao serem promovidas para fora do inbox.
 
+## Cadastro de pessoas
+
+Opcional e derivado da propria wiki, sem pagina nova:
+
+```yaml
+aliases: [Beto, Roberto Fonseca]
+disambiguation: "Beto em Design e Beto Fonseca; em People, Beto Brito."
+people_section: "Pessoas"
+```
+
+`aliases:` vai na pagina de uma pessoa; `disambiguation:` e opcional, quando um nome e compartilhado; `people_section:` vai na pagina que lista pessoas numa secao H2 (o valor e o inicio do titulo da secao). O parser e minimo: sem comentario `#` na mesma linha. Na secao declarada, cada `### Nome (apelido, apelido) — papel` e uma pessoa; fora de um H3 de pessoa, `- **Nome (apelido)** — papel` tambem. Uma linha `Desambiguacao: ...` (ou `Desambiguação:`) dentro da entrada, ou num subitem dela, e a regra de contexto. O nome canonico e a forma com mais palavras. So equivalencia escrita funde duas entradas (nome completo igual, ou um nome escrito como apelido do outro); nome curto em comum nao basta. `build-index.py resolve <nome>` devolve candidatas e regras e nunca escolhe; `unico` significa uma so entrada cadastrada, nao exclui pessoa ainda fora do cadastro; `people-check` aponta nome compartilhado sem regra; `quotes` confere citacoes literais contra o bruto. Regra de identidade mora aqui, nao em memoria de um agente so.
+
 ## Evidencia, interpretacao e autorizacao
 
 - Tipo de pagina (`source`, `concept`, `insight`) nao e grau de certeza. Uma source tambem e uma elaboracao editorial; para conferir uma fala, voltar ao original quando disponivel.
