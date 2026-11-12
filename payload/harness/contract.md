@@ -25,6 +25,8 @@ Categorias sao configuracao do vault, nao do harness: vivem em `vault.config.jso
 
 `vault-heuristics.md` e opcional no root do vault. Conteudo do usuario, nunca sobrescrito pelo installer. Quando existir, orienta decisoes de julgamento (priorizacao, recomendacao, arquitetura de pagina, trade-offs) e prevalece sobre defaults do harness.
 
+`checkin.json` e opcional no root do vault. Conteudo do usuario, criado pela operacao `checkin` (`build-index.py checkin --record|--dismiss`) e nunca pelo installer. Guarda so a data da ultima rodada e as chaves de linhas descartadas; o conhecimento respondido mora na wiki.
+
 `visual-theme.json` e opcional no root do vault. Conteudo do usuario, nunca sobrescrito pelo installer. Define o tema dos diagramas gerados por `harness/scripts/visual.sh` (fonte, tamanho de fonte, traco, cantos, cores por papel e classes de enfase); ausente, vale o tema neutro do harness.
 
 Se uma fonte tocar multiplas categorias: pagina na principal, cross-links nas secundarias somente quando as paginas existirem.
@@ -46,7 +48,7 @@ updated: YYYY-MM-DD
 ---
 ```
 
-`summary:` e obrigatorio para paginas indexaveis e e a fonte do indice gerado. Paginas no `inbox_dir` configurado nunca sao indexadas por localizacao, mesmo com `summary:`; so entram no indice ao serem promovidas para fora do inbox.
+`summary:` e obrigatorio para paginas indexaveis e e a fonte do indice gerado. Paginas no `inbox_dir` configurado nunca sao indexadas por localizacao, mesmo com `summary:`; so entram no indice ao serem promovidas para fora do inbox. Nao escreva o selo de status (`**[atual; estado em ...]**`) no `summary:`: o indice o gera a partir de `knowledge_status` e `as_of`, e escrito a mao ele aparece duas vezes. O gate de encerramento bloqueia pagina nova ou editada com o selo no `summary:`.
 
 ## Cadastro de pessoas
 

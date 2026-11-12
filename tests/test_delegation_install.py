@@ -9,7 +9,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILLS = ("thinker-delegate", "thinker-model-eval", "thinker-one-page", "thinker-product-view", "thinker-rea", "thinker-advisor", "thinker-reviewer", "thinker-release", "thinker-visual")
+SKILLS = ("thinker-delegate", "thinker-model-eval", "thinker-one-page", "thinker-product-view", "thinker-rea", "thinker-advisor", "thinker-reviewer", "thinker-release", "thinker-visual", "thinker-checkin")
 RULES = tuple(f"/.agents/skills/{skill}/" for skill in SKILLS) + ("/output/",)
 
 
@@ -110,6 +110,9 @@ class DelegationInstallTests(unittest.TestCase):
 
     def test_update_refuses_tracked_visual_skill_before_replacing_it(self):
         self.check_tracked_skill_preserved("thinker-visual")
+
+    def test_update_refuses_tracked_checkin_skill_before_replacing_it(self):
+        self.check_tracked_skill_preserved("thinker-checkin")
 
     def test_update_refuses_tracked_advisor_skill_before_replacing_it(self):
         self.check_tracked_skill_preserved("thinker-advisor")

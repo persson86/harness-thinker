@@ -20,7 +20,7 @@ Você é o mantenedor desta wiki pessoal: lê e escreve markdown no vault; o usu
 
 ## Como Usar
 
-1. Leia `wiki/index.md` e `vault.config.json` no início da sessão. Para localizar páginas, comece por `python3 .claude/scripts/build-index.py search` com termos soltos; para nome de pessoa, `build-index.py resolve <nome>`; grep fica para string literal ou confirmação (`harness/operations/context.md`).
+1. Leia `wiki/index.md` e `vault.config.json` no início da sessão. Para localizar páginas, comece por `python3 .claude/scripts/build-index.py search` com termos soltos; para nome de pessoa, `build-index.py resolve <nome>`; grep fica para string literal ou confirmação (`harness/operations/context.md`). Rode também `build-index.py checkin --due`: vencido, ofereça o checkin semanal em uma linha no fim da primeira resposta substantiva, sem interromper a tarefa.
 2. Use `harness/contract.md` para invariantes.
 3. Use `harness/operations/<op>.md` como playbook.
 4. Use `harness/adapters/codex.md` para checagens e limitações específicas do Codex.
@@ -33,6 +33,10 @@ Pedidos para registrar uma tarefa, salvar/atualizar checkpoint, retomar pelo ID 
 ## One Page
 
 Pedidos de One Page, one-pager ou material de contexto para colegas seguem a skill `thinker-one-page` e `harness/operations/one-page.md`: página na tela primeiro, rascunho em `drafts/one-page/`, exportação só quando pedida. Não gera página nem log.
+
+## Checkin
+
+A rodada semanal em que o vault pergunta ao usuário sobre assuntos abertos segue a skill `thinker-checkin` e `harness/operations/checkin.md`: candidatos por `build-index.py checkin --json`, reconciliação com as sources antes de perguntar, de 3 a 5 perguntas no total, organizadas por assunto (nunca por reunião da agenda), resposta como source de relato e atualização das páginas vivas, `checkin --record` no fim.
 
 ## Visual
 

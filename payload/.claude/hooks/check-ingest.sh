@@ -55,7 +55,8 @@ if $HAS_NEW && [[ -f "$STATE_DIR/pages" ]]; then
 fi
 
 # 2-4. Gate determinístico em UMA chamada python (uma varredura do vault):
-#    summary nas páginas novas + wikilinks quebrados em novas/editadas + índice em sync.
+#    summary nas páginas novas + wikilinks quebrados e selo no summary em novas/editadas
+#    + índice em sync.
 GATE_RC=0
 GATE_OUT=$(cd "$VAULT_ROOT" && python3 "$SCRIPT" gate \
   --new "$STATE_DIR/pages" --edited "$STATE_DIR/pages-edited" 2>&1) || GATE_RC=$?
@@ -69,6 +70,10 @@ if [[ "$GATE_RC" -ne 0 ]]; then
     BROKEN_DETAIL=$(echo "$GATE_OUT" | grep -E "^\s+-\s" | head -5 | tr '\n' ' ')
     block "links quebrados | $BROKEN_DETAIL" \
       "Wikilinks quebrados em páginas novas/editadas (regra: nunca inventar [[wikilinks]]): $BROKEN_DETAIL. Corrija ou remova antes de encerrar."
+  elif echo "$GATE_OUT" | grep -q "SELO NO SUMMARY"; then
+    SEALED=$(echo "$GATE_OUT" | grep "SELO NO SUMMARY" | head -1)
+    block "selo no summary | $SEALED" \
+      "Selo de status escrito à mão no summary: $SEALED. Remova o trecho **[atual|histórico|superado ...]** do summary e use knowledge_status/as_of no frontmatter; o índice gera o selo."
   elif echo "$GATE_OUT" | grep -q "INDICE DESSINCRONIZADO"; then
     block "índice dessincronizado | pages: $PAGES" \
       "Índice dessincronizado com o frontmatter. Rode: python3 .claude/scripts/build-index.py generate (e inclua os _index.md atualizados no commit)."

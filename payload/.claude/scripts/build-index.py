@@ -56,6 +56,12 @@ Subcomandos:
                        em esferas de movimento rápido, mais insights em qualquer
                        esfera; ignora inbox, histórico e superado — insumo DREAM.
                        Informacional, exit 0 sempre.
+  checkin [--json] [--limit N] | --due | --record | --dismiss CHAVE...
+                       Assuntos abertos para a rodada CHECKIN: linhas de páginas
+                       vivas com marco vencido ou pendência parada, e estados
+                       vigentes mais velhos que a página. --due: exit 0 se a
+                       rodada venceu (7 dias), 1 se não. --record grava a rodada
+                       de hoje e --dismiss descarta itens em `checkin.json`.
   thresholds           Avisa se gatilhos adiados (Fase 3) dispararam: shard
                        > 150 linhas (sub-shard) ou > 800 páginas sem FTS5
                        disponível na busca (com FTS5, a contagem só informa).
@@ -573,6 +579,28 @@ def cmd_quality(rel_paths):
 
 # ---------- thresholds (gatilhos adiados da Fase 3 se denunciam sozinhos) ----------
 LOG_DATE_RE = re.compile(r"^## (\d{4}-\d{2}-\d{2})\b")
+# Selo de status escrito à mão no summary. O índice já o gera a partir de
+# `knowledge_status`/`as_of` (status_badge), então ele aparece duplicado.
+SUMMARY_SEAL_RE = re.compile(r"\*\*\[(?:atual|hist[óo]rico|superado)\b[^\]]*\]\*\*")
+
+
+def summary_seal(fm_lines):
+    summ = fm_get(fm_lines, "summary") or ""
+    m = SUMMARY_SEAL_RE.search(summ)
+    return m.group(0) if m else None
+
+
+def summary_seal_pages(pages=None):
+    if pages is None:
+        pages = load_pages()
+    found = []
+    for p, text in pages:
+        if is_inbox(p):
+            continue
+        res = split_fm(text)
+        if res is not None and summary_seal(res[0]):
+            found.append(os.path.relpath(p, VAULT))
+    return sorted(found)
 
 
 def form_warnings(pages=None):
@@ -614,8 +642,11 @@ def form_warnings(pages=None):
 
 
 def print_form_warnings(pages=None):
+    if pages is None:
+        pages = load_pages()
     hubs, summaries, disorder = form_warnings(pages)
-    if not (hubs or summaries or disorder):
+    seals = summary_seal_pages(pages)
+    if not (hubs or summaries or disorder or seals):
         print("  avisos de forma: nenhum")
         return
     print("  avisos de forma (não bloqueiam; tratar no lint):")
@@ -625,6 +656,8 @@ def print_form_warnings(pages=None):
         print("      - summary %s: %d caracteres (> %d) → revisão editorial" % (rel, n, SUMMARY_CHARS_LIMIT))
     for number, date, before in disorder:
         print("      - log.md linha %d: entrada %s depois de %s (fora da ordem descendente; não reordenar)" % (number, date, before))
+    for rel in seals:
+        print("      - summary %s: selo de status escrito à mão → mover para knowledge_status/as_of; o índice gera o selo" % rel)
 
 
 def cmd_thresholds():
@@ -1151,6 +1184,354 @@ def cmd_stale(days):
     print("  candidatos a refresh: %d" % len(found))
     for _d, cat, slug, info in found:
         print("      - [[%s]] (%s) — %s" % (slug, cat, info))
+    return 0
+
+
+# ---------- checkin: assuntos abertos para perguntar ao usuário ----------
+# Insumo da operação CHECKIN. Não pergunta nada nem conclui que algo mudou:
+# aponta, em páginas vivas (entity/concept/insight fora do inbox, sem status
+# histórico ou superado), linhas cuja data mais recente já passou dentro de
+# seções abertas (pendências, próximos passos, riscos, lacunas) ou com marcador
+# de futuro (próximo marco, previsto, prazo), e estados vigentes datados antes
+# do `as_of` da própria página. O estado da rodada (última execução e itens
+# descartados) fica em `checkin.json` no root do vault: conteúdo do usuário,
+# fora do payload, que o installer não toca.
+CHECKIN_STATE_NAME = "checkin.json"
+CHECKIN_EVERY_DAYS = 7      # cadência da rodada
+CHECKIN_GRACE_DAYS = 3      # data passada há menos que isto ainda pode estar a caminho do vault
+CHECKIN_STATE_LAG_DAYS = 7  # estado vigente mais velho que o as_of por mais que isto
+CHECKIN_LIMIT = 12          # assuntos (páginas) listados
+CHECKIN_LINES_PER_PAGE = 4
+CHECKIN_EXCERPT = 180
+PT_MONTHS = {"jan": 1, "fev": 2, "mar": 3, "abr": 4, "mai": 5, "jun": 6,
+             "jul": 7, "ago": 8, "set": 9, "out": 10, "nov": 11, "dez": 12}
+CHECKIN_PT_DATE_RE = re.compile(
+    r"(?<![\d/])(\d{1,2})º?/(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\.?(?:/(\d{4}))?(?![\w/])",
+    re.I)
+CHECKIN_ISO_DATE_RE = re.compile(r"(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)")
+CHECKIN_OPEN_HEADING_RE = re.compile(
+    r"(?i)pend[êe]nc|em aberto|\babert[oa]s?\b|pr[óo]xim|a decidir|\briscos?\b|lacunas?|open|next")
+CHECKIN_HISTORY_HEADING_RE = re.compile(
+    r"(?i)movimento|hist[óo]ric|linha do tempo|cronologia|conex|relacionad|\bfontes?\b|registro|history")
+CHECKIN_FORWARD_RE = re.compile(
+    r"(?i)pr[óo]xim[oa]s? marcos?|\bprevist[oa]s?\b|\bagendad[oa]s?\b|marcad[oa]s? para|\bprazo\b|"
+    r"\bvence\b|\bdeadline\b")
+CHECKIN_FORWARD_SPAN = 60  # marcador de futuro só conta com uma data logo depois dele
+CHECKIN_STATE_HEAD_RE = re.compile(r"(?i)^(?:#{2,3}\s*|\*\*)estado (?:vigente|em)\b(.*)$")
+CHECKIN_TABLE_RULE_RE = re.compile(r"^\|[\s:|-]+\|$")
+CHECKIN_KEY_RE = re.compile(r"^[^\s:]+:[0-9a-f]{8}$")
+# Linha que já registra o fechamento não é pergunta, mesmo dentro de seção aberta.
+CHECKIN_CLOSED_RE = re.compile(
+    r"(?i)\b(?:encerrad[oa]s?|conclu[íi]d[oa]s?|resolvid[oa]s?|cancelad[oa]s?|n[ãa]o aconteceu|"
+    r"sem novidade|nada relevante)\b")
+# Pista de passado logo antes da data ("desde 15/jan", "pedido em 03/nov"): o ano
+# inferido não pode cair depois da referência da página.
+CHECKIN_PAST_CUE_RE = re.compile(
+    r"(?i)\b(?:desde|pedid[oa]s?|enviad[oa]s?|feit[oa]s?|aberto|aberta|iniciad[oa]s?)\b"
+    r"(?:\s+(?:em|no dia|de))?\s*$")
+
+
+def _checkin_today():
+    import datetime
+    raw = os.environ.get("THINKER_TODAY")
+    if raw:
+        return datetime.date.fromisoformat(raw)
+    return datetime.date.today()
+
+
+def _checkin_state_path():
+    return os.path.join(VAULT_ROOT, CHECKIN_STATE_NAME)
+
+
+def _valid_iso_date(value):
+    import datetime
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def checkin_state():
+    """Lê `checkin.json`; ausente, ilegível ou com campos de tipo errado vale
+    estado vazio campo a campo (nunca falha)."""
+    try:
+        with open(_checkin_state_path(), encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    last_run = data.get("last_run")
+    dismissed = data.get("dismissed")
+    if not isinstance(dismissed, dict):
+        dismissed = {}
+    return {"version": 1,
+            "last_run": last_run if _valid_iso_date(last_run) else None,
+            "dismissed": {k: v for k, v in dismissed.items()
+                          if isinstance(k, str) and CHECKIN_KEY_RE.match(k) and isinstance(v, str)}}
+
+
+def _update_checkin_state(change):
+    """Leitura–alteração–gravação de `checkin.json` sob lock exclusivo, com
+    temporário único no mesmo diretório e `os.replace` atômico."""
+    import tempfile
+    path = _checkin_state_path()
+    root = os.path.dirname(path) or "."
+    # Lock no próprio diretório do vault: sem arquivo de lock solto no root.
+    lock_fd = os.open(root, os.O_RDONLY)
+    try:
+        try:
+            import fcntl
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        except ImportError:  # sem fcntl (Windows): sem lock, mas temporário único
+            pass
+        state = checkin_state()
+        change(state)
+        fd, tmp = tempfile.mkstemp(dir=root, prefix=".checkin-", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump(state, fh, ensure_ascii=False, indent=2, sort_keys=True)
+                fh.write("\n")
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp, path)
+        except BaseException:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+            raise
+        return state
+    finally:
+        os.close(lock_fd)
+
+
+def _checkin_date(day, month, year, ref, past=False):
+    """Data de `dd/mmm` sem ano: entre os anos vizinhos de `ref` com data válida,
+    a mais próxima de `ref`; com pista de passado, só as que não passam de `ref`."""
+    import datetime
+    if year:
+        try:
+            return datetime.date(int(year), month, int(day))
+        except ValueError:
+            return None
+    options = []
+    for y in (ref.year - 1, ref.year, ref.year + 1):
+        try:
+            options.append(datetime.date(y, month, int(day)))
+        except ValueError:
+            pass
+    if past:
+        options = [d for d in options if d <= ref] or options
+    if not options:
+        return None
+    return min(options, key=lambda d: (abs((d - ref).days), d))
+
+
+def checkin_dates(line, ref):
+    import datetime
+    found = []
+    for m in CHECKIN_PT_DATE_RE.finditer(line):
+        past = bool(CHECKIN_PAST_CUE_RE.search(line[max(0, m.start() - 30):m.start()]))
+        d = _checkin_date(m.group(1), PT_MONTHS[m.group(2).lower()], m.group(3), ref, past)
+        if d:
+            found.append(d)
+    for m in CHECKIN_ISO_DATE_RE.finditer(line):
+        try:
+            found.append(datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3))))
+        except ValueError:
+            pass
+    return found
+
+
+def checkin_forward(line):
+    """Marcador de futuro seguido de data no mesmo trecho ("prazo de 30/out")."""
+    for m in CHECKIN_FORWARD_RE.finditer(line):
+        window = line[m.start():m.end() + CHECKIN_FORWARD_SPAN]
+        if CHECKIN_PT_DATE_RE.search(window) or CHECKIN_ISO_DATE_RE.search(window):
+            return True
+    return False
+
+
+def checkin_key(slug, line):
+    import hashlib
+    norm = " ".join(line.split())
+    return "%s:%s" % (slug, hashlib.sha1(norm.encode("utf-8")).hexdigest()[:8])
+
+
+def _checkin_excerpt(line):
+    text = " ".join(line.strip().lstrip("-*|> ").split())
+    return text if len(text) <= CHECKIN_EXCERPT else text[:CHECKIN_EXCERPT - 1] + "…"
+
+
+def checkin_candidates(pages=None, today=None, dismissed=None):
+    """(abertos, reconciliar) — ver comentário do bloco. Determinístico dado `today`."""
+    import datetime
+    if pages is None:
+        pages = load_pages()
+    if today is None:
+        today = _checkin_today()
+    dismissed = dismissed or {}
+    grace = today - datetime.timedelta(days=CHECKIN_GRACE_DAYS)
+    inbound = {}
+    for _p, text in pages:
+        for t in {m.group(1).split("|")[0].split("#")[0].strip()
+                  for m in WIKILINK_RE.finditer(strip_code(text))}:
+            inbound[t] = inbound.get(t, 0) + 1
+    open_items, reconcile = [], []
+    for p, text in pages:
+        if is_inbox(p):
+            continue
+        res = split_fm(text)
+        if res is None:
+            continue
+        fm, end, lines = res
+        if (fm_get(fm, "type") or "") != "entity":
+            continue
+        status, as_of, _sup = knowledge_status(fm)
+        if status in ("historical", "superseded"):
+            continue
+        slug = slug_of(p)
+        ref_raw = (as_of or fm_get(fm, "updated") or "").strip()
+        try:
+            ref = datetime.date.fromisoformat(ref_raw)
+        except ValueError:
+            ref = today
+        h2 = h3 = ""
+        in_code = False
+        hits, state_heads = [], []
+        body = lines[end + 1:]
+        for number, line in enumerate(body, end + 2):
+            stripped = line.strip()
+            if stripped.startswith("```"):
+                in_code = not in_code
+                continue
+            if in_code or not stripped:
+                continue
+            state_head = CHECKIN_STATE_HEAD_RE.match(stripped)
+            if state_head:
+                dates = checkin_dates(state_head.group(1), ref)
+                if dates:
+                    state_heads.append((max(dates), number, stripped))
+            if stripped.startswith("## "):
+                h2, h3 = stripped[3:], ""
+                continue
+            if stripped.startswith("### "):
+                h3 = stripped[4:]
+                continue
+            if stripped.startswith("#"):
+                continue
+            heading = h3 or h2
+            # Título que nomeia algo aberto ("Registro de pendências") vale como
+            # aberto; só é histórico o título que não nomeia nada aberto.
+            history = any(h and CHECKIN_HISTORY_HEADING_RE.search(h) and not CHECKIN_OPEN_HEADING_RE.search(h)
+                          for h in (h2, h3))
+            if history:
+                continue
+            is_open = bool(CHECKIN_OPEN_HEADING_RE.search(h2) or (h3 and CHECKIN_OPEN_HEADING_RE.search(h3)))
+            forward = checkin_forward(stripped)
+            if not (is_open or forward):
+                continue
+            following = body[number - end - 1] if number - end - 1 < len(body) else ""
+            if stripped.startswith("|") and CHECKIN_TABLE_RULE_RE.match(following.strip()):
+                continue  # cabeçalho de tabela
+            if CHECKIN_CLOSED_RE.search(stripped):
+                continue
+            dates = checkin_dates(stripped, ref)
+            if not dates:
+                continue
+            latest = max(dates)
+            if latest >= grace:
+                continue
+            key = checkin_key(slug, stripped)
+            if key in dismissed:
+                continue
+            hits.append({"line": number, "kind": "marco vencido" if forward else "pendência parada",
+                         "latest": latest.isoformat(), "days": (today - latest).days,
+                         "section": heading, "key": key, "excerpt": _checkin_excerpt(stripped)})
+        if state_heads and as_of:
+            newest = max(state_heads)
+            if (ref - newest[0]).days > CHECKIN_STATE_LAG_DAYS:
+                reconcile.append({"slug": slug, "category": page_category(p), "line": newest[1],
+                                  "state_date": newest[0].isoformat(), "as_of": ref.isoformat(),
+                                  "excerpt": _checkin_excerpt(newest[2])})
+        if hits:
+            hits.sort(key=lambda h: (h["days"], h["line"]))
+            open_items.append({"slug": slug, "category": page_category(p),
+                               "inbound": inbound.get(slug, 0), "as_of": ref.isoformat(),
+                               "items": hits})
+    open_items.sort(key=lambda r: (-r["inbound"], min(h["days"] for h in r["items"]), r["slug"]))
+    reconcile.sort(key=lambda r: (r["state_date"], r["slug"], r["line"]))
+    return open_items, reconcile
+
+
+def checkin_due(state, today):
+    import datetime
+    last_date = _valid_iso_date(state.get("last_run"))
+    if last_date is None:
+        return True, None, None
+    try:
+        nxt = last_date + datetime.timedelta(days=CHECKIN_EVERY_DAYS)
+    except OverflowError:
+        return True, None, None
+    return today >= nxt, last_date, nxt
+
+
+def cmd_checkin(args):
+    today = _checkin_today()
+    state = checkin_state()
+    if "--due" in args:
+        due, last, nxt = checkin_due(state, today)
+        if last is None:
+            print("[checkin] vencido: nenhuma rodada registrada")
+        elif due:
+            print("[checkin] vencido: última rodada em %s" % last.isoformat())
+        else:
+            print("[checkin] em dia: última rodada em %s; próxima a partir de %s" % (last.isoformat(), nxt.isoformat()))
+        return 0 if due else 1
+    if "--record" in args:
+        _update_checkin_state(lambda s: s.__setitem__("last_run", today.isoformat()))
+        print("[checkin] rodada registrada em %s" % today.isoformat())
+        return 0
+    if "--dismiss" in args:
+        keys = args[args.index("--dismiss") + 1:]
+        bad = [k for k in keys if not CHECKIN_KEY_RE.match(k)]
+        if not keys or bad:
+            print("uso: build-index.py checkin --dismiss SLUG:HASH8 [SLUG:HASH8...]")
+            return 2
+        _update_checkin_state(lambda s: s["dismissed"].update({k: today.isoformat() for k in keys}))
+        print("[checkin] descartados: %d" % len(keys))
+        return 0
+    limit = CHECKIN_LIMIT
+    if "--limit" in args:
+        try:
+            limit = int(args[args.index("--limit") + 1])
+        except (IndexError, ValueError):
+            print("uso: build-index.py checkin [--json] [--limit N] | --due | --record | --dismiss CHAVE...")
+            return 2
+    open_items, reconcile = checkin_candidates(today=today, dismissed=state["dismissed"])
+    due, last, nxt = checkin_due(state, today)
+    if "--json" in args:
+        print(json.dumps({"today": today.isoformat(),
+                          "last_run": last.isoformat() if last else None,
+                          "due": due, "reconcile": reconcile,
+                          "open": open_items[:limit], "open_total": len(open_items)},
+                         ensure_ascii=False, indent=2))
+        return 0
+    print("[checkin] assuntos abertos em %s | última rodada: %s | %s"
+          % (today.isoformat(), last.isoformat() if last else "nenhuma",
+             "vencida" if due else "próxima a partir de %s" % nxt.isoformat()))
+    print("  reconciliar antes de perguntar (estado vigente datado antes do as_of): %d" % len(reconcile))
+    for r in reconcile:
+        print("      - [[%s]] L%d: estado de %s × as_of %s" % (r["slug"], r["line"], r["state_date"], r["as_of"]))
+    print("  assuntos com data vencida: %d (mostrando %d)" % (len(open_items), min(limit, len(open_items))))
+    for r in open_items[:limit]:
+        print("      - [[%s]] (%s; %d links de entrada; as_of %s)" % (r["slug"], r["category"], r["inbound"], r["as_of"]))
+        for h in r["items"][:CHECKIN_LINES_PER_PAGE]:
+            print("          L%d [%s, %s, há %d dias] %s  {%s}" % (h["line"], h["kind"], h["latest"], h["days"], h["excerpt"], h["key"]))
+        extra = len(r["items"]) - CHECKIN_LINES_PER_PAGE
+        if extra > 0:
+            print("          … mais %d linha(s)" % extra)
     return 0
 
 
@@ -1880,7 +2261,18 @@ def cmd_gate(args):
             if t and t not in all_slugs:
                 broken.add((rel, t))
 
-    # 3. índice em sync com o frontmatter (mesma lógica do `check`).
+    # 3. selo de status escrito à mão no summary de páginas novas ou editadas:
+    #    o índice gera o selo; escrito no summary, ele aparece duas vezes.
+    sealed = []
+    for rel in sorted(set(new_rels) | set(edited_rels)):
+        text = by_rel.get(rel)
+        if text is None or rel.startswith(INBOX_DIR + os.sep):
+            continue
+        res = split_fm(text)
+        if res is not None and summary_seal(res[0]):
+            sealed.append(rel)
+
+    # 4. índice em sync com o frontmatter (mesma lógica do `check`).
     by_cat, _skipped, _inbox, unknown = collect(pages)
     drift = index_drift(by_cat, unknown, slug_collisions(pages))
 
@@ -1891,9 +2283,11 @@ def cmd_gate(args):
         print("  LINKS QUEBRADOS: %d" % len(broken))
         for src, tgt in sorted(broken):
             print("      - %s -> [[%s]]" % (src, tgt))
+    if sealed:
+        print("  SELO NO SUMMARY: %s" % " ".join(sealed))
     if drift:
         print("  INDICE DESSINCRONIZADO: %s" % ", ".join(drift))
-    if missing or broken or drift:
+    if missing or broken or sealed or drift:
         return 1
     print("  => OK")
     return 0
@@ -2006,6 +2400,8 @@ def main():
         return cmd_graph()
     if args[0] == "thresholds":
         return cmd_thresholds()
+    if args[0] == "checkin":
+        return cmd_checkin(args[1:])
     if args[0] == "stale":
         days = STALE_DAYS
         if "--days" in args:

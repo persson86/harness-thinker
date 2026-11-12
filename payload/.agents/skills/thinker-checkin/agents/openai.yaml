@@ -1,0 +1,6 @@
+interface:
+  display_name: "CHECKIN: assuntos abertos"
+  short_description: "O vault pergunta o que ficou sem desfecho"
+  default_prompt: "Use $thinker-checkin para fazer a rodada semanal de perguntas sobre os assuntos abertos do vault."
+policy:
+  allow_implicit_invocation: true

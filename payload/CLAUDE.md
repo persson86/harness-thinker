@@ -36,7 +36,7 @@ Leia antes de perguntar. Esgote o contexto disponível — índice, shards, pág
 
 ## Acesso ao vault
 
-No início de sessão neste diretório, leia `wiki/index.md` e `vault.config.json`. O índice é o root fino; carregue só os shards e páginas relevantes. Para decidir profundidade, siga `harness/operations/context.md`. Para localizar páginas, comece por `python3 .claude/scripts/build-index.py search` com termos soltos; para nome de pessoa, `build-index.py resolve <nome>`; grep fica para string literal ou confirmação.
+No início de sessão neste diretório, leia `wiki/index.md` e `vault.config.json`. O índice é o root fino; carregue só os shards e páginas relevantes. Para decidir profundidade, siga `harness/operations/context.md`. Para localizar páginas, comece por `python3 .claude/scripts/build-index.py search` com termos soltos; para nome de pessoa, `build-index.py resolve <nome>`; grep fica para string literal ou confirmação. Rode também `build-index.py checkin --due`: vencido, ofereça o checkin semanal em uma linha no fim da primeira resposta substantiva, sem interromper a tarefa.
 
 O vault informa a resposta, mas não a limita: perspectivas externas podem entrar quando separadas do que está efetivamente registrado. Se existir `vault-heuristics.md` no root do vault, consulte-o em decisões de julgamento (priorização, recomendação, arquitetura de página, trade-offs). São as heurísticas de decisão destiladas do usuário e **prevalecem sobre os defaults do harness**.
 
@@ -82,6 +82,7 @@ Use `harness/operations/<op>.md` como playbook canônico:
 - `rea`: pedidos naturais para entender um repo, investigar um sistema ou explicar uma funcionalidade seguem `harness/operations/rea.md`; `/thinker-rea` é a entrada explícita. A pergunta determina profundidade; consulta pontual admite resposta direta, ferramentas especializadas são opcionais e investigar não instala dependências nem altera o alvo por inferência.
 - `release`: nova versão de qualquer projeto versionado segue `harness/operations/release.md` e a receita `RELEASE.md` do repositório: versão no último número sem pré-lançamento, testes, changelog/README, commit, tag, push, reinstalação e verificação; `/thinker-release` é a entrada explícita. Menção implícita só mostra o plano.
 - `visual`: diagramas para processo, sequência, estados, laço causal, estrutura e posicionamento segue `harness/operations/visual.md`; `/thinker-visual` é a entrada explícita e a iniciativa própria vale quando o mecanismo fica difícil de seguir só em texto. Mermaid no texto (na wiki, só o bloco); cena Excalidraw e PNG no tema `visual-theme.json` vão para `output/` via `harness/scripts/visual.sh` quando o material for mostrado ou enviado.
+- `checkin`: rodada semanal em que o vault pergunta ao usuário sobre assuntos abertos (marco vencido, pendência parada, decisão sem desfecho) segue `harness/operations/checkin.md`; `/thinker-checkin` é a entrada explícita. De 3 a 5 perguntas no total, organizadas por assunto e nunca por reunião da agenda; a resposta vira source de relato e atualização das páginas vivas; estado só em `checkin.json`.
 - `memory` — Claude-only, memória viva em `~/.claude/projects/<este-vault>/memory/`.
 
 ## Índice e log

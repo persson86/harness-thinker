@@ -7,7 +7,7 @@
 #   bash harness/scripts/agenda.sh              # daqui até +2 dias (só eventos futuros)
 #   bash harness/scripts/agenda.sh today        # hoje inteiro
 #   bash harness/scripts/agenda.sh upcoming [N] # daqui até +N dias (default 2)
-#   bash harness/scripts/agenda.sh from START to END
+#   bash harness/scripts/agenda.sh from START to END  # intervalo explícito, inclui eventos passados
 #
 # START/END: linguagem natural ("tomorrow at 18:00") ou "YYYY-MM-DD HH:MM:SS +HHMM".
 set -euo pipefail
@@ -42,7 +42,7 @@ case "${1:-upcoming}" in
   from)
     [ "${3:-}" = "to" ] && [ -n "${2:-}" ] && [ -n "${4:-}" ] || usage
     CMD=("eventsFrom:${2}" "to:${4}")
-    FROM_NOW=1
+    # Intervalo explícito: o início é o do pedido, inclusive no passado.
     ;;
   -h|--help)
     usage

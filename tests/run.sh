@@ -89,6 +89,13 @@ for f in .agents/skills/thinker-visual/SKILL.md .claude/commands/thinker-visual.
   run cmp "$REPO/payload/$f" "$V1/$f"
   assert_rc "init instala $f sem alterar bytes" 0
 done
+for f in .agents/skills/thinker-checkin/SKILL.md .agents/skills/thinker-checkin/agents/openai.yaml \
+         .claude/commands/thinker-checkin.md harness/operations/checkin.md; do
+  run cmp "$REPO/payload/$f" "$V1/$f"
+  assert_rc "init instala $f sem alterar bytes" 0
+done
+run grep -Fqx "/.agents/skills/thinker-checkin/" "$V1/.gitignore"
+assert_rc "init ignora skill checkin gerada" 0
 run test -x "$V1/harness/scripts/visual.sh"
 assert_rc "init deixa visual.sh executável" 0
 run bash "$V1/harness/scripts/visual.sh" --help
@@ -262,6 +269,20 @@ assert_out "gate marca LINKS QUEBRADOS" "LINKS QUEBRADOS"
 rm "$V1/wiki/reference/link-quebrado.md"
 run BI generate
 
+page "$V1/wiki/reference/com-selo.md" "página com selo **[atual; estado em 2026-01-01]**"
+run BI generate
+echo "reference/com-selo.md" > "$S/pages"
+run BI gate --new "$S/pages"
+assert_rc "gate bloqueia selo de status no summary" 1
+assert_out "gate marca SELO NO SUMMARY" "SELO NO SUMMARY"
+: > "$S/pages"; echo "reference/com-selo.md" > "$S/edited"
+run BI gate --new "$S/pages" --edited "$S/edited"
+assert_rc "gate bloqueia selo também em página editada" 1
+run BI thresholds
+assert_out "thresholds avisa selo no summary" "selo de status escrito à mão"
+rm "$V1/wiki/reference/com-selo.md" "$S/edited"
+run BI generate
+
 page "$V1/wiki/reference/fora-do-indice.md" "página não indexada ainda"
 echo "reference/fora-do-indice.md" > "$S/pages"
 run BI gate --new "$S/pages"
@@ -378,6 +399,19 @@ assert_out "agenda.sh lembra Gmail pessoal" "Gmail"
 echo "$OUT" | grep -q 'https://' && bad "agenda.sh remove URLs" "$OUT" || ok "agenda.sh remove URLs"
 echo "$OUT" | grep -qi 'hunter2' && bad "agenda.sh remove senha" "$OUT" || ok "agenda.sh remove senha"
 echo "$OUT" | grep -q 'ana@example.com' && bad "agenda.sh remove e-mail" "$OUT" || ok "agenda.sh remove e-mail"
+
+ARGS_FAKE="$TMP/args-icalBuddy"
+cat > "$ARGS_FAKE" <<'EOS'
+#!/bin/bash
+echo "• args: $*"
+EOS
+chmod +x "$ARGS_FAKE"
+run bash -c "ICALBUDDY='$ARGS_FAKE' bash '$V1/harness/scripts/agenda.sh' from 2026-01-01 to 2026-01-08"
+assert_rc "agenda.sh aceita intervalo explícito" 0
+echo "$OUT" | grep -q 'args:.* -n ' && bad "agenda.sh from inclui eventos passados (sem -n)" "$OUT" || ok "agenda.sh from inclui eventos passados (sem -n)"
+assert_out "agenda.sh from repassa o intervalo" "eventsFrom:2026-01-01 to:2026-01-08"
+run bash -c "ICALBUDDY='$ARGS_FAKE' bash '$V1/harness/scripts/agenda.sh' upcoming 2"
+assert_out "agenda.sh upcoming continua só com eventos futuros (-n)" "args:.* -n "
 
 run bash -c "ICALBUDDY=/nao-existe bash '$V1/harness/scripts/agenda.sh' today"
 assert_rc "agenda.sh falha sem icalBuddy" 1

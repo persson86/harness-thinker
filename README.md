@@ -14,7 +14,7 @@ payload/           # what gets installed 1:1 into the target
   harness/         #   contract + operations/ + adapters/ + scripts/verify.sh
   .claude/         #   commands/ hooks/ scripts/build-index.py settings.json
   .grok/           #   Grok Build rules, hook shim, memory-skill shadow
-  .agents/         #   Codex skills, including One Page, Product View, REA and Visual
+  .agents/         #   Codex skills, including One Page, Product View, REA, Visual and Checkin
 templates/vault/   # scaffold for a new vault (--init)
 ```
 
@@ -30,6 +30,12 @@ bump the last number in `VERSION` (minor and major only on request; no pre-relea
 reviewed paths, create `v<VERSION>`, push branch and tag, then update each target with
 `install.sh TARGET --update`. Verify target `harness/.version`, manifest, vault health
 and local/remote SHA parity. Publishing vault knowledge is a separate scope.
+
+## 7.23.11: Weekly checkin
+
+The vault asks about what it cannot close on its own: a milestone whose date passed, a pending item that stopped moving, a decision without an outcome. `/thinker-checkin` in Claude Code and `$thinker-checkin` in Codex follow [one operation](payload/harness/operations/checkin.md): `build-index.py checkin` lists live entities with past-due lines, the agent checks the sources first, then asks three to five questions in total, grouped by subject (never by calendar event). Answers become a self-report source and updates to the live pages; "ignore" is recorded in `checkin.json` at the vault root. At session start, `checkin --due` tells the agent whether to offer the weekly round in one line.
+
+The closing gate now blocks a hand-written status seal in `summary:` (the index already generates it), and `agenda.sh from START to END` keeps past events.
 
 ## 7.23.10: People registry and quote check
 

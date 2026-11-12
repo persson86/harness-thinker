@@ -10,7 +10,7 @@ Este adaptador define como o Codex deve operar o second-brain sem depender dos h
 
 ## Execucao de operacoes
 
-- Para `query`, `review`, `ingest`, `inbox`, `lint`, `feed`, `transcript`, `deep`, `handoff`, `task`, `one-page`, `product-view`, `rea`, `release`, `visual` e `model-eval`, seguir o arquivo correspondente em `harness/operations/`.
+- Para `query`, `review`, `ingest`, `inbox`, `lint`, `feed`, `transcript`, `deep`, `handoff`, `task`, `one-page`, `product-view`, `rea`, `release`, `visual`, `checkin` e `model-eval`, seguir o arquivo correspondente em `harness/operations/`.
 - `harness/scripts/visual.sh render` precisa do Chrome headless e do cache fora do vault: rodar fora do sandbox com aprovação do usuário; com aprovação `never` ou negada, entregar o Mermaid e declarar cena e PNG pendentes.
 - Para delegação entre CLIs, seguir `harness/operations/delegate.md`; disponível por padrão, respeitando off explícito. O Codex consulta a inbox durante a conversa porque não recebe os hooks passivos do Claude. Declare o principal conhecido e o benefício antes do spawn; mantenha identidade desconhecida quando o host não a expuser.
 - Para criar ou editar arquivos, respeitar as regras de seguranca do ambiente Codex e nunca tocar `raw/`.
