@@ -95,7 +95,8 @@ class EscalationPolicyTests(unittest.TestCase):
         self.assertIn("roda como agente nativo do host, não pela extensão", body)
         self.assertIn("fica para outro provedor", body)
         self.assertIn("sem bloquear a submissão", body)
-        self.assertIn("só é às cegas se o brief disser o que não ler", body)
+        self.assertIn("só é às cegas com lista de leitura permitida", body)
+        self.assertIn("thinker-blind-reader", body)
         self.assertIn("e então como agente nativo", self.section())
         pointer = "`harness/operations/delegate.md` > Mesmo provedor: agente nativo"
         for path in ("CLAUDE.md", "AGENTS.md", ".grok/rules/thinker.md"):

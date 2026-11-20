@@ -10,7 +10,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILLS = ("thinker-delegate", "thinker-model-eval", "thinker-one-page", "thinker-product-view", "thinker-rea", "thinker-advisor", "thinker-reviewer", "thinker-release", "thinker-visual", "thinker-checkin")
-RULES = tuple(f"/.agents/skills/{skill}/" for skill in SKILLS) + ("/output/",)
+AGENTS = ("thinker-blind-reader.md",)
+RULES = tuple(f"/.agents/skills/{skill}/" for skill in SKILLS) + tuple(f"/.claude/agents/{agent}" for agent in AGENTS) + ("/output/",)
 
 
 class DelegationInstallTests(unittest.TestCase):
@@ -44,10 +45,126 @@ class DelegationInstallTests(unittest.TestCase):
                     cwd=target, timeout=15,
                 )
                 self.assertEqual(0, ignored.returncode)
+            for agent in AGENTS:
+                path = f".claude/agents/{agent}"
+                self.assertTrue((target / path).is_file())
+                ignored = subprocess.run(
+                    ["git", "check-ignore", "-q", "--", path],
+                    cwd=target, timeout=15,
+                )
+                self.assertEqual(0, ignored.returncode)
 
             second = self.run_install(target)
             self.assertEqual(0, second.returncode, second.stdout + second.stderr)
             self.assertEqual(expected, (target / ".gitignore").read_text(encoding="utf-8"))
+
+    def test_update_keeps_vault_agents_and_refuses_tracked_generated_agent(self):
+        with tempfile.TemporaryDirectory(prefix="delegation-install-") as directory:
+            target = Path(directory) / "vault"
+            own = target / ".claude/agents/vault-scout.md"
+            own.parent.mkdir(parents=True)
+            own.write_text("---\nname: vault-scout\n---\nlocal\n", encoding="utf-8")
+            (target / ".gitignore").write_text("# custom\n", encoding="utf-8")
+            self.run_git(target, "init")
+            self.run_git(target, "add", ".gitignore", ".claude/agents/vault-scout.md")
+            first = self.run_install(target)
+            self.assertEqual(0, first.returncode, first.stdout + first.stderr)
+            self.assertEqual("---\nname: vault-scout\n---\nlocal\n", own.read_text(encoding="utf-8"))
+
+        with tempfile.TemporaryDirectory(prefix="delegation-install-") as directory:
+            target = Path(directory) / "vault"
+            generated = target / ".claude/agents/thinker-blind-reader.md"
+            generated.parent.mkdir(parents=True)
+            generated.write_text("versionado pelo usuario\n", encoding="utf-8")
+            (target / ".gitignore").write_text("# custom\n", encoding="utf-8")
+            self.run_git(target, "init")
+            self.run_git(target, "add", ".gitignore", ".claude/agents/thinker-blind-reader.md")
+            result = self.run_install(target)
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("agente gerado já está rastreado", result.stderr)
+            self.assertEqual("versionado pelo usuario\n", generated.read_text(encoding="utf-8"))
+            self.assertEqual("# custom\n", (target / ".gitignore").read_text(encoding="utf-8"))
+
+    def _vault(self, directory, gitignore="# custom\n"):
+        target = Path(directory) / "vault"
+        target.mkdir()
+        (target / ".gitignore").write_text(gitignore, encoding="utf-8")
+        self.run_git(target, "init")
+        return target
+
+    def test_update_refuses_untracked_agent_without_harness_provenance(self):
+        with tempfile.TemporaryDirectory(prefix="delegation-install-") as directory:
+            target = self._vault(directory)
+            agent = target / ".claude/agents/thinker-blind-reader.md"
+            agent.parent.mkdir(parents=True)
+            agent.write_text("meu agente\n", encoding="utf-8")
+            result = self.run_install(target)
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("não é a cópia instalada pelo harness", result.stderr)
+            self.assertEqual("meu agente\n", agent.read_text(encoding="utf-8"))
+            self.assertFalse((target / "harness/.version").exists())
+
+    def test_update_refuses_locally_edited_generated_agent(self):
+        with tempfile.TemporaryDirectory(prefix="delegation-install-") as directory:
+            target = self._vault(directory)
+            first = self.run_install(target)
+            self.assertEqual(0, first.returncode, first.stdout + first.stderr)
+            agent = target / ".claude/agents/thinker-blind-reader.md"
+            agent.write_text(agent.read_text(encoding="utf-8") + "ajuste local\n", encoding="utf-8")
+            second = self.run_install(target)
+            self.assertNotEqual(0, second.returncode)
+            self.assertIn("alterada localmente", second.stderr)
+            self.assertTrue(agent.read_text(encoding="utf-8").endswith("ajuste local\n"))
+
+    def test_update_refuses_symlinked_agents_dir(self):
+        with tempfile.TemporaryDirectory(prefix="delegation-install-") as directory:
+            target = self._vault(directory)
+            outside = Path(directory) / "outside"
+            outside.mkdir()
+            (outside / "thinker-blind-reader.md").write_text("externo\n", encoding="utf-8")
+            (target / ".claude").mkdir()
+            (target / ".claude/agents").symlink_to(outside)
+            result = self.run_install(target)
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("symlink", result.stderr)
+            self.assertEqual("externo\n", (outside / "thinker-blind-reader.md").read_text(encoding="utf-8"))
+
+    def test_update_refuses_directory_at_agent_path_before_installing(self):
+        with tempfile.TemporaryDirectory(prefix="delegation-install-") as directory:
+            target = self._vault(directory)
+            (target / ".claude/agents/thinker-blind-reader.md").mkdir(parents=True)
+            result = self.run_install(target)
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("não é arquivo regular", result.stderr)
+            self.assertFalse((target / "harness/.version").exists())
+
+    def test_update_refuses_directory_at_any_payload_path(self):
+        with tempfile.TemporaryDirectory(prefix="delegation-install-") as directory:
+            target = self._vault(directory)
+            (target / "harness/contract.md").mkdir(parents=True)
+            result = self.run_install(target)
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("como diretório", result.stderr)
+            self.assertFalse((target / "harness/.version").exists())
+
+    def test_update_refuses_rule_negated_elsewhere(self):
+        with tempfile.TemporaryDirectory(prefix="delegation-install-") as directory:
+            target = self._vault(directory)
+            (target / ".claude/agents").mkdir(parents=True)
+            (target / ".claude/agents/.gitignore").write_text("!thinker-blind-reader.md\n", encoding="utf-8")
+            result = self.run_install(target)
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("continua visível ao Git", result.stderr)
+            self.assertFalse((target / ".claude/agents/thinker-blind-reader.md").exists())
+
+    def test_blind_reader_agent_is_read_only_and_omits_claude_md(self):
+        text = (ROOT / "payload/.claude/agents/thinker-blind-reader.md").read_text(encoding="utf-8")
+        front = text.split("---", 2)[1]
+        fields = dict(line.split(":", 1) for line in front.strip().splitlines())
+        self.assertEqual("thinker-blind-reader", fields["name"].strip())
+        self.assertEqual("true", fields["omitClaudeMd"].strip())
+        self.assertEqual({"Read", "Grep", "Glob"}, {t.strip() for t in fields["tools"].split(",")})
+        self.assertNotIn("model", fields)
 
     def test_update_refuses_gitignore_symlink_before_installing_skill(self):
         with tempfile.TemporaryDirectory(prefix="delegation-install-") as directory:

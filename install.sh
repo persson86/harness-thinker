@@ -8,6 +8,7 @@
 #   <target>/CLAUDE.md, <target>/AGENTS.md
 #   <target>/harness/                       (contract + operations + adapters + scripts)
 #   <target>/.claude/commands|hooks|scripts|settings.json
+#   <target>/.claude/agents/thinker-*.md      (agentes gerados; os demais agentes do vault ficam intactos)
 #   <target>/.grok/rules|hooks|skills       (Grok Build; aditivo, não altera Claude/Codex)
 #   <target>/harness/.version + <target>/harness/.manifest  (drift check do verify.sh)
 #
@@ -155,6 +156,39 @@ scaffold_vault() {
 # Os skills são gerados pelo harness e não pertencem ao conteúdo do vault. Em
 # vaults anteriores ao recurso, acrescente só as regras exatas, sem reformatar
 # nem trocar o .gitignore que o usuário já mantém.
+# .claude/agents/ guarda também agentes do próprio vault. O harness só grava
+# o agente gerado quando ele não existe ou ainda é o arquivo que o harness
+# instalou (hash igual ao do manifest anterior); nunca segue symlink nem
+# substitui diretório, arquivo versionado ou cópia alterada localmente.
+check_generated_agent() {
+  local agent="$1" rel=".claude/agents/$1" dest="$TARGET/.claude/agents/$1" p expected tracked
+  for p in "$TARGET/.claude" "$TARGET/.claude/agents" "$dest"; do
+    if [ -L "$p" ]; then
+      echo "error: $rel passa por symlink ($p); o installer não segue links ao gravar agentes." >&2
+      exit 1
+    fi
+  done
+  if [ -e "$dest" ] && [ ! -f "$dest" ]; then
+    echo "error: $rel existe e não é arquivo regular; remova a colisão antes de atualizar." >&2
+    exit 1
+  fi
+  if git -C "$TARGET" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    tracked="$(git -C "$TARGET" ls-files -- "$rel")"
+    if [ -n "$tracked" ]; then
+      echo "error: agente gerado já está rastreado no target: $rel; remova a colisão antes de atualizar." >&2
+      exit 1
+    fi
+  fi
+  if [ -f "$dest" ]; then
+    expected=""
+    [ -f "$TARGET/harness/.manifest" ] && expected="$(awk -v r="$rel" '$2 == r {print $1}' "$TARGET/harness/.manifest")"
+    if [ -z "$expected" ] || [ "$expected" != "$(sha256_of "$dest")" ]; then
+      echo "error: $rel já existe e não é a cópia instalada pelo harness (sem registro no manifest ou alterada localmente); mova ou renomeie antes de atualizar." >&2
+      exit 1
+    fi
+  fi
+}
+
 ensure_generated_skills_ignored() {
   local ignore="$TARGET/.gitignore" tracked rule skill
   local skills=("thinker-delegate" "thinker-model-eval" "thinker-one-page" "thinker-product-view" "thinker-rea" "thinker-advisor" "thinker-reviewer" "thinker-release" "thinker-visual" "thinker-checkin")
@@ -166,6 +200,7 @@ ensure_generated_skills_ignored() {
     echo "error: .gitignore do target deve ser arquivo regular." >&2
     exit 1
   fi
+  local agents=("thinker-blind-reader.md") agent
   for skill in "${skills[@]}"; do
     if git -C "$TARGET" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
       tracked="$(git -C "$TARGET" ls-files -- ".agents/skills/$skill/")"
@@ -175,6 +210,9 @@ ensure_generated_skills_ignored() {
       fi
     fi
   done
+  for agent in "${agents[@]}"; do
+    check_generated_agent "$agent"
+  done
   [ -e "$ignore" ] || : > "$ignore"
   for skill in "${skills[@]}"; do
     rule="/.agents/skills/$skill/"
@@ -183,6 +221,20 @@ ensure_generated_skills_ignored() {
         printf '\n' >> "$ignore"
       fi
       printf '%s\n' "$rule" >> "$ignore"
+    fi
+  done
+  for agent in "${agents[@]}"; do
+    rule="/.claude/agents/$agent"
+    if ! grep -Fqx "$rule" "$ignore"; then
+      if [ -s "$ignore" ] && [ "$(tail -c 1 "$ignore" | wc -l | tr -d ' ')" -eq 0 ]; then
+        printf '\n' >> "$ignore"
+      fi
+      printf '%s\n' "$rule" >> "$ignore"
+    fi
+    if git -C "$TARGET" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
+       && ! git -C "$TARGET" check-ignore -q -- ".claude/agents/$agent"; then
+      echo "error: .claude/agents/$agent continua visível ao Git apesar de $rule (outra regra o reinclui, por exemplo uma negação '!'); ajuste as regras antes de atualizar." >&2
+      exit 1
     fi
   done
 }
@@ -219,6 +271,15 @@ if [ "$FORCE" -eq 0 ]; then
     exit 1
   fi
 fi
+
+# Um diretório no lugar de um arquivo do payload faria o mv gravar dentro dele
+# e anunciar sucesso; recuse antes de substituir qualquer arquivo.
+for rel in "${PAYLOAD_FILES[@]}"; do
+  if [ -d "$TARGET/$rel" ]; then
+    echo "error: $rel existe no target como diretório; remova a colisão antes de instalar." >&2
+    exit 1
+  fi
+done
 
 # --- instalação --------------------------------------------------------
 # Validate the merge before replacing any managed files. Custom statusline,

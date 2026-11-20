@@ -31,6 +31,14 @@ reviewed paths, create `v<VERSION>`, push branch and tag, then update each targe
 `install.sh TARGET --update`. Verify target `harness/.version`, manifest, vault health
 and local/remote SHA parity. Publishing vault knowledge is a separate scope.
 
+## 7.23.13: Fidelity check in transcripts
+
+Before a transcript delta reaches a live page, an independent reader (`thinker-blind-reader` with Sonnet in Claude Code, a fresh subagent in Codex) checks the new source against the raw transcript for inverted meaning, reported speech written as fact, wrong speaker, out-of-context quotes and numbers that do not add up. The quote checker only proves the words exist. The principal confirms each alert before acting, and the log records the result. See [transcript.md](payload/harness/operations/transcript.md), Phase 2, step 5.
+
+## 7.23.12: Blind reader for reviews
+
+A native subagent in Claude Code does not inherit the conversation, but it does load the `CLAUDE.md` hierarchy (documented), and in a marker test on Claude Code 2.1.327 it also showed the memory index, which the docs say subagents do not get. Either way the reviewer starts with the user's profile and preferences, which bias a blind review. The harness now installs `thinker-blind-reader`, a read-only agent with `omitClaudeMd: true`, used for the fallback Reviewer, the blind first reading and a new optional [comprehension test](payload/harness/operations/reviewer.md) for documents that must stand alone. Briefs list the files the reader may open instead of the ones it may not, and check that list for leaks first.
+
 ## 7.23.11: Weekly checkin
 
 The vault asks about what it cannot close on its own: a milestone whose date passed, a pending item that stopped moving, a decision without an outcome. `/thinker-checkin` in Claude Code and `$thinker-checkin` in Codex follow [one operation](payload/harness/operations/checkin.md): `build-index.py checkin` lists live entities with past-due lines, the agent checks the sources first, then asks three to five questions in total, grouped by subject (never by calendar event). Answers become a self-report source and updates to the live pages; "ignore" is recorded in `checkin.json` at the vault root. At session start, `checkin --due` tells the agent whether to offer the weekly round in one line.

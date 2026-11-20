@@ -19,5 +19,6 @@ queue/
 /.claude/settings.json
 /.grok/
 /.agents/skills/thinker-delegate/
+/.claude/agents/thinker-blind-reader.md
 /drafts/
 /output/

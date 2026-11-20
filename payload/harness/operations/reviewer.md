@@ -16,7 +16,25 @@ Se o outro provedor estiver indisponível — quota `blocked`, `doctor` falhando
 
 - spawn novo, sem herdar a conversa: nunca `fork`, retomada ou mensagem a um agente já existente;
 - nunca a instância que atuou como Advisor nem outra que participou da solução;
-- brief às cegas conforme `delegate.md`, dizendo explicitamente o que não ler (a conversa e o draft com a conclusão do Orquestrador), mas com o artefato real a revisar.
+- brief às cegas conforme `delegate.md`, com o artefato real a revisar e uma **lista de leitura permitida** (caminhos absolutos), em vez de só dizer o que não ler;
+- isolamento das instruções do host quando o host permitir: no Claude Code, `subagent_type: thinker-blind-reader` (ver abaixo).
+
+### Isolamento e lista de leitura
+
+Um subagente nativo comum não herda a conversa, mas herda as instruções. No Claude Code:
+
+- **Documentado:** um subagente comum carrega toda a hierarquia de `CLAUDE.md` da sessão; `omitClaudeMd: true` (Claude Code 2.1.271 ou mais novo) tira do **contexto inicial** os `CLAUDE.md` de usuário, projeto e local. Políticas gerenciadas continuam, e o `CLAUDE.md` de uma subpasta e as regras por caminho ainda carregam quando o agente lê arquivos ali. A documentação diz que a auto memory da conversa principal não chega a subagentes.
+- **Observado** num teste com marcadores (vault real, Claude Code 2.1.327, 18/nov/2026): um subagente comum mostrou o `CLAUDE.md` do usuário e o índice `MEMORY.md` no contexto inicial, ao contrário do que a documentação diz sobre memória; um subagente com `omitClaudeMd: true` começou sem os dois. Instalado, o `thinker-blind-reader` chamado numa sessão interativa do vault começou sem o `CLAUDE.md` do projeto, sem o do usuário e sem o índice de memória. O snapshot do git status ainda chega. Comportamento de outras versões não foi testado.
+
+O agente `thinker-blind-reader` (`.claude/agents/`, instalado pelo harness) declara `omitClaudeMd: true` e só `Read`, `Grep` e `Glob`. Como ele perde as regras do vault, só serve para leitura, e o brief repete o que importar (escopo, discrição, critérios). Escolha o modelo no spawn (`model`); a definição não fixa nenhum. Isso reduz o viés herdado; não prova isolamento.
+
+"Não leia X" não basta: a wiki é densamente ligada, e uma página permitida pode resumir a conclusão vetada. Antes do spawn, monte a lista de leitura e procure nela o slug e as frases-chave do que deve ficar de fora (`grep -l <slug> <arquivos da lista>`). Arquivo que cita a conclusão sai da lista ou entra com a ressalva declarada no brief, e a entrega informa a contaminação conhecida. A busca só cobre a lista: instruções carregadas por caminho durante a leitura e o que o agente encontrar por conta própria ficam fora dela, então ausência de correspondência não prova isolamento. Peça ao leitor que avise contaminação, e concordância com uma conclusão vazada não conta como confirmação independente.
+
+No Codex não há controle equivalente verificado: um relato público (issue #237 do projeto elephant-goldfish-model, Codex CLI 0.166.0) indica que o `AGENTS.md` do projeto e o do usuário chegam ao subagente mesmo sem herdar a conversa. Use a lista de leitura e declare a limitação.
+
+### Teste de compreensão
+
+Para documentos que precisam se sustentar sem o autor (BRD, one-page, spec, material para colegas), uma leitura opcional e barata antecede a crítica: o leitor cego recebe **só o documento**, colado no brief ou como único item da lista de leitura (vale também para artefato em `drafts/`), sem rubrica e sem fontes, e reconstrói o problema, o público, a decisão pedida e o que falta para agir. O Orquestrador compara a reconstrução com a intenção registrada antes do spawn; a diferença é o achado. Ela não substitui a revisão factual, que precisa das fontes. Ideia adaptada do estágio de compreensão do elephant-goldfish-model.
 
 Admita com `consult admit --consult-role reviewer --fallback "<indisponibilidade observada>"` e siga `start`/`finish` como em qualquer consulta nativa. Anuncie como **Reviewer (fallback, mesmo provedor)** e informe na entrega que a independência é menor: modelos do mesmo provedor tendem a errar de forma correlacionada. Só use fallback quando a indisponibilidade foi observada, nunca para economizar o outro provedor.
 

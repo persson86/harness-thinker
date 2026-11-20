@@ -560,6 +560,12 @@ run bash -c "echo 'não é json' | bash '$PC'"
 # de forma está ligada do playbook de transcrição ao contrato.
 run grep -q 'Movimento recente' "$REPO/payload/harness/operations/transcript.md"
 assert_rc "transcript.md aplica a forma de página-hub" 0
+run grep -q 'Conferencia de fidelidade, antes de promover' "$REPO/payload/harness/operations/transcript.md"
+assert_rc "transcript.md confere fidelidade antes de promover" 0
+run grep -q 'subagent_type: thinker-blind-reader' "$REPO/payload/harness/operations/transcript.md"
+assert_rc "transcript.md usa o leitor cego na conferência" 0
+run grep -q '^- Conferencia de fidelidade:' "$REPO/payload/harness/operations/transcript.md"
+assert_rc "log de transcript registra a conferência" 0
 run grep -q '^## Paginas-hub' "$REPO/payload/harness/contract.md"
 assert_rc "contract.md define página-hub" 0
 run grep -q 'congelado' "$REPO/payload/harness/contract.md"
