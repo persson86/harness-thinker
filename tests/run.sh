@@ -432,6 +432,14 @@ run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID\",\"promp
 assert_rc "agenda-gate ignora menção conceitual a agendas" 0
 echo "$OUT" | grep -q 'Calendar do Mac' && bad "agenda-gate não injeta contexto em menção conceitual" "$OUT" || ok "agenda-gate não injeta contexto em menção conceitual"
 
+for P in "vamos tb incluir um icone de calendário na barra lateral" "quero poder criar evento e escolher calendário" "quero usar apenas esse calendário no dia a dia"; do
+  run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID\",\"promptId\":\"p1c\",\"prompt\":\"$P\"}"
+  echo "$OUT" | grep -q 'Calendar do Mac' && bad "agenda-gate ignora trabalho sobre calendário: $P" "$OUT" || ok "agenda-gate ignora trabalho sobre calendário: $P"
+done
+run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID\",\"promptId\":\"p1d\",\"prompt\":\"o que tem no calendário de hoje?\"}"
+assert_out "agenda-gate marca calendário de hoje" "Calendar do Mac"
+rm -rf "/tmp/sb-agenda-$SID"
+
 rm -rf "/tmp/sb-agenda-$SID"
 run gate "{\"hookEventName\":\"UserPromptSubmit\",\"sessionId\":\"$SID\",\"promptId\":\"p2\",\"prompt\":\"qual minha próxima agenda?\"}"
 assert_rc "agenda-gate marca prompt de agenda" 0

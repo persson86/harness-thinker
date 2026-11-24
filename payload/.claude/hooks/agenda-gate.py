@@ -37,6 +37,11 @@ AGENDA_CONTEXT = (
 # raramente usado fora do sentido de agenda) e `meu\s+calend` seguem cobrindo o
 # pedido pessoal legítimo. `disponibilidade` isolado também casava com uso técnico
 # ("disponibilidade do servidor"); restrito a formas pessoais/temporais.
+#
+# `\bcalendario\b` sozinho também casava com trabalho sobre calendário ("ícone de
+# calendário na barra", "escolher calendário", "plugin de calendário") e bloqueava
+# turnos de código. Fica só a forma temporal ("no calendário de hoje", "calendário
+# da semana"); `meu\s+calend` continua cobrindo o pedido pessoal.
 AGENDA_RE = re.compile(
     r"""
     /agenda\b
@@ -46,7 +51,7 @@ AGENDA_RE = re.compile(
     | meu\s+calend
     | \bmy\s+(calendar|schedule)\b
     | \bnext\s+meeting\b
-    | \bcalendario\b
+    | \bcalendario\s+(de\s+|d[ao]\s+|para\s+)?(hoje|amanha|semana|essa\s+semana|esta\s+semana)
     | o\s+que\s+(eu\s+)?tenho\s+(hoje|amanha|essa\s+semana|esta\s+semana|na\s+semana)
     | o\s+que\s+tem\s+(hoje|na\s+minha|na\s+agenda)
     | reunioes?\s+(de\s+)?hoje

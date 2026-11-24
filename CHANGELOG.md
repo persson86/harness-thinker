@@ -1,5 +1,11 @@
 # Changes
 
+## 7.23.14 - 2026-11-23
+
+- **`agenda-gate` no longer fires on a bare "calendário".** The pattern `\bcalendario\b` matched any work about calendars ("add a calendar icon to the sidebar", "pick a calendar when creating an event", "use this calendar day to day") and blocked those turns until both agenda sources were queried. It now matches only the temporal form (`calendário de hoje`, `do calendário da semana`, `calendário para amanhã`); `meu calendário` and the other personal and temporal forms still mark an agenda request.
+- **Tests.** Three prompts that blocked a real session now pass without context injection; "o que tem no calendário de hoje?" still marks the turn.
+- **Not validated.** Other phrasings of a personal calendar request that used to rely on the bare word, such as "abre o calendário" with no time reference, no longer trigger the gate.
+
 ## 7.23.13 - 2026-11-20
 
 - **Fidelity check before promotion in `transcript`.** New Phase 2 step 5: once the source is written and the ledger has at least one `promover` delta, an independent reader checks the source against the raw transcript before any live page changes. Claude Code uses `thinker-blind-reader` with Sonnet; Codex uses a fresh `spawn_agent` with the reading list from `reviewer.md` and the isolation limit declared. One reader per transcript, in parallel for batches. The reading list is only the new source and the input files in `queue/`; the brief pastes the `promover` deltas. It flags inverted polarity or negation, reported speech written as fact (plan as decision, usage as result), wrong speaker or a `mic|system` track that contradicts the attribution, out-of-context quotes, and numbers (unit, denominator, recomputed percentages and sums, slide versus speech). The principal checks every alert in the raw file; a confirmed alert fixes the source wording and the ledger, an ambiguous one becomes a gap and is not promoted as fact, and no delta with an open alert reaches step 6. With delegation off or no subagent on the host, the principal makes the pass alone and says so. Former steps 5 to 12 are now 6 to 13; the log template gains a `Conferencia de fidelidade` line so the check's yield can be measured.

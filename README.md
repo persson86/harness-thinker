@@ -31,6 +31,10 @@ reviewed paths, create `v<VERSION>`, push branch and tag, then update each targe
 `install.sh TARGET --update`. Verify target `harness/.version`, manifest, vault health
 and local/remote SHA parity. Publishing vault knowledge is a separate scope.
 
+## 7.23.14: Agenda gate ignores calendar work
+
+The agenda gate used to fire on any mention of "calendário", so building or discussing a calendar tool was blocked until both agenda sources were queried. It now fires only on the temporal form ("calendário de hoje", "da semana") and the existing personal forms ("meu calendário", "o que tenho hoje").
+
 ## 7.23.13: Fidelity check in transcripts
 
 Before a transcript delta reaches a live page, an independent reader (`thinker-blind-reader` with Sonnet in Claude Code, a fresh subagent in Codex) checks the new source against the raw transcript for inverted meaning, reported speech written as fact, wrong speaker, out-of-context quotes and numbers that do not add up. The quote checker only proves the words exist. The principal confirms each alert before acting, and the log records the result. See [transcript.md](payload/harness/operations/transcript.md), Phase 2, step 5.
